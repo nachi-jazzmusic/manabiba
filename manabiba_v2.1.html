@@ -6260,6 +6260,12 @@ let recognition = null;
 function startVoiceInput() {
   const voiceBtn = document.getElementById('voiceBtn');
   
+  // HTTPS チェック
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    alert('音声入力はHTTPS（安全な接続）が必要です。\n\nGitHub Pagesでアクセスしてください：\nhttps://nachi-jazzmusic.github.io/manabiba/manabiba_v2.html');
+    return;
+  }
+  
   // Web Speech API対応チェック
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
     alert('お使いのブラウザは音声入力に対応していません。Safari または Chrome をお使いください。');
@@ -6283,10 +6289,9 @@ function startVoiceInput() {
     recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       const input = document.getElementById('aiChatInput');
-      input.value = transcript;
-      
-      // 自動送信（オプション）
-      // sendAIMessage();
+      if (input) {
+        input.value = transcript;
+      }
     };
     
     recognition.onerror = (event) => {
@@ -6298,7 +6303,11 @@ function startVoiceInput() {
       if (event.error === 'no-speech') {
         alert('音声が検出されませんでした。もう一度お試しください。');
       } else if (event.error === 'not-allowed') {
-        alert('マイクの使用が許可されていません。ブラウザの設定でマイクを許可してください。');
+        alert('マイクの使用が許可されていません。\n\nSafariの設定でマイクを許可してください。');
+      } else if (event.error === 'network') {
+        alert('ネットワークエラーが発生しました。HTTPS接続を確認してください。');
+      } else {
+        alert(`エラーが発生しました: ${event.error}`);
       }
     };
     
@@ -6314,6 +6323,7 @@ function startVoiceInput() {
     recognition.start();
   } catch (e) {
     console.error('音声認識開始エラー:', e);
+    alert('音声認識を開始できませんでした。ページを再読み込みしてお試しください。');
   }
 }
 
@@ -6322,13 +6332,35 @@ function startVoiceInput() {
 // ═══════════════════════════════════════
 
 function openCamera() {
+  // HTTPS チェック
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    alert('カメラ機能はHTTPS（安全な接続）が必要です。\n\nGitHub Pagesでアクセスしてください：\nhttps://nachi-jazzmusic.github.io/manabiba/manabiba_v2.html');
+    return;
+  }
+  
   const cameraInput = document.getElementById('cameraInput');
-  cameraInput.click();
+  if (cameraInput) {
+    cameraInput.click();
+  } else {
+    alert('カメラ入力が見つかりません。ページを再読み込みしてください。');
+  }
 }
 
 function handleImageUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
+  
+  // ファイルサイズチェック（5MB以下）
+  if (file.size > 5 * 1024 * 1024) {
+    alert('画像サイズが大きすぎます（5MB以下にしてください）');
+    return;
+  }
+  
+  // 画像形式チェック
+  if (!file.type.startsWith('image/')) {
+    alert('画像ファイルを選択してください');
+    return;
+  }
   
   // 画像をBase64に変換
   const reader = new FileReader();
@@ -6341,6 +6373,11 @@ function handleImageUpload(event) {
     // Claude APIに送信（画像認識）
     sendImageToAI(base64Image);
   };
+  
+  reader.onerror = function() {
+    alert('画像の読み込みに失敗しました。もう一度お試しください。');
+  };
+  
   reader.readAsDataURL(file);
   
   // inputをリセット（同じ画像を再度選択可能にする）
@@ -6529,6 +6566,17 @@ function updateMobileNavActive(panelId) {
   }
 }
 
+// スマホ用: AIチャットを全画面で開く
+function openAIChatMobile() {
+  // ホーム画面を表示
+  showPanel('home');
+  
+  // モバイルナビのハイライトを更新
+  const navItems = document.querySelectorAll('.mobile-nav-item');
+  navItems.forEach(item => item.classList.remove('active'));
+  navItems[1].classList.add('active'); // ポメボタン（2番目）
+}
+
 // スケジュールモーダル（スマホ用）
 function openScheduleModal() {
   const modal = document.getElementById('scheduleModal');
@@ -6569,6 +6617,10 @@ document.addEventListener('DOMContentLoaded', init);
       <div class="mobile-nav-icon">🏠</div>
       <div>ホーム</div>
     </button>
+    <button class="mobile-nav-item" onclick="openAIChatMobile()">
+      <div class="mobile-nav-icon">💬</div>
+      <div>ポメ</div>
+    </button>
     <button class="mobile-nav-item" onclick="openScheduleModal()">
       <div class="mobile-nav-icon">📋</div>
       <div>予定</div>
@@ -6576,10 +6628,6 @@ document.addEventListener('DOMContentLoaded', init);
     <button class="mobile-nav-item" onclick="showPracticeMenu()">
       <div class="mobile-nav-icon">📝</div>
       <div>問題</div>
-    </button>
-    <button class="mobile-nav-item" onclick="showPanel('progress')">
-      <div class="mobile-nav-icon">📊</div>
-      <div>進捗</div>
     </button>
     <button class="mobile-nav-item" onclick="showPanel('settings')">
       <div class="mobile-nav-icon">⚙️</div>
