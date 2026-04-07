@@ -6586,7 +6586,7 @@ function showOutputMenu() {
             <button class="btn btn-primary" onclick="startOutputSession('sentence')"
                     style="flex:1;padding:14px;font-size:13px;background:var(--teal)">
               📝 例文セッション<br>
-              <span style="font-size:11px;opacity:0.85">${Math.min(sentDue,3)}例文</span>
+              <span style="font-size:11px;opacity:0.85">${Math.min(sentDue,5)}例文</span>
             </button>` : ''}
         </div>
       </div>` : `
@@ -6968,275 +6968,427 @@ function saveOutputCards(words, sentences, subject, unit) {
 
 // ─── セッション ───
 
-let outputSession = { cards: [], index: 0, step: 0, retryCards: [] };
+// outputSession の構造:
+// phase: 'reading'(音読) | 'recite'(暗唱) | 'write'(書き取り)
+// cards: フェーズごとのカード配列
+// index: 現在のカード番号
+// readCount: 音読カウント
+// reciteResults: {cardId: result} 暗唱結果
+// writeQueue: 書き取り対象カード
+
+let outputSession = {};
 
 function startOutputSession(type) {
   const today = getTodayString();
-  const limit = type === 'word' ? 5 : 3;
+  const limit = type === 'word' ? 5 : 5; // 両方5問に統一
   const due = (AppData.outputCards || [])
     .filter(c => c.type === type && (!c.nextDate || c.nextDate <= today))
     .slice(0, limit);
 
-  if (due.length === 0) {
-    showToast('今日の分はありません！');
-    return;
-  }
-
-  outputSession = { cards: due, index: 0, step: 1, retryCards: [], type };
-  renderOutputSession();
-}
-
-function renderOutputSession() {
-  const { cards, index, step, type } = outputSession;
-  const card = cards[index];
-  const total = cards.length;
-  const content = document.getElementById('outputContent');
-
-  // 進捗バー
-  const progressPct = Math.round((index / total) * 100);
-  const progressHtml = `
-    <div style="margin-bottom:20px">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
-        <span>${type === 'word' ? '単語' : '例文'}セッション</span>
-        <span>${index + 1} / ${total}</span>
-      </div>
-      <div style="background:var(--bg2);border-radius:4px;height:6px">
-        <div style="background:var(--accent);width:${progressPct}%;height:100%;border-radius:4px;transition:width .3s"></div>
-      </div>
-    </div>`;
+  if (due.length === 0) { showToast('今日の分はありません！'); return; }
 
   if (type === 'word') {
-    renderWordStep(card, step, progressHtml, content);
+    outputSession = { type, cards: due, index: 0, phase: 'word_recall', step: 1, reciteResults: {} };
+    renderOutputSession();
   } else {
-    renderSentenceStep(card, step, progressHtml, content);
+    // 例文: フェーズ1=音読、フェーズ2=暗唱（ランダム）、フェーズ3=書き取り
+    const shuffled = [...due].sort(() => Math.random() - 0.5);
+    outputSession = {
+      type,
+      readCards: due,          // 音読用（順番通り）
+      reciteCards: shuffled,   // 暗唱用（シャッフル）
+      index: 0,
+      phase: 'reading',
+      readCount: 0,
+      reciteResults: {},       // {id: '◎'|'○'|'×'}
+      writeQueue: []
+    };
+    renderOutputSession();
   }
 }
 
-// ── 単語セッション ──
+// ─ 進捗バー（フェーズ表示付き） ─
 
-function renderWordStep(card, step, progressHtml, content) {
+function makeSentenceProgressBar() {
+  const { phase, index, readCards, reciteCards, writeQueue } = outputSession;
+  const totalRead   = readCards.length;
+  const totalRecite = reciteCards.length;
+
+  // フェーズ毎の完了数
+  let phaseDone = 0, phaseTotal = 1, phaseLabel = '';
+  if (phase === 'reading') {
+    phaseDone = index; phaseTotal = totalRead; phaseLabel = 'フェーズ1 音読';
+  } else if (phase === 'recite') {
+    phaseDone = index; phaseTotal = totalRecite; phaseLabel = 'フェーズ2 暗唱';
+  } else {
+    phaseDone = index; phaseTotal = writeQueue.length; phaseLabel = 'フェーズ3 書き取り';
+  }
+
+  const pct = phaseTotal > 0 ? Math.round((phaseDone / phaseTotal) * 100) : 0;
+
+  // ステップ表示（●●○）
+  const phases = [
+    { key: 'reading', label: '音読' },
+    { key: 'recite',  label: '暗唱' },
+    { key: 'write',   label: '書き取り' }
+  ];
+  const stepsHtml = phases.map(p => {
+    const done    = (phase === 'recite' && p.key === 'reading') ||
+                    (phase === 'write'  && p.key !== 'write');
+    const current = phase === p.key;
+    const color = done ? 'var(--green)' : current ? 'var(--accent)' : 'var(--bg3)';
+    const textColor = (done || current) ? '#fff' : 'var(--ink3)';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="width:28px;height:28px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:11px;color:${textColor};font-weight:700">
+        ${done ? '✓' : p.label[0]}
+      </div>
+      <div style="font-size:9px;color:${current ? 'var(--accent)' : 'var(--ink3)'};font-weight:${current?'700':'400'}">${p.label}</div>
+    </div>`;
+  }).join(`<div style="height:2px;background:var(--bg3);flex:1;margin:14px 4px 0"></div>`);
+
+  return `
+    <div style="margin-bottom:16px">
+      <div style="display:flex;align-items:flex-start;margin-bottom:10px">
+        ${stepsHtml}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
+        <span>${phaseLabel}</span>
+        <span>${phaseDone + 1} / ${phaseTotal}</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:4px;height:5px">
+        <div style="background:var(--accent);width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
+      </div>
+    </div>`;
+}
+
+function makeWordProgressBar() {
+  const { index, cards, step } = outputSession;
+  const total = cards.length;
+  const pct = Math.round((index / total) * 100);
+  const steps = ['意味を思い出す','ノートに書く','例文を音読'];
+  const stepsHtml = steps.map((s, i) => {
+    const done    = i + 1 < step;
+    const current = i + 1 === step;
+    const color = done ? 'var(--green)' : current ? 'var(--accent)' : 'var(--bg3)';
+    const tc = (done || current) ? '#fff' : 'var(--ink3)';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="width:24px;height:24px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font-size:10px;color:${tc};font-weight:700">${done?'✓':i+1}</div>
+      <div style="font-size:9px;color:${current?'var(--accent)':'var(--ink3)'};font-weight:${current?'700':'400'};text-align:center;max-width:50px">${s}</div>
+    </div>`;
+  }).join(`<div style="height:2px;background:var(--bg3);flex:1;margin:12px 4px 0"></div>`);
+
+  return `
+    <div style="margin-bottom:16px">
+      <div style="display:flex;align-items:flex-start;margin-bottom:10px">${stepsHtml}</div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
+        <span>単語セッション</span><span>${index + 1} / ${total}</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:4px;height:5px">
+        <div style="background:var(--accent);width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
+      </div>
+    </div>`;
+}
+
+// ─ メイン描画ディスパッチャ ─
+
+function renderOutputSession() {
+  const content = document.getElementById('outputContent');
+  const { type, phase } = outputSession;
+
+  if (type === 'word') {
+    const bar = makeWordProgressBar();
+    renderWordStep(outputSession.cards[outputSession.index], outputSession.step, bar, content);
+  } else {
+    const bar = makeSentenceProgressBar();
+    if (phase === 'reading') renderSentenceReading(bar, content);
+    else if (phase === 'recite') renderSentenceRecite(bar, content);
+    else renderSentenceWrite(bar, content);
+  }
+}
+
+// ══ 単語セッション ══
+
+function renderWordStep(card, step, bar, content) {
   if (step === 1) {
-    // STEP1: 英語→意味を思い出す
-    content.innerHTML = `
-      ${progressHtml}
+    content.innerHTML = `${bar}
       <div style="text-align:center;margin-bottom:24px">
         <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 1 ・ 意味を思い出す</div>
         <div style="font-size:40px;font-weight:700;color:var(--ink);margin-bottom:8px">${card.front}</div>
-        <div style="font-size:13px;color:var(--ink3)">この単語の意味は？心の中で言ってみよう</div>
+        <div style="font-size:13px;color:var(--ink3)">意味を心の中で言ってみよう。思い出せたら答えを確認！</div>
       </div>
-      <div style="background:var(--bg2);border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
-        <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">↓ 意味を確認</div>
-        <div style="font-size:22px;font-weight:700">${card.back}</div>
+      <div id="wordAnswer1" style="display:none;background:var(--bg2);border-radius:12px;padding:20px;text-align:center;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">意味</div>
+        <div style="font-size:26px;font-weight:700">${card.back}</div>
       </div>
-      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">思い出せた？</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="wordResult(1,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:15px">◎ 完璧</button>
-        <button onclick="wordResult(1,'○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:15px">○ なんとなく</button>
-        <button onclick="wordResult(1,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:15px">× わからなかった</button>
+      <button id="showWordAnswer1" onclick="showWordAnswer(1)" class="btn btn-secondary"
+              style="width:100%;padding:14px;font-size:14px;margin-bottom:12px">
+        答えを見る
+      </button>
+      <div id="wordJudge1" style="display:none">
+        <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">思い出せた？</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="wordResult(1,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:14px">◎ 完璧</button>
+          <button onclick="wordResult(1,'○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:14px">○ なんとなく</button>
+          <button onclick="wordResult(1,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:14px">× わからなかった</button>
+        </div>
       </div>`;
   } else if (step === 2) {
-    // STEP2: ノートに書く
-    content.innerHTML = `
-      ${progressHtml}
+    content.innerHTML = `${bar}
       <div style="text-align:center;margin-bottom:24px">
         <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 2 ・ ノートに書く</div>
         <div style="font-size:28px;font-weight:700;color:var(--ink);margin-bottom:8px">${card.back}</div>
-        <div style="font-size:13px;color:var(--ink3)">英語でノートに書いてみよう</div>
+        <div style="font-size:13px;color:var(--ink3)">英語でノートに書いてから答えを確認！</div>
       </div>
-      <div style="background:var(--bg2);border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
-        <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">↓ 答えを確認</div>
+      <div id="wordAnswer2" style="display:none;background:var(--bg2);border-radius:12px;padding:20px;text-align:center;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">答え</div>
         <div style="font-size:26px;font-weight:700">${card.front}</div>
       </div>
-      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">書けた？</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="wordResult(2,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:15px">◎ 書けた</button>
-        <button onclick="wordResult(2,'○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:15px">○ 惜しかった</button>
-        <button onclick="wordResult(2,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:15px">× 書けなかった</button>
+      <button id="showWordAnswer2" onclick="showWordAnswer(2)" class="btn btn-secondary"
+              style="width:100%;padding:14px;font-size:14px;margin-bottom:12px">
+        答えを見る
+      </button>
+      <div id="wordJudge2" style="display:none">
+        <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">書けた？</div>
+        <div style="display:flex;gap:8px">
+          <button onclick="wordResult(2,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:14px">◎ 書けた</button>
+          <button onclick="wordResult(2,'○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:14px">○ 惜しかった</button>
+          <button onclick="wordResult(2,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:14px">× 書けなかった</button>
+        </div>
       </div>`;
   } else if (step === 3) {
-    // STEP3: 例文を音読
-    content.innerHTML = `
-      ${progressHtml}
-      <div style="text-align:center;margin-bottom:20px">
-        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 3 ・ 例文を声に出す</div>
+    content.innerHTML = `${bar}
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 3 ・ 例文を音読</div>
       </div>
-      <div style="background:linear-gradient(135deg,#EEF9F7,#fff);border:1.5px solid var(--teal);border-radius:12px;padding:20px;margin-bottom:20px;text-align:center">
-        <div style="font-size:18px;font-weight:700;margin-bottom:8px;line-height:1.6">${card.example || card.front}</div>
+      <div style="background:linear-gradient(135deg,#EEF9F7,#fff);border:1.5px solid var(--teal);border-radius:12px;padding:20px;margin-bottom:12px;text-align:center">
+        <div style="font-size:17px;font-weight:700;line-height:1.7;margin-bottom:8px">${card.example || card.front}</div>
         <div style="font-size:13px;color:var(--ink3)">${card.example_ja || card.back}</div>
       </div>
-      <div style="font-size:13px;color:var(--ink2);text-align:center;margin-bottom:16px">声に出して読もう。終わったら完了を押してね！</div>
-      <button onclick="wordResult(3,'◎')" class="btn btn-primary" style="width:100%;padding:16px;font-size:15px">
-        ✓ 音読した！次へ
-      </button>`;
+      <div style="font-size:13px;color:var(--ink2);text-align:center;margin-bottom:16px">声に出して読もう！</div>
+      <button onclick="wordResult(3,'◎')" class="btn btn-primary" style="width:100%;padding:16px;font-size:15px">✓ 音読した！次へ</button>`;
   }
+}
+
+function showWordAnswer(step) {
+  document.getElementById(`wordAnswer${step}`).style.display = 'block';
+  document.getElementById(`showWordAnswer${step}`).style.display = 'none';
+  document.getElementById(`wordJudge${step}`).style.display = 'block';
 }
 
 function wordResult(step, result) {
   const card = outputSession.cards[outputSession.index];
-
-  if (step === 1 && result === '×') {
-    // ×はリトライリストに追加
-    if (!outputSession.retryCards.find(c => c.id === card.id)) {
-      outputSession.retryCards.push(card);
-    }
-  }
-
-  // step3完了 or step2で◎○→step3へ、×はstep3スキップして次へ
-  if (step < 3) {
-    outputSession.step = step + 1;
-    renderOutputSession();
-    return;
-  }
-
-  // step3完了→次のカードへ
-  finishOutputCard(card, result);
-}
-
-// ── 例文セッション ──
-
-function renderSentenceStep(card, step, progressHtml, content) {
-  if (step === 1) {
-    content.innerHTML = `
-      ${progressHtml}
-      <div style="text-align:center;margin-bottom:16px">
-        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 1 ・ 見ながら音読</div>
-      </div>
-      <div style="background:linear-gradient(135deg,#EEF9F7,#fff);border:1.5px solid var(--teal);border-radius:12px;padding:20px;margin-bottom:12px;text-align:center">
-        <div style="font-size:17px;font-weight:700;line-height:1.7;margin-bottom:8px">${card.front}</div>
-        <div style="font-size:13px;color:var(--ink3)">${card.back}</div>
-        ${card.grammarPoint ? `<div style="font-size:11px;background:var(--purple);color:#fff;display:inline-block;padding:3px 10px;border-radius:10px;margin-top:8px">${card.grammarPoint}</div>` : ''}
-      </div>
-      <div style="font-size:13px;color:var(--ink2);text-align:center;margin-bottom:16px">声に出して読もう！終わったら次へ</div>
-      <button onclick="sentenceResult(1,'◎')" class="btn btn-primary" style="width:100%;padding:16px;font-size:15px">
-        ✓ 音読した！次へ
-      </button>`;
-  } else if (step === 2) {
-    content.innerHTML = `
-      ${progressHtml}
-      <div style="text-align:center;margin-bottom:16px">
-        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 2 ・ 隠して暗唱</div>
-        <div style="font-size:22px;font-weight:700;margin-bottom:8px">${card.back}</div>
-        <div style="font-size:13px;color:var(--ink3)">英語で言えるかな？声に出してみよう</div>
-      </div>
-      <div style="background:var(--bg2);border-radius:12px;padding:16px;text-align:center;margin-bottom:20px">
-        <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">↓ 答えを確認</div>
-        <div style="font-size:17px;font-weight:700">${card.front}</div>
-      </div>
-      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">言えた？</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="sentenceResult(2,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:15px">◎ 言えた</button>
-        <button onclick="sentenceResult(2,'○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:15px">○ 惜しかった</button>
-        <button onclick="sentenceResult(2,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:15px">× 言えなかった</button>
-      </div>`;
-  } else if (step === 3) {
-    // ×の場合：もう一度音読→暗唱のミニサイクル
-    content.innerHTML = `
-      ${progressHtml}
-      <div style="background:var(--red);color:#fff;border-radius:8px;padding:10px;text-align:center;margin-bottom:16px;font-size:13px;font-weight:700">
-        もう一度やってみよう！
-      </div>
-      <div style="background:linear-gradient(135deg,#FFF5EF,#fff);border:1.5px solid var(--accent);border-radius:12px;padding:20px;margin-bottom:12px;text-align:center">
-        <div style="font-size:17px;font-weight:700;line-height:1.7;margin-bottom:8px">${card.front}</div>
-        <div style="font-size:13px;color:var(--ink3)">${card.back}</div>
-      </div>
-      <div style="font-size:13px;color:var(--ink2);text-align:center;margin-bottom:16px">声に出して3回読んでから、隠して言ってみよう</div>
-      <button onclick="sentenceResult(3,'retry')" class="btn btn-primary" style="width:100%;padding:16px;font-size:15px">
-        ✓ 読んだ！もう一度挑戦する
-      </button>`;
-  } else if (step === 4) {
-    // ×後の再暗唱
-    content.innerHTML = `
-      ${progressHtml}
-      <div style="text-align:center;margin-bottom:16px">
-        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">もう一度・隠して暗唱</div>
-        <div style="font-size:22px;font-weight:700;margin-bottom:8px">${card.back}</div>
-      </div>
-      <div style="background:var(--bg2);border-radius:12px;padding:16px;text-align:center;margin-bottom:20px">
-        <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">↓ 答え</div>
-        <div style="font-size:17px;font-weight:700">${card.front}</div>
-      </div>
-      <div style="display:flex;gap:8px">
-        <button onclick="sentenceResult(4,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:15px">◎ 言えた！</button>
-        <button onclick="sentenceResult(4,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:15px">× まだ難しい</button>
-      </div>`;
-  }
-}
-
-function sentenceResult(step, result) {
-  if (step === 1) { outputSession.step = 2; renderOutputSession(); return; }
-  if (step === 2 && result === '×') { outputSession.step = 3; renderOutputSession(); return; }
-  if (step === 2 && result !== '×') {
-    const card = outputSession.cards[outputSession.index];
-    finishOutputCard(card, result);
-    return;
-  }
-  if (step === 3) { outputSession.step = 4; renderOutputSession(); return; }
-  if (step === 4) {
-    const card = outputSession.cards[outputSession.index];
-    finishOutputCard(card, result);
-  }
-}
-
-// ── カード完了・次回日付計算 ──
-
-function finishOutputCard(card, result) {
+  if (step < 3) { outputSession.step = step + 1; renderOutputSession(); return; }
+  // step3完了
   const today = getTodayString();
   const todayDate = new Date(today);
-  
-  // 次回出題日を計算
-  let daysLater = 1;
-  if (result === '◎') daysLater = 3;
-  else if (result === '○') daysLater = 1;
-  else daysLater = 1; // ×も翌日
-
-  const next = new Date(todayDate);
-  next.setDate(next.getDate() + daysLater);
+  const daysLater = result === '◎' ? 3 : 1;
+  const next = new Date(todayDate); next.setDate(next.getDate() + daysLater);
   const nextStr = next.toISOString().split('T')[0];
-
-  // AppDataを更新
   const target = AppData.outputCards.find(c => c.id === card.id);
   if (target) {
-    target.lastResult = result;
-    target.nextDate = nextStr;
-    if (result === '◎') target.correctCount = (target.correctCount || 0) + 1;
-    else target.wrongCount = (target.wrongCount || 0) + 1;
+    target.lastResult = result; target.nextDate = nextStr;
+    if (result === '◎') target.correctCount = (target.correctCount||0)+1;
+    else target.wrongCount = (target.wrongCount||0)+1;
   }
   saveData();
+  outputSession.index++; outputSession.step = 1;
+  if (outputSession.index < outputSession.cards.length) renderOutputSession();
+  else renderOutputSessionComplete();
+}
 
-  // 次のカードへ
+// ══ 例文セッション ══
+
+// フェーズ1: 音読（順番通り、3回カウント）
+function renderSentenceReading(bar, content) {
+  const { readCards, index, readCount } = outputSession;
+  const card = readCards[index];
+  const maxCount = 3;
+  const dots = Array.from({length: maxCount}, (_,i) =>
+    `<div style="width:12px;height:12px;border-radius:50%;background:${i < readCount ? 'var(--teal)' : 'var(--bg3)'};transition:background .2s"></div>`
+  ).join('');
+
+  content.innerHTML = `${bar}
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">フェーズ1 音読 ${readCount}回目 / ${maxCount}回</div>
+    </div>
+    <div style="background:linear-gradient(135deg,#EEF9F7,#fff);border:1.5px solid var(--teal);border-radius:12px;padding:20px;margin-bottom:12px;text-align:center">
+      <div style="font-size:17px;font-weight:700;line-height:1.7;margin-bottom:8px">${card.front}</div>
+      <div style="font-size:13px;color:var(--ink3)">${card.back}</div>
+      ${card.grammarPoint ? `<div style="font-size:11px;background:var(--purple);color:#fff;display:inline-block;padding:3px 10px;border-radius:10px;margin-top:8px">${card.grammarPoint}</div>` : ''}
+    </div>
+    <div style="display:flex;justify-content:center;gap:8px;margin-bottom:16px">${dots}</div>
+    <div style="font-size:13px;color:var(--ink2);text-align:center;margin-bottom:16px">声に出して読んだら「読んだ！」を押してね</div>
+    <button onclick="sentenceReadingDone()" class="btn btn-primary" style="width:100%;padding:16px;font-size:15px">
+      ${readCount < maxCount - 1 ? `📖 読んだ！（あと${maxCount - readCount - 1}回）` : '✓ 3回読んだ！次の文へ'}
+    </button>`;
+}
+
+function sentenceReadingDone() {
+  const { readCards, index } = outputSession;
+  outputSession.readCount++;
+
+  if (outputSession.readCount < 3) {
+    renderOutputSession(); return;
+  }
+  // 3回読んだ→次の文へ
+  outputSession.readCount = 0;
   outputSession.index++;
-  outputSession.step = 1;
-
-  if (outputSession.index < outputSession.cards.length) {
+  if (outputSession.index < readCards.length) {
     renderOutputSession();
   } else {
+    // 全文読み終わり→暗唱フェーズへ
+    outputSession.phase = 'recite';
+    outputSession.index = 0;
+    renderOutputSession();
+  }
+}
+
+// フェーズ2: 暗唱（シャッフル済み、答えは最初非表示）
+function renderSentenceRecite(bar, content) {
+  const { reciteCards, index } = outputSession;
+  const card = reciteCards[index];
+
+  content.innerHTML = `${bar}
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">フェーズ2 暗唱テスト</div>
+      <div style="font-size:24px;font-weight:700;margin-bottom:6px">${card.back}</div>
+      <div style="font-size:13px;color:var(--ink3)">英語で言えるかな？声に出してみよう</div>
+    </div>
+    <div id="reciteAnswer" style="background:var(--bg2);border-radius:12px;padding:16px;text-align:center;margin-bottom:16px;display:none">
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">答え</div>
+      <div style="font-size:17px;font-weight:700">${card.front}</div>
+    </div>
+    <button id="showAnswerBtn" onclick="showReciteAnswer()" class="btn btn-secondary" style="width:100%;padding:12px;font-size:14px;margin-bottom:12px">
+      答えを見る
+    </button>
+    <div id="reciteJudge" style="display:none">
+      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">言えた？</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="sentenceReciteDone('◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:14px">◎ 言えた</button>
+        <button onclick="sentenceReciteDone('○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:14px">○ 惜しかった</button>
+        <button onclick="sentenceReciteDone('×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:14px">× 言えなかった</button>
+      </div>
+    </div>`;
+}
+
+function showReciteAnswer() {
+  document.getElementById('reciteAnswer').style.display = 'block';
+  document.getElementById('showAnswerBtn').style.display = 'none';
+  document.getElementById('reciteJudge').style.display = 'block';
+}
+
+function sentenceReciteDone(result) {
+  const { reciteCards, index } = outputSession;
+  const card = reciteCards[index];
+  outputSession.reciteResults[card.id] = result;
+
+  // ×○は書き取りキューへ
+  if (result !== '◎') {
+    if (!outputSession.writeQueue) outputSession.writeQueue = [];
+    outputSession.writeQueue.push(card);
+  }
+
+  outputSession.index++;
+  if (outputSession.index < reciteCards.length) {
+    renderOutputSession();
+  } else {
+    // 暗唱終了→書き取りフェーズ or 完了
+    if (outputSession.writeQueue && outputSession.writeQueue.length > 0) {
+      outputSession.phase = 'write';
+      outputSession.index = 0;
+      renderOutputSession();
+    } else {
+      // 全◎→スコア保存して完了
+      saveSentenceResults();
+      renderOutputSessionComplete();
+    }
+  }
+}
+
+// フェーズ3: 書き取り（×○だった文）
+function renderSentenceWrite(bar, content) {
+  const { writeQueue, index } = outputSession;
+  const card = writeQueue[index];
+
+  content.innerHTML = `${bar}
+    <div style="text-align:center;margin-bottom:16px">
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">フェーズ3 書き取り</div>
+      <div style="font-size:22px;font-weight:700;margin-bottom:6px">${card.back}</div>
+      <div style="font-size:13px;color:var(--ink3)">英語でノートに書いてみよう</div>
+    </div>
+    <div style="background:var(--bg2);border-radius:12px;padding:16px;text-align:center;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">↓ 答えを確認</div>
+      <div style="font-size:16px;font-weight:700">${card.front}</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">書けた？</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="sentenceWriteDone('◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:14px">◎ 書けた</button>
+      <button onclick="sentenceWriteDone('○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:14px">○ 惜しかった</button>
+      <button onclick="sentenceWriteDone('×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:14px">× 書けなかった</button>
+    </div>`;
+}
+
+function sentenceWriteDone(result) {
+  const card = outputSession.writeQueue[outputSession.index];
+  // 書き取り結果で上書き
+  outputSession.reciteResults[card.id] = result;
+  outputSession.index++;
+  if (outputSession.index < outputSession.writeQueue.length) {
+    renderOutputSession();
+  } else {
+    saveSentenceResults();
     renderOutputSessionComplete();
   }
 }
 
+function saveSentenceResults() {
+  const today = getTodayString();
+  const allCards = outputSession.reciteCards || [];
+  allCards.forEach(card => {
+    const result = outputSession.reciteResults[card.id] || '○';
+    const daysLater = result === '◎' ? 3 : 1;
+    const next = new Date(today); next.setDate(next.getDate() + daysLater);
+    const nextStr = next.toISOString().split('T')[0];
+    const target = AppData.outputCards.find(c => c.id === card.id);
+    if (target) {
+      target.lastResult = result; target.nextDate = nextStr;
+      if (result === '◎') target.correctCount = (target.correctCount||0)+1;
+      else target.wrongCount = (target.wrongCount||0)+1;
+    }
+  });
+  saveData();
+}
+
+// ── 完了画面 ──
+
 function renderOutputSessionComplete() {
   const content = document.getElementById('outputContent');
-  const { cards, retryCards, type } = outputSession;
-  const wrongCount = cards.filter(c => {
-    const d = AppData.outputCards.find(o => o.id === c.id);
-    return d && d.lastResult === '×';
-  }).length;
+  const { type, cards, reciteCards, reciteResults } = outputSession;
+
+  let wrongCount = 0, total = 0;
+  if (type === 'word') {
+    total = cards.length;
+    wrongCount = cards.filter(c => {
+      const d = AppData.outputCards.find(o => o.id === c.id);
+      return d && d.lastResult === '×';
+    }).length;
+  } else {
+    total = (reciteCards || []).length;
+    wrongCount = Object.values(reciteResults || {}).filter(r => r === '×').length;
+  }
 
   content.innerHTML = `
     <div style="text-align:center;padding:32px 16px">
       <div style="font-size:48px;margin-bottom:12px">🎉</div>
       <div style="font-size:20px;font-weight:700;margin-bottom:8px">セッション完了！</div>
       <div style="font-size:13px;color:var(--ink3);margin-bottom:24px">
-        ${cards.length}${type === 'word' ? '単語' : '例文'}を終えたよ
-        ${wrongCount > 0 ? `<br><span style="color:var(--accent)">×が${wrongCount}個あったよ。明日また出てくるよ！</span>` : '<br>全部◎か○だったよ。すごい！'}
+        ${total}${type === 'word' ? '単語' : '例文'}を終えたよ
+        ${wrongCount > 0 ? `<br><span style="color:var(--accent)">×が${wrongCount}個あったよ。明日また出てくるよ！</span>` : '<br>全部◎か○だったよ。すごい！✨'}
       </div>
-      <div style="display:flex;flex-direction:column;gap:10px;max-width:280px;margin:0 auto">
-        <button class="btn btn-primary" onclick="showOutputMenu()" style="padding:14px;font-size:14px">
-          トップに戻る
-        </button>
-      </div>
-    </div>
-  `;
+      <button class="btn btn-primary" onclick="showOutputMenu()" style="padding:14px 32px;font-size:14px">
+        トップに戻る
+      </button>
+    </div>`;
 }
 
 function mascotTalk() {
