@@ -741,7 +741,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 <!-- ══ SIDEBAR ══ -->
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo"><span>✦</span>まなびば</div>
-  <div class="sb-version">v2.2 - Phase 1</div>
+  <div class="sb-version">v2.3 - アウトプット機能</div>
   
   <nav class="sb-nav">
     <button class="nav-btn active" onclick="showPanel('home')">
@@ -763,6 +763,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
     <button class="nav-btn" onclick="showUnitLearn()">
       <span class="nav-icon">📖</span>
       <span>単元を学ぶ</span>
+    </button>
+    <button class="nav-btn" onclick="showOutputMenu()">
+      <span class="nav-icon">🔤</span>
+      <span>アウトプットしよう</span>
     </button>
     <button class="nav-btn" onclick="showPanel('progress')">
       <span class="nav-icon">📊</span>
@@ -1233,6 +1237,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
     </div>
     <div id="testAnalysisContent" style="flex:1;overflow-y:auto;padding:24px">
       <!-- テスト分析がここに表示される -->
+    </div>
+  </div>
+</div>
+
+<!-- ══ アウトプットしよう モーダル ══ -->
+<div id="outputModal" class="modal">
+  <div class="modal-content" style="max-width:700px;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <div class="modal-title" id="outputModalTitle">🔤 アウトプットしよう</div>
+      <button class="modal-close" onclick="closeOutputModal()">×</button>
+    </div>
+    <div id="outputContent" style="flex:1;overflow-y:auto;padding:24px">
     </div>
   </div>
 </div>
@@ -1715,88 +1731,124 @@ function renderCompactSchedule(todayPlan) {
 
 // 全体ボリューム表示
 function renderOverallWorkload() {
-  let html = `
-    <div style="margin-top:20px;padding:12px;background:var(--bg3);border-radius:9px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--accent)">📚 やるべきこと全体</div>
-  `;
-  
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = getTodayString();
-  
-  // 未完了の宿題を集計
+
+  let html = `<div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:9px">`;
+
+  // ── 暗記タスク一覧 ──────────────────────────
+  html += `<div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--purple)">🧠 暗記タスク（登録済み）</div>`;
+
+  const memoTasks = AppData.memorizationTasks || [];
+  const activeMemos = memoTasks.filter(t => t.active);
+
+  if (activeMemos.length === 0) {
+    html += `<div style="font-size:11px;color:var(--ink3);margin-bottom:10px;text-align:center">なし</div>`;
+  } else {
+    activeMemos.forEach(task => {
+      const startDate = new Date(task.startDate);
+      const daysPassed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+      const currentDay = daysPassed + 1;
+      const daysLeft = task.daysTotal - daysPassed;
+      const progress = Math.min(Math.round((daysPassed / task.daysTotal) * 100), 100);
+      const isExpired = daysLeft <= 0;
+      const isUrgent = daysLeft === 1;
+
+      const statusColor = isExpired ? 'var(--red)' : isUrgent ? '#E8824A' : 'var(--teal)';
+      const statusLabel = isExpired ? '期限切れ' : isUrgent ? '明日まで！' : `残り${daysLeft}日`;
+
+      html += `
+        <div style="background:#fff;padding:8px 10px;border-radius:7px;margin-bottom:6px;
+                    border-left:3px solid ${statusColor}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <div style="font-size:12px;font-weight:700">${task.subject}：${task.range}</div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="font-size:10px;color:${statusColor};font-weight:700">${statusLabel}</div>
+              <button onclick="deleteMemorizationTaskFromPanel('${task.id}')" 
+                      style="border:none;background:none;color:#C0807A;font-size:15px;
+                             cursor:pointer;padding:0 2px;line-height:1;font-weight:700"
+                      title="削除">×</button>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">
+            ${currentDay}/${task.daysTotal}日目 · 約${task.totalWords}個
+          </div>
+          <!-- 進捗バー -->
+          <div style="background:var(--bg2);border-radius:3px;height:4px;overflow:hidden">
+            <div style="background:${statusColor};width:${progress}%;height:100%;border-radius:3px;transition:width .3s"></div>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  // 予定を立てる際のヒント
+  html += `
+    <div style="font-size:10px;color:var(--ink3);margin-bottom:12px;padding:6px 8px;
+                background:rgba(123,94,167,0.08);border-radius:6px;line-height:1.6">
+      💡 予定を立てるとき、上の暗記タスクは自動で追加されます
+    </div>
+  `;
+
+  // ── 宿題一覧 ──────────────────────────────
+  html += `<div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--accent)">📚 宿題</div>`;
+
   let homeworkMap = {};
-  
-  // 今後の予定から宿題を抽出
   if (AppData.dailyPlans) {
     Object.keys(AppData.dailyPlans).forEach(dateStr => {
       const plan = AppData.dailyPlans[dateStr];
       const planDate = new Date(dateStr);
-      
-      // 今日以降の予定のみ
       if (planDate >= today && plan.morningBriefing) {
         const mb = plan.morningBriefing;
-        
-        // 学校の宿題
         if (mb.schoolHomework) {
           mb.schoolHomework.forEach(hw => {
             const key = `${hw.subject}_${hw.name}_${hw.dueDate}`;
-            if (!homeworkMap[key]) {
-              homeworkMap[key] = {
-                subject: hw.subject,
-                name: hw.name,
-                quantity: hw.quantity,
-                dueDate: hw.dueDate,
-                type: '学校'
-              };
-            }
+            if (!homeworkMap[key]) homeworkMap[key] = { ...hw, type: '学校' };
           });
         }
-        
-        // 塾の宿題
         if (mb.jukuHomework) {
           mb.jukuHomework.forEach(hw => {
             const key = `${hw.subject}_${hw.name}_${hw.dueDate}`;
-            if (!homeworkMap[key]) {
-              homeworkMap[key] = {
-                subject: hw.subject,
-                name: hw.name,
-                quantity: hw.quantity,
-                dueDate: hw.dueDate,
-                type: '塾'
-              };
-            }
+            if (!homeworkMap[key]) homeworkMap[key] = { ...hw, type: '塾' };
           });
         }
       }
     });
   }
-  
+
   const homeworkList = Object.values(homeworkMap);
-  
-  // 宿題を表示
   if (homeworkList.length > 0) {
     homeworkList.forEach(hw => {
       const dueDate = hw.dueDate ? new Date(hw.dueDate) : null;
       const daysUntil = dueDate ? Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24)) : 0;
       const dueDateStr = daysUntil === 0 ? '今日' : daysUntil === 1 ? '明日' : `あと${daysUntil}日`;
-      
+      const urgentColor = daysUntil <= 1 ? 'var(--red)' : 'var(--ink3)';
       html += `
         <div style="background:#fff;padding:8px;border-radius:7px;margin-bottom:6px;font-size:11px">
           <div style="font-weight:600;margin-bottom:2px">${hw.subject}：${hw.name}</div>
-          <div style="color:var(--ink3)">
-            ${hw.quantity}ページ · ${dueDateStr}まで
-          </div>
+          <div style="color:${urgentColor}">${hw.quantity}ページ · ${dueDateStr}まで</div>
         </div>
       `;
     });
   } else {
     html += `<div style="font-size:11px;color:var(--ink3);text-align:center">宿題はありません</div>`;
   }
-  
+
   html += `</div>`;
-  
   return html;
+}
+
+// 右パネルの×ボタンから暗記タスクを削除
+function deleteMemorizationTaskFromPanel(taskId) {
+  if (!AppData.memorizationTasks) return;
+  const task = AppData.memorizationTasks.find(t => t.id === taskId);
+  if (!task) return;
+  if (!confirm(`「${task.subject}：${task.range}」を削除しますか？\n（予定からも消えます）`)) return;
+  task.active = false;
+  saveData();
+  renderHome();
+  showToast('暗記タスクを削除しました');
 }
 
 // タスクの完了/未完了を切り替え（右側のコンパクトスケジュールから）
@@ -2843,7 +2895,48 @@ function renderCheckin() {
   // 今日の塾の情報を取得（長期休み対応）
   const jukuTime = getJukuTimeForToday();
   
-  let html = `
+  // 登録済み暗記タスクの確認欄を生成
+  const activeMemos = (AppData.memorizationTasks || []).filter(t => t.active);
+  let memoConfirmHtml = '';
+  if (activeMemos.length > 0) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    memoConfirmHtml = `
+      <div style="background:#EEF6FF;border:1px solid #BDD9F2;border-radius:9px;padding:12px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:#2A6FA8;margin-bottom:8px">
+          📌 登録済みの暗記タスク（自動で予定に追加されます）
+        </div>
+    `;
+    activeMemos.forEach(task => {
+      const startDate = new Date(task.startDate);
+      const daysPassed = Math.floor((today - startDate) / (1000*60*60*24));
+      const daysLeft = task.daysTotal - daysPassed;
+      const isExpired = daysLeft <= 0;
+      const statusColor = isExpired ? '#D94F3D' : daysLeft <= 2 ? '#E8824A' : '#3A9B8C';
+      const statusLabel = isExpired ? '期限切れ' : `残り${daysLeft}日`;
+      memoConfirmHtml += `
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    background:#fff;padding:7px 9px;border-radius:6px;margin-bottom:5px;
+                    border-left:3px solid ${statusColor}">
+          <div style="font-size:12px;font-weight:600">${task.subject}：${task.range}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:10px;color:${statusColor};font-weight:700">${statusLabel}</span>
+            <button onclick="deleteMemorizationTaskFromPanel('${task.id}');renderCheckin()"
+                    style="border:none;background:none;color:#C0807A;font-size:15px;
+                           cursor:pointer;padding:0 2px;line-height:1;font-weight:700"
+                    title="削除">×</button>
+          </div>
+        </div>
+      `;
+    });
+    memoConfirmHtml += `
+        <div style="font-size:10px;color:#5A8FAA;margin-top:4px">
+          ※ 重複して追加しないでください。新しいタスクは「暗記タスクを追加」から入力してください。
+        </div>
+      </div>
+    `;
+  }
+
+  let html = memoConfirmHtml + `
     <div style="margin-bottom:20px;font-size:13px;color:var(--ink3);line-height:1.6">
       学校から出された宿題を入力してください。<br>
       アプリが自動で時間を計算してスケジュールを調整します。
@@ -6454,6 +6547,696 @@ function askAboutUnit(subject, unit) {
     input.value = `${subject}の${unit}について質問：`;
     input.focus();
   }, 300);
+}
+
+// ═══════════════════════════════════════
+// アウトプットしよう機能
+// ═══════════════════════════════════════
+
+// AppData.outputCards = { cards: [], lastUpdated: '' }
+// card: { id, type('word'|'sentence'), subject, unit, front, back, example,
+//         grammarPoint, nextDate, lastResult, correctCount, wrongCount }
+
+function showOutputMenu() {
+  document.getElementById('outputModalTitle').textContent = '🔤 アウトプットしよう';
+  closeOutputModal(); // 一旦閉じてから開く
+  
+  const content = document.getElementById('outputContent');
+  if (!AppData.outputCards) AppData.outputCards = [];
+  
+  const today = getTodayString();
+  const dueCards = AppData.outputCards.filter(c => !c.nextDate || c.nextDate <= today);
+  const wordDue  = dueCards.filter(c => c.type === 'word').length;
+  const sentDue  = dueCards.filter(c => c.type === 'sentence').length;
+  const totalCards = AppData.outputCards.length;
+
+  content.innerHTML = `
+    <!-- 今日やること -->
+    ${dueCards.length > 0 ? `
+      <div style="background:linear-gradient(135deg,#FFF5EF,#FFF);border:2px solid var(--accent);border-radius:12px;padding:18px;margin-bottom:20px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--accent)">📅 今日やること</div>
+        <div style="display:flex;gap:10px">
+          ${wordDue > 0 ? `
+            <button class="btn btn-primary" onclick="startOutputSession('word')"
+                    style="flex:1;padding:14px;font-size:13px">
+              🔤 単語セッション<br>
+              <span style="font-size:11px;opacity:0.85">${Math.min(wordDue,5)}単語</span>
+            </button>` : ''}
+          ${sentDue > 0 ? `
+            <button class="btn btn-primary" onclick="startOutputSession('sentence')"
+                    style="flex:1;padding:14px;font-size:13px;background:var(--teal)">
+              📝 例文セッション<br>
+              <span style="font-size:11px;opacity:0.85">${Math.min(sentDue,3)}例文</span>
+            </button>` : ''}
+        </div>
+      </div>` : `
+      <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:20px;text-align:center;color:var(--ink3);font-size:13px">
+        🎉 今日の分は全部終わってるよ！
+      </div>`
+    }
+
+    <!-- 素材を作る -->
+    <div class="card">
+      <div class="card-title"><span class="card-icon">✨</span>素材を作る</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-secondary" onclick="showOutputMakeAI()"
+                style="padding:14px;text-align:left;display:flex;align-items:center;gap:12px">
+          <span style="font-size:24px">⚡</span>
+          <div>
+            <div style="font-weight:700;font-size:13px">Unit番号を指定してAI生成</div>
+            <div style="font-size:11px;color:var(--ink3);margin-top:2px">学年・Unitを入れるだけ。すぐ使える</div>
+          </div>
+        </button>
+        <button class="btn btn-secondary" onclick="showOutputMakeTyping()"
+                style="padding:14px;text-align:left;display:flex;align-items:center;gap:12px">
+          <span style="font-size:24px">⌨️</span>
+          <div>
+            <div style="font-weight:700;font-size:13px">教科書をタイピングしてAI抽出</div>
+            <div style="font-size:11px;color:var(--ink3);margin-top:2px">入力=インプット。AIが問題を作ってくれる</div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <!-- カード一覧 -->
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📦</span>登録済みカード（${totalCards}件）</div>
+      ${totalCards === 0 ? `
+        <div style="text-align:center;color:var(--ink3);font-size:13px;padding:16px">
+          まだカードがありません。上の「素材を作る」から始めよう！
+        </div>` :
+        renderOutputCardList()
+      }
+    </div>
+  `;
+  
+  document.getElementById('outputModal').classList.add('show');
+}
+
+function closeOutputModal() {
+  document.getElementById('outputModal').classList.remove('show');
+}
+
+function renderOutputCardList() {
+  if (!AppData.outputCards || AppData.outputCards.length === 0) return '';
+  const today = getTodayString();
+  
+  // Unit別にグループ化
+  const groups = {};
+  AppData.outputCards.forEach(c => {
+    const key = `${c.subject}_${c.unit}`;
+    if (!groups[key]) groups[key] = { subject: c.subject, unit: c.unit, cards: [] };
+    groups[key].cards.push(c);
+  });
+  
+  let html = '';
+  Object.values(groups).forEach(g => {
+    const due = g.cards.filter(c => !c.nextDate || c.nextDate <= today).length;
+    html += `
+      <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:13px;font-weight:700">${g.subject}：${g.unit}</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px">${g.cards.length}枚${due > 0 ? ` · <span style="color:var(--accent);font-weight:700">今日${due}枚</span>` : ''}</div>
+        </div>
+        <button class="btn btn-secondary" onclick="deleteOutputUnit('${g.subject}','${g.unit}')"
+                style="padding:4px 10px;font-size:11px;color:var(--red);border-color:var(--red)">削除</button>
+      </div>
+    `;
+  });
+  return html;
+}
+
+function deleteOutputUnit(subject, unit) {
+  if (!confirm(`「${subject}：${unit}」のカードを全て削除しますか？`)) return;
+  AppData.outputCards = AppData.outputCards.filter(c => !(c.subject === subject && c.unit === unit));
+  saveData();
+  showOutputMenu();
+}
+
+// ─── 素材作成 ルートA: AI生成 ───
+
+function showOutputMakeAI() {
+  const content = document.getElementById('outputContent');
+  const grade = AppData.settings?.grade || '中1';
+  
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showOutputMenu()" style="margin-bottom:16px;padding:8px 16px">← 戻る</button>
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">⚡ AI生成</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:20px">学年とUnit番号を入れるだけ。AIが単語と例文を自動生成します。</div>
+    
+    <div class="input-group">
+      <label class="input-label">学年</label>
+      <select class="select-field" id="outputGrade">
+        <option value="中1" ${grade==='中1'?'selected':''}>中学1年生</option>
+        <option value="中2" ${grade==='中2'?'selected':''}>中学2年生</option>
+        <option value="中3" ${grade==='中3'?'selected':''}>中学3年生</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Unit番号 / 単元名</label>
+      <input type="text" class="input-field" id="outputUnit" placeholder="例：Unit3、Lesson5、Program4">
+    </div>
+    <div class="input-group">
+      <label class="input-label">種別</label>
+      <select class="select-field" id="outputKind">
+        <option value="both">単語＋例文（おすすめ）</option>
+        <option value="word">単語のみ</option>
+        <option value="sentence">例文のみ</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="generateOutputCardsAI()" style="width:100%;padding:14px;font-size:14px">
+      ⚡ 生成する
+    </button>
+  `;
+}
+
+async function generateOutputCardsAI() {
+  const grade  = document.getElementById('outputGrade').value;
+  const unit   = document.getElementById('outputUnit').value.trim();
+  const kind   = document.getElementById('outputKind').value;
+  if (!unit) { alert('Unit番号を入力してください'); return; }
+  if (!AppData.settings?.apiKey) { alert('設定画面でAPIキーを入力してください'); return; }
+
+  const content = document.getElementById('outputContent');
+  content.innerHTML = `<div style="text-align:center;padding:48px;color:var(--ink3)">
+    <div style="font-size:32px;margin-bottom:12px">⚡</div>
+    <div style="font-weight:700;margin-bottom:8px">AIが生成中です...</div>
+    <div style="font-size:12px">NEW HORIZON ${grade} ${unit} の内容を作っています</div>
+  </div>`;
+
+  const prompt = `東京書籍NEW HORIZON ${grade}の${unit}を想定して、以下のJSONを生成してください。
+
+# 出力形式（JSONのみ。説明文・コードブロック不要）
+{
+  "words": [
+    {"front":"英単語","back":"日本語訳","example":"例文（英語）","example_ja":"例文（日本語訳）"}
+  ],
+  "sentences": [
+    {"front":"例文（英語）","back":"日本語訳","grammar":"文法ポイント（20字以内）"}
+  ]
+}
+
+# 条件
+- words: 5〜8単語。その単元の重要単語。
+- sentences: 3〜4文。その単元の重要文法を使った例文。
+- 中学${grade.replace('中','')}年生レベルに合わせる
+- JSONのみ出力。前後に説明文を入れない。`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': AppData.settings.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    let text = data.content[0].text.trim();
+    // コードブロックがあれば除去
+    text = text.replace(/```json/g,'').replace(/```/g,'').trim();
+    const parsed = JSON.parse(text);
+    
+    // カード化してプレビュー
+    const subject = `英語（教科書）`;
+    const unitLabel = `${grade} ${unit}`;
+    previewOutputCards(parsed, subject, unitLabel, kind);
+    
+  } catch(e) {
+    content.innerHTML = `
+      <button class="btn btn-secondary" onclick="showOutputMakeAI()" style="margin-bottom:16px;padding:8px 16px">← 戻る</button>
+      <div style="color:var(--red);padding:20px;text-align:center">
+        <div style="font-size:24px;margin-bottom:8px">⚠️</div>
+        <div style="font-weight:700">生成に失敗しました</div>
+        <div style="font-size:12px;margin-top:8px;color:var(--ink3)">${e.message}</div>
+      </div>`;
+  }
+}
+
+// ─── 素材作成 ルートB: タイピング入力 ───
+
+function showOutputMakeTyping() {
+  const content = document.getElementById('outputContent');
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showOutputMenu()" style="margin-bottom:16px;padding:8px 16px">← 戻る</button>
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">⌨️ タイピングしてAI抽出</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:4px">教科書の本文や単語リストをそのまま入力してね。</div>
+    <div style="font-size:12px;color:var(--teal);margin-bottom:16px;font-weight:600">💡 打ち込む行為自体が精読になって頭に入るよ！</div>
+    
+    <div class="input-group">
+      <label class="input-label">単元名（メモ用）</label>
+      <input type="text" class="input-field" id="typingUnit" placeholder="例：Unit3、Lesson5">
+    </div>
+    <div class="input-group">
+      <label class="input-label">教科書の内容をここに入力</label>
+      <textarea class="input-field" id="typingText" rows="10"
+        style="resize:vertical;line-height:1.8;font-size:14px"
+        placeholder="例：
+I want to visit Kyoto.
+I like Japanese culture.
+want to ～：〜したい
+visit：訪れる
+culture：文化
+"></textarea>
+    </div>
+    <div class="input-group">
+      <label class="input-label">種別</label>
+      <select class="select-field" id="typingKind">
+        <option value="both">単語＋例文（おすすめ）</option>
+        <option value="word">単語のみ</option>
+        <option value="sentence">例文のみ</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="extractOutputCardsFromText()" style="width:100%;padding:14px;font-size:14px">
+      🤖 AIに問題を作ってもらう
+    </button>
+  `;
+}
+
+async function extractOutputCardsFromText() {
+  const unit   = document.getElementById('typingUnit').value.trim() || '入力テキスト';
+  const text   = document.getElementById('typingText').value.trim();
+  const kind   = document.getElementById('typingKind').value;
+  if (!text) { alert('教科書の内容を入力してください'); return; }
+  if (!AppData.settings?.apiKey) { alert('設定画面でAPIキーを入力してください'); return; }
+
+  const content = document.getElementById('outputContent');
+  content.innerHTML = `<div style="text-align:center;padding:48px;color:var(--ink3)">
+    <div style="font-size:32px;margin-bottom:12px">🤖</div>
+    <div style="font-weight:700;margin-bottom:8px">AIが抽出中...</div>
+  </div>`;
+
+  const prompt = `以下のテキストから単語と例文を抽出してJSONで返してください。
+
+# 入力テキスト
+${text}
+
+# 出力形式（JSONのみ。説明文・コードブロック不要）
+{
+  "words": [
+    {"front":"英単語","back":"日本語訳","example":"例文（英語）","example_ja":"例文（日本語訳）"}
+  ],
+  "sentences": [
+    {"front":"例文（英語）","back":"日本語訳","grammar":"文法ポイント（20字以内）"}
+  ]
+}
+
+# 条件
+- wordsはテキスト中の英単語・熟語を抽出。なければ空配列。
+- sentencesはテキスト中の英文を抽出。なければ空配列。
+- exampleはwordsに関連する例文。テキスト中になければAIが補完してよい。
+- JSONのみ出力。`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': AppData.settings.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    let txt = data.content[0].text.trim().replace(/```json/g,'').replace(/```/g,'').trim();
+    const parsed = JSON.parse(txt);
+    previewOutputCards(parsed, '英語（教科書）', unit, kind);
+  } catch(e) {
+    content.innerHTML = `
+      <button class="btn btn-secondary" onclick="showOutputMakeTyping()" style="margin-bottom:16px;padding:8px 16px">← 戻る</button>
+      <div style="color:var(--red);padding:20px;text-align:center">
+        <div style="font-weight:700">抽出に失敗しました</div>
+        <div style="font-size:12px;margin-top:8px;color:var(--ink3)">${e.message}</div>
+      </div>`;
+  }
+}
+
+// ─── プレビュー・確定 ───
+
+function previewOutputCards(parsed, subject, unit, kind) {
+  const content = document.getElementById('outputContent');
+  const words     = (kind !== 'sentence') ? (parsed.words     || []) : [];
+  const sentences = (kind !== 'word')     ? (parsed.sentences || []) : [];
+
+  let html = `
+    <button class="btn btn-secondary" onclick="showOutputMenu()" style="margin-bottom:16px;padding:8px 16px">← 戻る</button>
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">確認してから保存</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:20px">${subject} ${unit}</div>
+  `;
+
+  if (words.length > 0) {
+    html += `<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--teal)">🔤 単語（${words.length}件）</div>`;
+    words.forEach((w,i) => {
+      html += `
+        <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px">
+          <div style="font-weight:700">${w.front} <span style="color:var(--ink3);font-weight:400">→ ${w.back}</span></div>
+          ${w.example ? `<div style="font-size:11px;color:var(--ink3);margin-top:4px">例：${w.example}</div>` : ''}
+        </div>`;
+    });
+  }
+
+  if (sentences.length > 0) {
+    html += `<div style="font-size:13px;font-weight:700;margin-bottom:8px;margin-top:16px;color:var(--purple)">📝 例文（${sentences.length}件）</div>`;
+    sentences.forEach((s,i) => {
+      html += `
+        <div style="background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px">
+          <div style="font-weight:700">${s.front}</div>
+          <div style="color:var(--ink3);margin-top:2px">${s.back}</div>
+          ${s.grammar ? `<div style="font-size:11px;background:var(--purple);color:#fff;display:inline-block;padding:2px 8px;border-radius:10px;margin-top:4px">${s.grammar}</div>` : ''}
+        </div>`;
+    });
+  }
+
+  if (words.length === 0 && sentences.length === 0) {
+    html += `<div style="color:var(--red);text-align:center;padding:20px">カードが生成できませんでした。もう一度お試しください。</div>`;
+  } else {
+    html += `
+      <button class="btn btn-primary" onclick="saveOutputCards(${JSON.stringify(words).replace(/"/g,'&quot;')}, ${JSON.stringify(sentences).replace(/"/g,'&quot;')}, '${subject}', '${unit}')"
+              style="width:100%;padding:14px;font-size:14px;margin-top:12px">
+        ✓ 保存してセッションを始める
+      </button>`;
+  }
+  content.innerHTML = html;
+}
+
+function saveOutputCards(words, sentences, subject, unit) {
+  if (!AppData.outputCards) AppData.outputCards = [];
+  const today = getTodayString();
+
+  // 同じsubject+unitのカードを削除してから追加（上書き）
+  AppData.outputCards = AppData.outputCards.filter(c => !(c.subject === subject && c.unit === unit));
+
+  words.forEach(w => {
+    AppData.outputCards.push({
+      id: `word_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      type: 'word',
+      subject, unit,
+      front: w.front, back: w.back,
+      example: w.example || '', example_ja: w.example_ja || '',
+      nextDate: today, lastResult: null,
+      correctCount: 0, wrongCount: 0
+    });
+  });
+
+  sentences.forEach(s => {
+    AppData.outputCards.push({
+      id: `sent_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      type: 'sentence',
+      subject, unit,
+      front: s.front, back: s.back,
+      grammarPoint: s.grammar || '',
+      nextDate: today, lastResult: null,
+      correctCount: 0, wrongCount: 0
+    });
+  });
+
+  saveData();
+  showToast(`✓ ${words.length}単語・${sentences.length}例文を保存しました！`);
+  showOutputMenu();
+}
+
+// ─── セッション ───
+
+let outputSession = { cards: [], index: 0, step: 0, retryCards: [] };
+
+function startOutputSession(type) {
+  const today = getTodayString();
+  const limit = type === 'word' ? 5 : 3;
+  const due = (AppData.outputCards || [])
+    .filter(c => c.type === type && (!c.nextDate || c.nextDate <= today))
+    .slice(0, limit);
+
+  if (due.length === 0) {
+    showToast('今日の分はありません！');
+    return;
+  }
+
+  outputSession = { cards: due, index: 0, step: 1, retryCards: [], type };
+  renderOutputSession();
+}
+
+function renderOutputSession() {
+  const { cards, index, step, type } = outputSession;
+  const card = cards[index];
+  const total = cards.length;
+  const content = document.getElementById('outputContent');
+
+  // 進捗バー
+  const progressPct = Math.round((index / total) * 100);
+  const progressHtml = `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
+        <span>${type === 'word' ? '単語' : '例文'}セッション</span>
+        <span>${index + 1} / ${total}</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:4px;height:6px">
+        <div style="background:var(--accent);width:${progressPct}%;height:100%;border-radius:4px;transition:width .3s"></div>
+      </div>
+    </div>`;
+
+  if (type === 'word') {
+    renderWordStep(card, step, progressHtml, content);
+  } else {
+    renderSentenceStep(card, step, progressHtml, content);
+  }
+}
+
+// ── 単語セッション ──
+
+function renderWordStep(card, step, progressHtml, content) {
+  if (step === 1) {
+    // STEP1: 英語→意味を思い出す
+    content.innerHTML = `
+      ${progressHtml}
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 1 ・ 意味を思い出す</div>
+        <div style="font-size:40px;font-weight:700;color:var(--ink);margin-bottom:8px">${card.front}</div>
+        <div style="font-size:13px;color:var(--ink3)">この単語の意味は？心の中で言ってみよう</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">↓ 意味を確認</div>
+        <div style="font-size:22px;font-weight:700">${card.back}</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">思い出せた？</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="wordResult(1,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:15px">◎ 完璧</button>
+        <button onclick="wordResult(1,'○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:15px">○ なんとなく</button>
+        <button onclick="wordResult(1,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:15px">× わからなかった</button>
+      </div>`;
+  } else if (step === 2) {
+    // STEP2: ノートに書く
+    content.innerHTML = `
+      ${progressHtml}
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 2 ・ ノートに書く</div>
+        <div style="font-size:28px;font-weight:700;color:var(--ink);margin-bottom:8px">${card.back}</div>
+        <div style="font-size:13px;color:var(--ink3)">英語でノートに書いてみよう</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:12px;padding:20px;text-align:center;margin-bottom:20px">
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">↓ 答えを確認</div>
+        <div style="font-size:26px;font-weight:700">${card.front}</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">書けた？</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="wordResult(2,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:15px">◎ 書けた</button>
+        <button onclick="wordResult(2,'○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:15px">○ 惜しかった</button>
+        <button onclick="wordResult(2,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:15px">× 書けなかった</button>
+      </div>`;
+  } else if (step === 3) {
+    // STEP3: 例文を音読
+    content.innerHTML = `
+      ${progressHtml}
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 3 ・ 例文を声に出す</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#EEF9F7,#fff);border:1.5px solid var(--teal);border-radius:12px;padding:20px;margin-bottom:20px;text-align:center">
+        <div style="font-size:18px;font-weight:700;margin-bottom:8px;line-height:1.6">${card.example || card.front}</div>
+        <div style="font-size:13px;color:var(--ink3)">${card.example_ja || card.back}</div>
+      </div>
+      <div style="font-size:13px;color:var(--ink2);text-align:center;margin-bottom:16px">声に出して読もう。終わったら完了を押してね！</div>
+      <button onclick="wordResult(3,'◎')" class="btn btn-primary" style="width:100%;padding:16px;font-size:15px">
+        ✓ 音読した！次へ
+      </button>`;
+  }
+}
+
+function wordResult(step, result) {
+  const card = outputSession.cards[outputSession.index];
+
+  if (step === 1 && result === '×') {
+    // ×はリトライリストに追加
+    if (!outputSession.retryCards.find(c => c.id === card.id)) {
+      outputSession.retryCards.push(card);
+    }
+  }
+
+  // step3完了 or step2で◎○→step3へ、×はstep3スキップして次へ
+  if (step < 3) {
+    outputSession.step = step + 1;
+    renderOutputSession();
+    return;
+  }
+
+  // step3完了→次のカードへ
+  finishOutputCard(card, result);
+}
+
+// ── 例文セッション ──
+
+function renderSentenceStep(card, step, progressHtml, content) {
+  if (step === 1) {
+    content.innerHTML = `
+      ${progressHtml}
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 1 ・ 見ながら音読</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#EEF9F7,#fff);border:1.5px solid var(--teal);border-radius:12px;padding:20px;margin-bottom:12px;text-align:center">
+        <div style="font-size:17px;font-weight:700;line-height:1.7;margin-bottom:8px">${card.front}</div>
+        <div style="font-size:13px;color:var(--ink3)">${card.back}</div>
+        ${card.grammarPoint ? `<div style="font-size:11px;background:var(--purple);color:#fff;display:inline-block;padding:3px 10px;border-radius:10px;margin-top:8px">${card.grammarPoint}</div>` : ''}
+      </div>
+      <div style="font-size:13px;color:var(--ink2);text-align:center;margin-bottom:16px">声に出して読もう！終わったら次へ</div>
+      <button onclick="sentenceResult(1,'◎')" class="btn btn-primary" style="width:100%;padding:16px;font-size:15px">
+        ✓ 音読した！次へ
+      </button>`;
+  } else if (step === 2) {
+    content.innerHTML = `
+      ${progressHtml}
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">STEP 2 ・ 隠して暗唱</div>
+        <div style="font-size:22px;font-weight:700;margin-bottom:8px">${card.back}</div>
+        <div style="font-size:13px;color:var(--ink3)">英語で言えるかな？声に出してみよう</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:12px;padding:16px;text-align:center;margin-bottom:20px">
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">↓ 答えを確認</div>
+        <div style="font-size:17px;font-weight:700">${card.front}</div>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">言えた？</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="sentenceResult(2,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:15px">◎ 言えた</button>
+        <button onclick="sentenceResult(2,'○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:15px">○ 惜しかった</button>
+        <button onclick="sentenceResult(2,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:15px">× 言えなかった</button>
+      </div>`;
+  } else if (step === 3) {
+    // ×の場合：もう一度音読→暗唱のミニサイクル
+    content.innerHTML = `
+      ${progressHtml}
+      <div style="background:var(--red);color:#fff;border-radius:8px;padding:10px;text-align:center;margin-bottom:16px;font-size:13px;font-weight:700">
+        もう一度やってみよう！
+      </div>
+      <div style="background:linear-gradient(135deg,#FFF5EF,#fff);border:1.5px solid var(--accent);border-radius:12px;padding:20px;margin-bottom:12px;text-align:center">
+        <div style="font-size:17px;font-weight:700;line-height:1.7;margin-bottom:8px">${card.front}</div>
+        <div style="font-size:13px;color:var(--ink3)">${card.back}</div>
+      </div>
+      <div style="font-size:13px;color:var(--ink2);text-align:center;margin-bottom:16px">声に出して3回読んでから、隠して言ってみよう</div>
+      <button onclick="sentenceResult(3,'retry')" class="btn btn-primary" style="width:100%;padding:16px;font-size:15px">
+        ✓ 読んだ！もう一度挑戦する
+      </button>`;
+  } else if (step === 4) {
+    // ×後の再暗唱
+    content.innerHTML = `
+      ${progressHtml}
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">もう一度・隠して暗唱</div>
+        <div style="font-size:22px;font-weight:700;margin-bottom:8px">${card.back}</div>
+      </div>
+      <div style="background:var(--bg2);border-radius:12px;padding:16px;text-align:center;margin-bottom:20px">
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">↓ 答え</div>
+        <div style="font-size:17px;font-weight:700">${card.front}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="sentenceResult(4,'◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:15px">◎ 言えた！</button>
+        <button onclick="sentenceResult(4,'×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:15px">× まだ難しい</button>
+      </div>`;
+  }
+}
+
+function sentenceResult(step, result) {
+  if (step === 1) { outputSession.step = 2; renderOutputSession(); return; }
+  if (step === 2 && result === '×') { outputSession.step = 3; renderOutputSession(); return; }
+  if (step === 2 && result !== '×') {
+    const card = outputSession.cards[outputSession.index];
+    finishOutputCard(card, result);
+    return;
+  }
+  if (step === 3) { outputSession.step = 4; renderOutputSession(); return; }
+  if (step === 4) {
+    const card = outputSession.cards[outputSession.index];
+    finishOutputCard(card, result);
+  }
+}
+
+// ── カード完了・次回日付計算 ──
+
+function finishOutputCard(card, result) {
+  const today = getTodayString();
+  const todayDate = new Date(today);
+  
+  // 次回出題日を計算
+  let daysLater = 1;
+  if (result === '◎') daysLater = 3;
+  else if (result === '○') daysLater = 1;
+  else daysLater = 1; // ×も翌日
+
+  const next = new Date(todayDate);
+  next.setDate(next.getDate() + daysLater);
+  const nextStr = next.toISOString().split('T')[0];
+
+  // AppDataを更新
+  const target = AppData.outputCards.find(c => c.id === card.id);
+  if (target) {
+    target.lastResult = result;
+    target.nextDate = nextStr;
+    if (result === '◎') target.correctCount = (target.correctCount || 0) + 1;
+    else target.wrongCount = (target.wrongCount || 0) + 1;
+  }
+  saveData();
+
+  // 次のカードへ
+  outputSession.index++;
+  outputSession.step = 1;
+
+  if (outputSession.index < outputSession.cards.length) {
+    renderOutputSession();
+  } else {
+    renderOutputSessionComplete();
+  }
+}
+
+function renderOutputSessionComplete() {
+  const content = document.getElementById('outputContent');
+  const { cards, retryCards, type } = outputSession;
+  const wrongCount = cards.filter(c => {
+    const d = AppData.outputCards.find(o => o.id === c.id);
+    return d && d.lastResult === '×';
+  }).length;
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:32px 16px">
+      <div style="font-size:48px;margin-bottom:12px">🎉</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px">セッション完了！</div>
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:24px">
+        ${cards.length}${type === 'word' ? '単語' : '例文'}を終えたよ
+        ${wrongCount > 0 ? `<br><span style="color:var(--accent)">×が${wrongCount}個あったよ。明日また出てくるよ！</span>` : '<br>全部◎か○だったよ。すごい！'}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:280px;margin:0 auto">
+        <button class="btn btn-primary" onclick="showOutputMenu()" style="padding:14px;font-size:14px">
+          トップに戻る
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 function mascotTalk() {
