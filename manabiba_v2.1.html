@@ -1844,31 +1844,6 @@ function renderOverallWorkload() {
     html += `<div style="font-size:11px;color:var(--ink3);text-align:center">宿題はありません</div>`;
   }
 
-  // ── 暗記カード（今日やる分）──────────────────
-  const dueCards = (AppData.outputCards || []).filter(c => !c.nextDate || c.nextDate <= todayStr);
-  const dueWords = dueCards.filter(c => c.type === 'word').length;
-  const dueSents = dueCards.filter(c => c.type === 'sentence').length;
-
-  if (dueWords > 0 || dueSents > 0) {
-    html += `
-      <div style="font-size:12px;font-weight:700;margin-bottom:8px;margin-top:12px;color:var(--teal)">🔤 暗記カード（今日やる分）</div>
-      <div style="background:#fff;padding:10px;border-radius:7px;margin-bottom:6px">
-        ${dueWords > 0 ? `
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <div style="font-size:12px;font-weight:600">単語</div>
-            <button onclick="showOutputMenu()" class="btn btn-primary"
-                    style="padding:4px 10px;font-size:11px">${dueWords}単語やる</button>
-          </div>` : ''}
-        ${dueSents > 0 ? `
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div style="font-size:12px;font-weight:600">例文</div>
-            <button onclick="showOutputMenu()" class="btn btn-primary"
-                    style="padding:4px 10px;font-size:11px;background:var(--teal)">${dueSents}例文やる</button>
-          </div>` : ''}
-      </div>
-    `;
-  }
-
   html += `</div>`;
   return html;
 }
