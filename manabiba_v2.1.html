@@ -766,7 +766,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
     </button>
     <button class="nav-btn" onclick="showOutputMenu()">
       <span class="nav-icon">🔤</span>
-      <span>アウトプットしよう</span>
+      <span>暗記ネタを作る・やる</span>
     </button>
     <button class="nav-btn" onclick="showPanel('progress')">
       <span class="nav-icon">📊</span>
@@ -1241,11 +1241,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
   </div>
 </div>
 
-<!-- ══ アウトプットしよう モーダル ══ -->
+<!-- ══ 暗記ネタを作る・やる モーダル ══ -->
 <div id="outputModal" class="modal">
   <div class="modal-content" style="max-width:700px;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-header">
-      <div class="modal-title" id="outputModalTitle">🔤 アウトプットしよう</div>
+      <div class="modal-title" id="outputModalTitle">📚 暗記ネタを作る・やる</div>
       <button class="modal-close" onclick="closeOutputModal()">×</button>
     </div>
     <div id="outputContent" style="flex:1;overflow-y:auto;padding:24px">
@@ -6550,7 +6550,7 @@ function askAboutUnit(subject, unit) {
 }
 
 // ═══════════════════════════════════════
-// アウトプットしよう機能
+// 暗記ネタを作る・やる機能
 // ═══════════════════════════════════════
 
 // AppData.outputCards = { cards: [], lastUpdated: '' }
@@ -6558,7 +6558,7 @@ function askAboutUnit(subject, unit) {
 //         grammarPoint, nextDate, lastResult, correctCount, wrongCount }
 
 function showOutputMenu() {
-  document.getElementById('outputModalTitle').textContent = '🔤 アウトプットしよう';
+  document.getElementById('outputModalTitle').textContent = '📚 暗記ネタを作る・やる';
   closeOutputModal(); // 一旦閉じてから開く
   
   const content = document.getElementById('outputContent');
