@@ -1845,7 +1845,6 @@ function renderOverallWorkload() {
   }
 
   // ── 暗記カード（今日やる分）──────────────────
-  const todayStr = getTodayString();
   const dueCards = (AppData.outputCards || []).filter(c => !c.nextDate || c.nextDate <= todayStr);
   const dueWords = dueCards.filter(c => c.type === 'word').length;
   const dueSents = dueCards.filter(c => c.type === 'sentence').length;
