@@ -901,7 +901,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
           </select>
         </div>
         <div class="input-group">
-          <label class="input-label">理科</label>
+          <label class="input-label">理科（科学）</label>
           <select class="select-field" id="textbookScience">
             <option value="">選択してください</option>
             <option value="東京書籍">東京書籍</option>
@@ -911,8 +911,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
           </select>
         </div>
         <div class="input-group">
-          <label class="input-label">社会</label>
-          <select class="select-field" id="textbookSocial">
+          <label class="input-label">社会・地理</label>
+          <select class="select-field" id="textbookGeography">
+            <option value="">選択してください</option>
+            <option value="東京書籍">東京書籍</option>
+            <option value="教育出版">教育出版</option>
+            <option value="帝国書院">帝国書院</option>
+            <option value="日本文教出版">日本文教出版</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label class="input-label">社会・歴史</label>
+          <select class="select-field" id="textbookHistory">
             <option value="">選択してください</option>
             <option value="東京書籍">東京書籍</option>
             <option value="教育出版">教育出版</option>
@@ -1496,7 +1506,8 @@ function loadSettings() {
   document.getElementById('textbookJapanese').value = tb.japanese || '';
   document.getElementById('textbookMath').value = tb.math || '';
   document.getElementById('textbookScience').value = tb.science || '';
-  document.getElementById('textbookSocial').value = tb.social || '';
+  document.getElementById('textbookGeography').value = tb.geography || '';
+  document.getElementById('textbookHistory').value = tb.history || '';
   document.getElementById('textbookEnglish').value = tb.english || '';
   
   const eiken = s.eiken || {};
@@ -1571,7 +1582,8 @@ function saveSettings() {
   AppData.settings.textbooks.japanese = document.getElementById('textbookJapanese').value;
   AppData.settings.textbooks.math = document.getElementById('textbookMath').value;
   AppData.settings.textbooks.science = document.getElementById('textbookScience').value;
-  AppData.settings.textbooks.social = document.getElementById('textbookSocial').value;
+  AppData.settings.textbooks.geography = document.getElementById('textbookGeography').value;
+  AppData.settings.textbooks.history = document.getElementById('textbookHistory').value;
   AppData.settings.textbooks.english = document.getElementById('textbookEnglish').value;
   
   AppData.settings.eiken.targetGrade = document.getElementById('eikenGrade').value;
@@ -2227,7 +2239,8 @@ function renderTodayHomework() {
             <option value="数学" ${hw.subject === '数学' ? 'selected' : ''}>数学</option>
             <option value="英語" ${hw.subject === '英語' ? 'selected' : ''}>英語</option>
             <option value="理科" ${hw.subject === '理科' ? 'selected' : ''}>理科</option>
-            <option value="社会" ${hw.subject === '社会' ? 'selected' : ''}>社会</option>
+            <option value="社会（地理）" ${hw.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
+            <option value="社会（歴史）" ${hw.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
           </select>
           <input type="text" class="input-field" placeholder="ワーク" value="${hw.name}"
                  onchange="updateTodayHomework(${idx}, 'name', this.value)" 
@@ -2356,7 +2369,8 @@ function renderMemorizationTasks() {
           <select class="select-field" style="width:55px;font-size:11px;padding:4px" onchange="updateMemorizationTask(${idx}, 'subject', this.value)">
             <option value="">教科</option>
             <option value="英語" ${task.subject === '英語' ? 'selected' : ''}>英語</option>
-            <option value="社会" ${task.subject === '社会' ? 'selected' : ''}>社会</option>
+            <option value="社会（地理）" ${task.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
+            <option value="社会（歴史）" ${task.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
             <option value="理科" ${task.subject === '理科' ? 'selected' : ''}>理科</option>
             <option value="国語" ${task.subject === '国語' ? 'selected' : ''}>国語</option>
           </select>
@@ -2465,7 +2479,8 @@ function renderSchoolHomework() {
             <option value="数学" ${hw.subject === '数学' ? 'selected' : ''}>数学</option>
             <option value="英語" ${hw.subject === '英語' ? 'selected' : ''}>英語</option>
             <option value="理科" ${hw.subject === '理科' ? 'selected' : ''}>理科</option>
-            <option value="社会" ${hw.subject === '社会' ? 'selected' : ''}>社会</option>
+            <option value="社会（地理）" ${hw.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
+            <option value="社会（歴史）" ${hw.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
           </select>
           <input type="text" class="input-field" placeholder="ワーク" value="${hw.name}"
                  onchange="updateSchoolHomework(${idx}, 'name', this.value)" 
@@ -2550,7 +2565,8 @@ function renderJukuHomework() {
             <option value="数学" ${hw.subject === '数学' ? 'selected' : ''}>数学</option>
             <option value="英語" ${hw.subject === '英語' ? 'selected' : ''}>英語</option>
             <option value="理科" ${hw.subject === '理科' ? 'selected' : ''}>理科</option>
-            <option value="社会" ${hw.subject === '社会' ? 'selected' : ''}>社会</option>
+            <option value="社会（地理）" ${hw.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
+            <option value="社会（歴史）" ${hw.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
           </select>
           <input type="text" class="input-field" placeholder="問題集" value="${hw.name}"
                  onchange="updateJukuHomework(${idx}, 'name', this.value)" 
@@ -3014,7 +3030,8 @@ function renderCheckin() {
             <option value="数学" ${hw.subject === '数学' ? 'selected' : ''}>数学</option>
             <option value="英語" ${hw.subject === '英語' ? 'selected' : ''}>英語</option>
             <option value="理科" ${hw.subject === '理科' ? 'selected' : ''}>理科</option>
-            <option value="社会" ${hw.subject === '社会' ? 'selected' : ''}>社会</option>
+            <option value="社会（地理）" ${hw.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
+            <option value="社会（歴史）" ${hw.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
           </select>
         </div>
         ${hw.subject ? `
@@ -3083,7 +3100,8 @@ function renderCheckin() {
           <select class="select-field" style="width:70px;font-size:12px" onchange="updateMemorizationTask(${idx}, 'subject', this.value)">
             <option value="">教科</option>
             <option value="英語" ${task.subject === '英語' ? 'selected' : ''}>英語</option>
-            <option value="社会" ${task.subject === '社会' ? 'selected' : ''}>社会</option>
+            <option value="社会（地理）" ${task.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
+            <option value="社会（歴史）" ${task.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
             <option value="理科" ${task.subject === '理科' ? 'selected' : ''}>理科</option>
             <option value="国語" ${task.subject === '国語' ? 'selected' : ''}>国語</option>
           </select>
@@ -3180,7 +3198,8 @@ function renderCheckin() {
               <option value="数学" ${hw.subject === '数学' ? 'selected' : ''}>数学</option>
               <option value="英語" ${hw.subject === '英語' ? 'selected' : ''}>英語</option>
               <option value="理科" ${hw.subject === '理科' ? 'selected' : ''}>理科</option>
-              <option value="社会" ${hw.subject === '社会' ? 'selected' : ''}>社会</option>
+              <option value="社会（地理）" ${hw.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
+            <option value="社会（歴史）" ${hw.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
             </select>
           </div>
           ${hw.subject ? `
@@ -5053,7 +5072,7 @@ function recordLearningHistory(task) {
 }
 
 function extractSubject(taskName) {
-  const subjects = ['国語', '数学', '英語', '理科', '社会'];
+  const subjects = ['国語', '数学', '英語', '理科', '社会（地理）', '社会（歴史）'];
   for (const subject of subjects) {
     if (taskName.includes(subject)) return subject;
   }
@@ -7427,7 +7446,7 @@ function renderOutputSessionComplete() {
 //     lastChecked: date, notes: '' }
 // ]
 
-const SUBJECTS = ['国語','数学','英語','理科','社会'];
+const SUBJECTS = ['国語','数学','英語','理科','社会（地理）','社会（歴史）'];
 
 // 娘さんの特性プロファイル（Q3の回答を反映）
 const STUDENT_PROFILE = {
@@ -7437,7 +7456,8 @@ const STUDENT_PROFILE = {
     '数学': '手順暗記ではなく「なぜそうなるか」の概念理解が必要。同じ問題を日を変えて繰り返す。',
     '理科': '条件制御（1つだけ変えて比べる意味）の概念理解が弱い。実験の目的から説明する。',
     '国語': '基礎はできるが難しい文章の読解が苦手。段落ごとの要約練習を入れる。',
-    '社会': '歴史が得意。ストーリーで関連付けて覚える形式が合っている。',
+    '社会（地理）': '少しとっつきにくい様子。地名や地形は地図と一緒に覚えると定着しやすい。',
+    '社会（歴史）': '歴史が得意。ストーリーで関連付けて覚える形式が合っている。',
   }
 };
 
