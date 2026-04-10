@@ -1108,6 +1108,66 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-title">
+          <span class="card-icon">⏱️</span>
+          <span>1ページあたりの目安時間（分）</span>
+        </div>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:16px;line-height:1.6">
+          宿題の所要時間計算に使います。お子さんの実際のペースに合わせて調整してください。
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">国語（ドリル）</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" class="input-field" id="timeJapanese" 
+                     min="1" max="120" style="width:70px" placeholder="30">
+              <span style="font-size:12px;color:var(--ink3)">分/ページ</span>
+            </div>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">数学（問題集）</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" class="input-field" id="timeMath" 
+                     min="1" max="120" style="width:70px" placeholder="10">
+              <span style="font-size:12px;color:var(--ink3)">分/ページ</span>
+            </div>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">英語（問題集）</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" class="input-field" id="timeEnglish" 
+                     min="1" max="120" style="width:70px" placeholder="8">
+              <span style="font-size:12px;color:var(--ink3)">分/ページ</span>
+            </div>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">理科（問題集）</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" class="input-field" id="timeScience" 
+                     min="1" max="120" style="width:70px" placeholder="8">
+              <span style="font-size:12px;color:var(--ink3)">分/ページ</span>
+            </div>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">社会・地理（問題集）</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" class="input-field" id="timeGeography" 
+                     min="1" max="120" style="width:70px" placeholder="7">
+              <span style="font-size:12px;color:var(--ink3)">分/ページ</span>
+            </div>
+          </div>
+          <div class="input-group" style="margin-bottom:0">
+            <label class="input-label">社会・歴史（問題集）</label>
+            <div style="display:flex;align-items:center;gap:6px">
+              <input type="number" class="input-field" id="timeHistory" 
+                     min="1" max="120" style="width:70px" placeholder="7">
+              <span style="font-size:12px;color:var(--ink3)">分/ページ</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <button class="btn btn-primary" style="width:100%;font-size:14px" onclick="saveSettings()">
         ✓ 設定を保存
       </button>
@@ -1348,11 +1408,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 // 時間見積もりの基準
 // ═══════════════════════════════════════
 
-const TIME_ESTIMATES = {
+// デフォルトの時間見積もり（1単位あたり分）
+const TIME_ESTIMATES_DEFAULT = {
   国語: {
-    'ドリル（ページ）': 8,
-    '問題（問）': 3,
-    'プリント（枚）': 10
+    'ドリル（ページ）': 30,
+    '問題（問）': 5,
+    'プリント（枚）': 20
   },
   数学: {
     '問題集（ページ）': 10,
@@ -1362,7 +1423,7 @@ const TIME_ESTIMATES = {
   },
   英語: {
     '問題集（ページ）': 8,
-    '単語（個）': 0.3, // 10個で3分
+    '単語（個）': 0.3,
     'リスニング（問）': 2,
     'プリント（枚）': 10
   },
@@ -1371,16 +1432,41 @@ const TIME_ESTIMATES = {
     '問題（問）': 3,
     'プリント（枚）': 10
   },
-  社会: {
+  '社会（地理）': {
+    '問題集（ページ）': 7,
+    '問題（問）': 3,
+    'プリント（枚）': 9
+  },
+  '社会（歴史）': {
     '問題集（ページ）': 7,
     '問題（問）': 3,
     'プリント（枚）': 9
   }
 };
 
+// 実際に使う TIME_ESTIMATES（設定で上書き可能）
+function getTimeEstimates() {
+  const custom = AppData.settings?.timeEstimates || {};
+  const result = {};
+  Object.keys(TIME_ESTIMATES_DEFAULT).forEach(subject => {
+    result[subject] = { ...TIME_ESTIMATES_DEFAULT[subject] };
+    if (custom[subject]) {
+      Object.keys(custom[subject]).forEach(unit => {
+        result[subject][unit] = custom[subject][unit];
+      });
+    }
+  });
+  return result;
+}
+
+// 後方互換のためTIME_ESTIMATESとして参照できるようにする
+const TIME_ESTIMATES = new Proxy({}, {
+  get(_, prop) { return getTimeEstimates()[prop]; }
+});
+
 function getEstimatedTime(subject, unit, quantity) {
-  const key = unit;
-  const baseTime = TIME_ESTIMATES[subject]?.[key] || 10; // デフォルト10分
+  const estimates = getTimeEstimates();
+  const baseTime = estimates[subject]?.[unit] || 10;
   return Math.ceil(baseTime * quantity);
 }
 
@@ -1561,6 +1647,15 @@ function loadSettings() {
   document.getElementById('jukuSettings').style.display = juku.enabled ? 'block' : 'none';
   
   document.getElementById('apiKey').value = s.apiKey || '';
+
+  // 目安時間の読み込み
+  const te = s.timeEstimates || {};
+  document.getElementById('timeJapanese').value  = te['国語']?.['ドリル（ページ）'] || 30;
+  document.getElementById('timeMath').value       = te['数学']?.['問題集（ページ）'] || 10;
+  document.getElementById('timeEnglish').value    = te['英語']?.['問題集（ページ）'] || 8;
+  document.getElementById('timeScience').value    = te['理科']?.['問題集（ページ）'] || 8;
+  document.getElementById('timeGeography').value  = te['社会（地理）']?.['問題集（ページ）'] || 7;
+  document.getElementById('timeHistory').value    = te['社会（歴史）']?.['問題集（ページ）'] || 7;
 }
 
 function saveSettings() {
@@ -1625,6 +1720,16 @@ function saveSettings() {
   };
   
   AppData.settings.apiKey = document.getElementById('apiKey').value.trim();
+
+  // 目安時間の保存
+  AppData.settings.timeEstimates = {
+    '国語':        { 'ドリル（ページ）': parseInt(document.getElementById('timeJapanese').value) || 30 },
+    '数学':        { '問題集（ページ）': parseInt(document.getElementById('timeMath').value) || 10 },
+    '英語':        { '問題集（ページ）': parseInt(document.getElementById('timeEnglish').value) || 8 },
+    '理科':        { '問題集（ページ）': parseInt(document.getElementById('timeScience').value) || 8 },
+    '社会（地理）': { '問題集（ページ）': parseInt(document.getElementById('timeGeography').value) || 7 },
+    '社会（歴史）': { '問題集（ページ）': parseInt(document.getElementById('timeHistory').value) || 7 },
+  };
   
   saveData();
   showToast('✓ 設定を保存しました！');
@@ -3212,18 +3317,20 @@ function renderCheckin() {
               </select>
             </div>
             <div class="hw-field-small">
-              <label class="input-label">総量</label>
+              <label class="input-label">数量</label>
               <input type="number" class="input-field" value="${hw.quantity || 4}" 
                      min="1" max="100" step="1"
                      onchange="updateJukuHomework(${realIdx}, 'quantity', this.value)">
             </div>
             <div class="hw-field-small">
-              <label class="input-label">提出期限</label>
-              <input type="number" class="input-field" value="${hw.daysUntil || 3}" 
-                     min="1" max="30" step="1"
-                     onchange="updateJukuHomework(${realIdx}, 'daysUntil', this.value)"
-                     style="width:50px">
-              <span style="font-size:11px;color:var(--ink3);margin-left:4px">日後</span>
+              <label class="input-label">期限</label>
+              <div style="display:flex;align-items:center;gap:4px">
+                <input type="number" class="input-field" value="${hw.daysUntil || 3}" 
+                       min="1" max="30" step="1"
+                       onchange="updateJukuHomework(${realIdx}, 'daysUntil', this.value)"
+                       style="width:50px">
+                <span style="font-size:11px;color:var(--ink3);white-space:nowrap">日後</span>
+              </div>
             </div>
             <div class="hw-field-small">
               <label class="input-label">時間</label>
@@ -3408,11 +3515,30 @@ function showRecommendedSchedule() {
         estimatedMin: estimatedMin,
         status: 'pending',
         type: 'study',
-        priority: 50, // 今日出た宿題は中優先
+        priority: 50,
         enabled: true
       });
     }
   });
+
+  // 塾の宿題を追加
+  if (checkinData.jukuHomework) {
+    checkinData.jukuHomework.forEach(hw => {
+      if (hw.subject && hw.unit && hw.quantity > 0) {
+        const estimatedMin = getEstimatedTime(hw.subject, hw.unit, hw.quantity);
+        allTasks.push({
+          id: `juku_${Date.now()}_${Math.random()}`,
+          name: `塾：${hw.subject}：${hw.unit}`,
+          desc: `${hw.quantity}ページ`,
+          estimatedMin: estimatedMin,
+          status: 'pending',
+          type: 'study',
+          priority: 70, // 塾の宿題は学校より優先
+          enabled: true
+        });
+      }
+    });
+  }
   
   // 継続中の暗記タスクを追加
   const todayDate = new Date(today);
