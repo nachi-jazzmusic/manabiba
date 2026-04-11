@@ -752,6 +752,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
   <div class="sb-version">v2.4 - 理解度チェック機能</div>
   
   <nav class="sb-nav">
+    <!-- 子供が使う -->
+    <div style="font-size:9px;font-weight:700;color:var(--ink3);padding:6px 9px 2px;letter-spacing:1px;text-transform:uppercase">勉強する</div>
     <button class="nav-btn active" onclick="showPanel('home')">
       <span class="nav-icon">🏠</span>
       <span>ホーム</span>
@@ -760,25 +762,36 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <span class="nav-icon">📝</span>
       <span>練習問題をやる</span>
     </button>
-    <button class="nav-btn" onclick="showTestAnalysis()">
-      <span class="nav-icon">📷</span>
-      <span>テストを分析する</span>
-    </button>
     <button class="nav-btn" onclick="showUnitLearn()">
       <span class="nav-icon">📖</span>
       <span>単元を学ぶ</span>
     </button>
-    <button class="nav-btn" onclick="showOutputMenu()">
+    <button class="nav-btn" onclick="startOutputSession('word')">
       <span class="nav-icon">🔤</span>
-      <span>暗記ネタを作る・やる</span>
+      <span>暗記カードをやる</span>
+    </button>
+    <button class="nav-btn" onclick="showBulkTestSetup()">
+      <span class="nav-icon">📋</span>
+      <span>まとめテスト</span>
     </button>
     <button class="nav-btn" onclick="showUnitTracker()">
       <span class="nav-icon">📒</span>
       <span>理解度をチェック</span>
     </button>
+    <button class="nav-btn" onclick="showTestAnalysis()">
+      <span class="nav-icon">📷</span>
+      <span>テストを分析する</span>
+    </button>
     <button class="nav-btn" onclick="showPanel('progress')">
       <span class="nav-icon">📊</span>
       <span>進捗</span>
+    </button>
+
+    <!-- 保護者用 -->
+    <div style="font-size:9px;font-weight:700;color:var(--ink3);padding:10px 9px 2px;letter-spacing:1px;text-transform:uppercase;border-top:1px solid var(--border);margin-top:6px">保護者メニュー</div>
+    <button class="nav-btn" onclick="showParentMenu()">
+      <span class="nav-icon">👨‍👩‍👧</span>
+      <span>保護者メニュー</span>
     </button>
   </nav>
 
@@ -1252,7 +1265,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
   <div class="modal-content" style="max-width:900px;height:85vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <div class="modal-title">🐾 ポメちゃんに相談</div>
-      <button class="modal-close" onclick="closeAIChat()">×</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="clearAIChat()" style="
+          padding:5px 10px;border-radius:14px;border:1px solid var(--border);
+          background:var(--bg2);color:var(--ink3);font-family:var(--font);
+          font-size:11px;cursor:pointer;
+        ">🗑 クリア</button>
+        <button class="modal-close" onclick="closeAIChat()">×</button>
+      </div>
     </div>
     <style>
       #aiChatMessages::-webkit-scrollbar { width: 10px; }
@@ -1320,6 +1340,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 </div>
 
 <!-- ══ 暗記ネタを作る・やる モーダル ══ -->
+<!-- ══ 保護者メニュー モーダル ══ -->
+<div id="parentModal" class="modal">
+  <div class="modal-content" style="max-width:700px;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <div class="modal-title" id="parentModalTitle">👨‍👩‍👧 保護者メニュー</div>
+      <button class="modal-close" onclick="closeParentModal()">×</button>
+    </div>
+    <div id="parentContent" style="flex:1;overflow-y:auto;padding:24px">
+    </div>
+  </div>
+</div>
+
 <div id="outputModal" class="modal">
   <div class="modal-content" style="max-width:700px;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-header">
@@ -2091,9 +2123,16 @@ function renderAIChatInline() {
   
   return `
     <div style="display:flex;flex-direction:column;height:100%;background:#fff;overflow:hidden">
-      <div style="padding:16px;border-bottom:1px solid var(--border);flex-shrink:0">
-        <div style="font-size:18px;font-weight:700">💬 ポメちゃん</div>
-        <div style="font-size:12px;color:var(--ink3);margin-top:4px">勉強の相談、質問、なんでも聞いてね！</div>
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:18px;font-weight:700">💬 ポメちゃん</div>
+          <div style="font-size:12px;color:var(--ink3);margin-top:2px">勉強の相談、質問、なんでも聞いてね！</div>
+        </div>
+        <button onclick="clearAIChat()" title="会話をリセット" style="
+          padding:6px 12px;border-radius:16px;border:1px solid var(--border);
+          background:var(--bg2);color:var(--ink3);font-family:var(--font);
+          font-size:11px;cursor:pointer;white-space:nowrap;
+        ">🗑 会話をクリア</button>
       </div>
       
       <div id="aiChatMessages" style="flex:1;overflow-y:auto;padding:20px;min-height:0">
@@ -6765,6 +6804,19 @@ function showOutputMenu() {
       </div>`
     }
 
+    <!-- まとめテスト -->
+    ${(AppData.outputCards || []).filter(c => c.type === 'word').length > 0 ? `
+    <div class="card">
+      <div class="card-title"><span class="card-icon">📋</span>まとめテスト</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">
+        範囲を選んで、音読→意味テスト→筆記テストを一気にやろう！
+      </div>
+      <button class="btn btn-primary" onclick="showBulkTestSetup()"
+              style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
+        📋 まとめテストをはじめる
+      </button>
+    </div>` : ''}
+
     <!-- 素材を作る -->
     <div class="card">
       <div class="card-title"><span class="card-icon">✨</span>素材を作る</div>
@@ -7587,6 +7639,362 @@ const STUDENT_PROFILE = {
   }
 };
 
+// ═══════════════════════════════════════
+// 保護者メニュー
+// ═══════════════════════════════════════
+
+function showParentMenu(section) {
+  document.getElementById('parentModalTitle').textContent = '👨‍👩‍👧 保護者メニュー';
+  const content = document.getElementById('parentContent');
+
+  content.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- 単元を登録する -->
+      <button onclick="showParentUnitList()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:28px">📚</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">習った単元を登録する</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            塾・学校で習った単元を登録。理解度チェックが自動で来ます
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
+
+      <!-- 単語カードを作る -->
+      <button onclick="showParentCardMaker()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:28px">🔤</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">暗記カードを作る</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            単語・例文カードをAI生成またはタイピングで作成
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
+
+      <!-- 設定 -->
+      <button onclick="closeParentModal();showPanel('settings')" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:28px">⚙️</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">設定</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            名前・学年・教科書・目安時間・塾の設定
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
+    </div>
+
+    <!-- 今週の状況サマリー -->
+    <div style="margin-top:24px;background:var(--bg2);border-radius:12px;padding:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:12px">📊 今週の状況</div>
+      ${renderParentSummary()}
+    </div>
+  `;
+
+  document.getElementById('parentModal').classList.add('show');
+
+  // セクション直接指定があれば
+  if (section === 'units') {
+    setTimeout(() => showParentUnitList(), 100);
+  }
+}
+
+function closeParentModal() {
+  document.getElementById('parentModal').classList.remove('show');
+}
+
+function renderParentSummary() {
+  const records = AppData.unitRecords || [];
+  const cards = AppData.outputCards || [];
+  const today = getTodayString();
+
+  const dueChecks = records.filter(r =>
+    r.checkSchedule && r.checkSchedule.some(c => !c.done && c.date <= today)
+  ).length;
+
+  const weakUnits = records.filter(r =>
+    r.understanding === '×' || r.understanding === '△'
+  ).length;
+
+  const wordCards = cards.filter(c => c.type === 'word').length;
+
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+      <div style="background:#fff;border-radius:8px;padding:10px">
+        <div style="font-size:20px;font-weight:700;color:var(--accent)">${records.length}</div>
+        <div style="font-size:10px;color:var(--ink3)">登録単元</div>
+      </div>
+      <div style="background:#fff;border-radius:8px;padding:10px">
+        <div style="font-size:20px;font-weight:700;color:${dueChecks>0?'var(--red)':'var(--green)'}">${dueChecks}</div>
+        <div style="font-size:10px;color:var(--ink3)">チェック待ち</div>
+      </div>
+      <div style="background:#fff;border-radius:8px;padding:10px">
+        <div style="font-size:20px;font-weight:700;color:var(--purple)">${wordCards}</div>
+        <div style="font-size:10px;color:var(--ink3)">単語カード</div>
+      </div>
+    </div>
+    ${weakUnits > 0 ? `
+      <div style="margin-top:10px;font-size:12px;color:var(--red);text-align:center">
+        ⚠️ 理解度が△×の単元が${weakUnits}件あります
+      </div>` : ''}
+  `;
+}
+
+// ── 保護者：単元一覧・登録 ──
+
+function showParentUnitList() {
+  document.getElementById('parentModalTitle').textContent = '📚 習った単元を管理';
+  const content = document.getElementById('parentContent');
+  const records = AppData.unitRecords || [];
+
+  // 科目別グループ
+  const groups = {};
+  SUBJECTS.forEach(s => groups[s] = []);
+  records.forEach(r => { if (groups[r.subject]) groups[r.subject].push(r); });
+
+  const uColors = { '◎':'#4A9B5F','○':'#3A9B8C','△':'#C8922A','×':'#D94F3D' };
+
+  let listHtml = '';
+  SUBJECTS.forEach(subject => {
+    const recs = groups[subject];
+    if (recs.length === 0) return;
+    listHtml += `
+      <div style="margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:6px;
+                    padding-bottom:4px;border-bottom:1px solid var(--border)">${subject}</div>
+        ${recs.map(r => {
+          const u = r.understanding;
+          const uc = u ? uColors[u] : 'var(--ink3)';
+          const jukuDate = r.jukuDate || '';
+          const schoolDate = r.taughtDate || '';
+          return `
+            <div style="background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:6px;
+                        border:1px solid var(--border);border-left:4px solid ${uc}">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="flex:1">
+                  <div style="font-size:13px;font-weight:700">${r.unitName}</div>
+                  <div style="font-size:10px;color:var(--ink3);margin-top:3px">
+                    ${jukuDate ? `塾：${jukuDate}` : ''}
+                    ${jukuDate && schoolDate ? ' / ' : ''}
+                    ${schoolDate ? `学校：${schoolDate}` : ''}
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:12px;font-weight:700;color:${uc}">${u || '未'}</span>
+                  <button onclick="showParentEditUnit('${r.id}')"
+                          class="btn btn-secondary" style="padding:4px 8px;font-size:11px">編集</button>
+                  <button onclick="deleteUnitRecord('${r.id}');showParentUnitList()"
+                          style="border:none;background:none;color:var(--ink3);cursor:pointer;font-size:16px;padding:2px 4px">×</button>
+                </div>
+              </div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  });
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <button onclick="showParentAddUnit()" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px;margin-bottom:20px">
+      ＋ 新しい単元を追加
+    </button>
+
+    ${records.length === 0 ? `
+      <div style="text-align:center;padding:40px;color:var(--ink3)">
+        <div style="font-size:32px;margin-bottom:12px">📚</div>
+        <div style="font-size:13px">まだ登録されていません</div>
+      </div>` : listHtml}
+  `;
+}
+
+// 単元追加フォーム（塾/学校の日付付き）
+function showParentAddUnit(prefill) {
+  document.getElementById('parentModalTitle').textContent = '＋ 単元を追加';
+  const content = document.getElementById('parentContent');
+  const today = getTodayString();
+  const p = prefill || {};
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentUnitList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div class="input-group">
+      <label class="input-label">科目</label>
+      <select class="select-field" id="puSubject">
+        <option value="">選択してください</option>
+        ${SUBJECTS.map(s => `<option value="${s}" ${p.subject===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">単元名</label>
+      <input type="text" class="input-field" id="puUnitName"
+             placeholder="例：正の数・負の数、be動詞、細胞のつくり"
+             value="${p.unitName||''}">
+    </div>
+
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:12px">📅 習った日</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label class="input-label">塾で習った日</label>
+          <input type="date" class="input-field" id="puJukuDate" value="${p.jukuDate||''}">
+          <div style="font-size:10px;color:var(--ink3);margin-top:4px">先に習う場合はこちら</div>
+        </div>
+        <div>
+          <label class="input-label">学校で習った日</label>
+          <input type="date" class="input-field" id="puSchoolDate" value="${p.schoolDate||today}">
+          <div style="font-size:10px;color:var(--ink3);margin-top:4px">後から追加もOK</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--teal);margin-top:10px">
+        💡 忘却曲線は「より早い日付」を基準に計算します
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">最初の理解度（任意）</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        ${[['◎','完璧','#4A9B5F'],['○','わかった','#3A9B8C'],['△','怪しい','#C8922A'],['×','わからない','#D94F3D']].map(([v,l,c]) => `
+          <button onclick="selectInitialUnderstanding('${v}',this)" data-val="${v}"
+                  style="flex:1;padding:8px 4px;border-radius:8px;border:2px solid ${c};
+                         background:#fff;color:${c};font-size:11px;font-weight:700;cursor:pointer">
+            ${v} ${l}
+          </button>`).join('')}
+      </div>
+      <input type="hidden" id="puUnderstanding" value="${p.understanding||''}">
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">メモ（任意）</label>
+      <input type="text" class="input-field" id="puNotes"
+             placeholder="例：教科書p.24〜32" value="${p.notes||''}">
+    </div>
+
+    <div style="background:var(--bg2);border-radius:9px;padding:12px;margin-bottom:20px;font-size:12px;color:var(--ink3);line-height:1.7">
+      📝 登録すると <strong>1週間後・2週間後・1ヶ月後</strong> に理解度チェックが自動で来ます
+    </div>
+
+    <button class="btn btn-primary" onclick="saveParentUnit()"
+            style="width:100%;padding:14px;font-size:14px">✓ 登録する</button>
+  `;
+}
+
+function saveParentUnit() {
+  const subject  = document.getElementById('puSubject').value;
+  const unitName = document.getElementById('puUnitName').value.trim();
+  const jukuDate   = document.getElementById('puJukuDate').value;
+  const schoolDate = document.getElementById('puSchoolDate').value;
+  const understanding = document.getElementById('puUnderstanding').value || null;
+  const notes = document.getElementById('puNotes').value.trim();
+
+  if (!subject)  { alert('科目を選択してください'); return; }
+  if (!unitName) { alert('単元名を入力してください'); return; }
+  if (!jukuDate && !schoolDate) { alert('塾か学校、どちらかの日付を入力してください'); return; }
+
+  if (!AppData.unitRecords) AppData.unitRecords = [];
+
+  // 重複チェック
+  const dup = AppData.unitRecords.find(r => r.subject === subject && r.unitName === unitName);
+  if (dup) {
+    if (!confirm(`「${subject}：${unitName}」はすでに登録されています。上書きしますか？`)) return;
+    AppData.unitRecords = AppData.unitRecords.filter(r => !(r.subject === subject && r.unitName === unitName));
+  }
+
+  // 忘却曲線の基準日：塾と学校の早い方
+  const baseDate = [jukuDate, schoolDate].filter(Boolean).sort()[0];
+
+  const checkSchedule = [7, 14, 30].map(days => {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() + days);
+    return { intervalDays: days, date: d.toISOString().split('T')[0], done: false, result: null };
+  });
+
+  AppData.unitRecords.push({
+    id: `unit_${Date.now()}`,
+    subject, unitName,
+    taughtDate: schoolDate || jukuDate,  // 後方互換
+    jukuDate, schoolDate,
+    understanding,
+    checkSchedule,
+    lastChecked: understanding ? baseDate : null,
+    notes
+  });
+
+  saveData();
+  showToast(`✓ 「${subject}：${unitName}」を登録しました`);
+  showParentUnitList();
+}
+
+// 単元編集
+function showParentEditUnit(id) {
+  const r = (AppData.unitRecords || []).find(u => u.id === id);
+  if (!r) return;
+  showParentAddUnit({
+    subject: r.subject, unitName: r.unitName,
+    jukuDate: r.jukuDate || '', schoolDate: r.schoolDate || r.taughtDate || '',
+    understanding: r.understanding || '', notes: r.notes || ''
+  });
+}
+
+// ── 保護者：暗記カード作成 ──
+
+function showParentCardMaker() {
+  document.getElementById('parentModalTitle').textContent = '🔤 暗記カードを作る';
+  const content = document.getElementById('parentContent');
+  const totalCards = (AppData.outputCards || []).length;
+  const wordCards  = (AppData.outputCards || []).filter(c => c.type === 'word').length;
+  const sentCards  = (AppData.outputCards || []).filter(c => c.type === 'sentence').length;
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:20px;
+                display:flex;gap:12px;text-align:center">
+      <div style="flex:1;background:#fff;border-radius:8px;padding:10px">
+        <div style="font-size:20px;font-weight:700;color:var(--teal)">${wordCards}</div>
+        <div style="font-size:10px;color:var(--ink3)">単語カード</div>
+      </div>
+      <div style="flex:1;background:#fff;border-radius:8px;padding:10px">
+        <div style="font-size:20px;font-weight:700;color:var(--purple)">${sentCards}</div>
+        <div style="font-size:10px;color:var(--ink3)">例文カード</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      <button onclick="closeParentModal();showOutputMakeAI()" class="btn btn-secondary"
+              style="padding:14px;text-align:left;display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">⚡</span>
+        <div>
+          <div style="font-weight:700;font-size:13px">Unit番号を指定してAI生成</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px">学年・Unitを入れるだけ</div>
+        </div>
+      </button>
+      <button onclick="closeParentModal();showOutputMakeTyping()" class="btn btn-secondary"
+              style="padding:14px;text-align:left;display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">⌨️</span>
+        <div>
+          <div style="font-weight:700;font-size:13px">教科書をタイピングしてAI抽出</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:2px">打ち込む行為自体が精読になる</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- 登録済みカード一覧 -->
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px">登録済みカード（${totalCards}件）</div>
+    ${totalCards === 0 ? `
+      <div style="text-align:center;color:var(--ink3);font-size:13px;padding:20px">
+        まだカードがありません
+      </div>` : renderOutputCardList()}
+  `;
+}
+
 function showUnitTracker() {
   if (!AppData.unitRecords) AppData.unitRecords = [];
   renderUnitTrackerTop();
@@ -7643,15 +8051,17 @@ function renderUnitTrackerTop() {
       </div>`;
   }
 
-  // 単元を追加ボタン
+  // 単元一覧ヘッダー（追加ボタンは保護者メニューへ誘導）
   html += `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div>
         <div style="font-size:15px;font-weight:700">習った単元</div>
-        <div style="font-size:11px;color:var(--ink3);margin-top:2px">親が入力・管理します</div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:2px">単元の追加は保護者メニューから</div>
       </div>
-      <button class="btn btn-primary" onclick="showAddUnit()" 
-              style="padding:8px 16px;font-size:13px">＋ 追加</button>
+      <button class="btn btn-secondary" onclick="closeUnitTracker();showParentMenu('units')" 
+              style="padding:8px 14px;font-size:12px">
+        👨‍👩‍👧 保護者メニュー
+      </button>
     </div>`;
 
   // 科目別一覧
@@ -8121,6 +8531,440 @@ function renderTodayUnitChecks() {
   `;
 }
 
+// ═══════════════════════════════════════
+// まとめテスト機能
+// ═══════════════════════════════════════
+
+let bulkTest = {}; // セッション状態
+
+// ① 範囲選択画面
+function showBulkTestSetup() {
+  document.getElementById('outputModalTitle').textContent = '📋 まとめテスト';
+  const content = document.getElementById('outputContent');
+  const wordCards = (AppData.outputCards || []).filter(c => c.type === 'word');
+
+  // Unit一覧を取得
+  const units = {};
+  wordCards.forEach(c => {
+    const key = `${c.subject}__${c.unit}`;
+    if (!units[key]) units[key] = { subject: c.subject, unit: c.unit, count: 0 };
+    units[key].count++;
+  });
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showOutputMenu()" style="margin-bottom:16px;padding:8px 16px">← 戻る</button>
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">テスト範囲を選ぶ</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:20px">複数選択できます</div>
+
+    <!-- 絞り込み条件 -->
+    <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:10px">理解度で絞り込む</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="filterAll" checked onchange="bulkFilterChange(this)">全部
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="filterWeak" onchange="bulkFilterChange(this)">
+          <span style="color:#D94F3D">× と △ だけ（弱点集中）</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Unit選択 -->
+    <div style="font-size:12px;font-weight:700;margin-bottom:8px">単元を選ぶ</div>
+    <div id="unitSelectionList">
+      ${Object.values(units).map(u => `
+        <label style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;
+                      padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer">
+          <input type="checkbox" class="unit-check" 
+                 data-subject="${u.subject}" data-unit="${u.unit}" checked
+                 style="width:18px;height:18px">
+          <div>
+            <div style="font-size:13px;font-weight:700">${u.subject}：${u.unit}</div>
+            <div style="font-size:11px;color:var(--ink3)">${u.count}単語</div>
+          </div>
+        </label>`).join('')}
+    </div>
+
+    <div id="bulkTestCount" style="text-align:center;font-size:13px;color:var(--ink2);margin:12px 0"></div>
+
+    <button class="btn btn-primary" onclick="startBulkTest()"
+            style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
+      📋 テストスタート
+    </button>
+  `;
+
+  updateBulkTestCount();
+  document.getElementById('outputModal').classList.add('show');
+}
+
+function bulkFilterChange(cb) {
+  if (cb.id === 'filterWeak') {
+    document.getElementById('filterAll').checked = false;
+  } else {
+    document.getElementById('filterWeak').checked = false;
+  }
+  updateBulkTestCount();
+}
+
+function updateBulkTestCount() {
+  const cards = getSelectedBulkCards();
+  const el = document.getElementById('bulkTestCount');
+  if (el) el.textContent = `対象：${cards.length}単語`;
+}
+
+function getSelectedBulkCards() {
+  const checks = document.querySelectorAll('.unit-check:checked');
+  const selectedKeys = new Set();
+  checks.forEach(c => selectedKeys.add(`${c.dataset.subject}__${c.dataset.unit}`));
+
+  const filterWeak = document.getElementById('filterWeak')?.checked;
+
+  return (AppData.outputCards || []).filter(c => {
+    if (c.type !== 'word') return false;
+    const key = `${c.subject}__${c.unit}`;
+    if (!selectedKeys.has(key)) return false;
+    if (filterWeak) return !c.lastResult || c.lastResult === '×' || c.lastResult === '△';
+    return true;
+  });
+}
+
+function startBulkTest() {
+  const cards = getSelectedBulkCards();
+  if (cards.length === 0) { showToast('単語が選ばれていません'); return; }
+
+  // シャッフル
+  const shuffled = [...cards].sort(() => Math.random() - 0.5);
+  bulkTest = {
+    cards: shuffled,
+    phase: 'reading',      // reading → meaning → writing → retry → done
+    results: {},           // {id: true/false}
+    retryCards: [],
+    index: 0
+  };
+  renderBulkTest();
+}
+
+// ② テスト画面のメイン描画
+function renderBulkTest() {
+  document.getElementById('outputModalTitle').textContent = '📋 まとめテスト';
+  const { phase, cards, retryCards, index } = bulkTest;
+  const content = document.getElementById('outputContent');
+
+  const phaseList = [
+    { key: 'reading', label: '音読' },
+    { key: 'meaning', label: '意味テスト' },
+    { key: 'writing', label: '筆記テスト' },
+  ];
+  const stepsHtml = phaseList.map(p => {
+    const done = (phase === 'meaning' && p.key === 'reading') ||
+                 (phase === 'writing' && p.key !== 'writing') ||
+                 (phase === 'retry'   && p.key !== 'retry') ||
+                 (phase === 'done');
+    const current = phase === p.key;
+    const color = done ? 'var(--green)' : current ? 'var(--purple)' : 'var(--bg3)';
+    const tc = (done || current) ? '#fff' : 'var(--ink3)';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+      <div style="width:28px;height:28px;border-radius:50%;background:${color};
+                  display:flex;align-items:center;justify-content:center;font-size:11px;color:${tc};font-weight:700">
+        ${done ? '✓' : p.label[0]}
+      </div>
+      <div style="font-size:9px;color:${current?'var(--purple)':'var(--ink3)'};font-weight:${current?'700':'400'}">${p.label}</div>
+    </div>`;
+  }).join(`<div style="height:2px;background:var(--bg3);flex:1;margin:14px 4px 0"></div>`);
+
+  const barHtml = `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:flex-start;margin-bottom:10px">${stepsHtml}</div>
+    </div>`;
+
+  if (phase === 'reading')  renderBulkReading(barHtml, content);
+  else if (phase === 'meaning') renderBulkMeaning(barHtml, content);
+  else if (phase === 'writing') renderBulkWriting(barHtml, content);
+  else if (phase === 'retry')   renderBulkRetry(barHtml, content);
+  else renderBulkDone(content);
+}
+
+// ③ 音読フェーズ（全単語一覧表示）
+function renderBulkReading(bar, content) {
+  const { cards } = bulkTest;
+  const rows = cards.map(c => `
+    <div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);align-items:baseline">
+      <div style="font-size:17px;font-weight:700;min-width:120px">${c.front}</div>
+      <div style="font-size:13px;color:var(--ink3)">${c.back}</div>
+    </div>`).join('');
+
+  content.innerHTML = `
+    ${bar}
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">📖 声に出して読もう</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:16px">全${cards.length}単語。読み終わったら次へ！</div>
+    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:20px;border:1px solid var(--border);max-height:55vh;overflow-y:auto">
+      ${rows}
+    </div>
+    <button onclick="bulkTest.phase='meaning';bulkTest.index=0;renderBulkTest()"
+            class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
+      ✓ 読み終わった！意味テストへ
+    </button>`;
+}
+
+// ④ 意味テスト（英語→日本語を答える）
+function renderBulkMeaning(bar, content) {
+  const { cards, results } = bulkTest;
+  const rows = cards.map(c => {
+    const answered = c.id in results;
+    const ok = results[c.id];
+    return `
+      <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:6px">
+          <div style="font-size:17px;font-weight:700;min-width:130px">${c.front}</div>
+          <div id="ans_m_${c.id}" style="display:none;font-size:13px;color:var(--teal);font-weight:600">${c.back}</div>
+          <button onclick="showMeaningAnswer('${c.id}')" id="ansBtn_m_${c.id}"
+                  class="btn btn-secondary" style="padding:4px 10px;font-size:11px;margin-left:auto">
+            答えを見る
+          </button>
+        </div>
+        <div id="judge_m_${c.id}" style="display:${answered?'flex':'none'};gap:8px;margin-top:6px">
+          <button onclick="setBulkResult('meaning','${c.id}',true)" class="btn"
+                  style="flex:1;padding:8px;font-size:12px;background:${answered&&ok?'#4A9B5F':'#eee'};color:${answered&&ok?'#fff':'var(--ink2)'}">
+            ◎ 言えた
+          </button>
+          <button onclick="setBulkResult('meaning','${c.id}',false)" class="btn"
+                  style="flex:1;padding:8px;font-size:12px;background:${answered&&!ok?'#D94F3D':'#eee'};color:${answered&&!ok?'#fff':'var(--ink2)'}">
+            × 言えなかった
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+
+  const doneCount = Object.keys(results).length;
+  const allDone = doneCount === cards.length;
+
+  content.innerHTML = `
+    ${bar}
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">🧠 意味を言えるかな？</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:4px">英語を見て日本語を声に出して、答えを確認して◎×を押してね</div>
+    <div style="font-size:12px;color:var(--accent);margin-bottom:16px;font-weight:600">${doneCount}/${cards.length} 完了</div>
+    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);max-height:50vh;overflow-y:auto">
+      ${rows}
+    </div>
+    ${allDone ? `
+    <button onclick="bulkTest.phase='writing';bulkTest.results={};bulkTest.index=0;renderBulkTest()"
+            class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
+      ✓ 筆記テストへ
+    </button>` : `
+    <div style="text-align:center;font-size:12px;color:var(--ink3);padding:8px">全部の◎×を押したら次へ進めます</div>`}`;
+}
+
+function showMeaningAnswer(id) {
+  document.getElementById(`ans_m_${id}`).style.display = 'inline';
+  document.getElementById(`ansBtn_m_${id}`).style.display = 'none';
+  document.getElementById(`judge_m_${id}`).style.display = 'flex';
+}
+
+// ⑤ 筆記テスト（日本語→英語を書く）
+function renderBulkWriting(bar, content) {
+  const { cards, results } = bulkTest;
+  const rows = cards.map(c => {
+    const answered = c.id in results;
+    const ok = results[c.id];
+    return `
+      <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:6px">
+          <div style="font-size:15px;font-weight:700;min-width:130px">${c.back}</div>
+          <div id="ans_w_${c.id}" style="display:none;font-size:13px;color:var(--teal);font-weight:600">${c.front}</div>
+          <button onclick="showWritingAnswer('${c.id}')" id="ansBtn_w_${c.id}"
+                  class="btn btn-secondary" style="padding:4px 10px;font-size:11px;margin-left:auto">
+            答えを見る
+          </button>
+        </div>
+        <div id="judge_w_${c.id}" style="display:${answered?'flex':'none'};gap:8px;margin-top:6px">
+          <button onclick="setBulkResult('writing','${c.id}',true)" class="btn"
+                  style="flex:1;padding:8px;font-size:12px;background:${answered&&ok?'#4A9B5F':'#eee'};color:${answered&&ok?'#fff':'var(--ink2)'}">
+            ◎ 書けた
+          </button>
+          <button onclick="setBulkResult('writing','${c.id}',false)" class="btn"
+                  style="flex:1;padding:8px;font-size:12px;background:${answered&&!ok?'#D94F3D':'#eee'};color:${answered&&!ok?'#fff':'var(--ink2)'}">
+            × 書けなかった
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+
+  const doneCount = Object.keys(results).length;
+  const allDone = doneCount === cards.length;
+
+  content.innerHTML = `
+    ${bar}
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">✏️ ノートに書いてみよう</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:4px">日本語を見て英語をノートに書いて、答えを確認して◎×を押してね</div>
+    <div style="font-size:12px;color:var(--accent);margin-bottom:16px;font-weight:600">${doneCount}/${cards.length} 完了</div>
+    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);max-height:50vh;overflow-y:auto">
+      ${rows}
+    </div>
+    ${allDone ? `
+    <button onclick="finishBulkWriting()"
+            class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
+      ✓ 結果を見る
+    </button>` : `
+    <div style="text-align:center;font-size:12px;color:var(--ink3);padding:8px">全部の◎×を押したら次へ進めます</div>`}`;
+}
+
+function showWritingAnswer(id) {
+  document.getElementById(`ans_w_${id}`).style.display = 'inline';
+  document.getElementById(`ansBtn_w_${id}`).style.display = 'none';
+  document.getElementById(`judge_w_${id}`).style.display = 'flex';
+}
+
+function setBulkResult(phase, id, ok) {
+  bulkTest.results[id] = ok;
+  if (!ok && !bulkTest.retryCards.find(c => c.id === id)) {
+    const card = bulkTest.cards.find(c => c.id === id);
+    if (card) bulkTest.retryCards.push(card);
+  }
+  if (ok) {
+    bulkTest.retryCards = bulkTest.retryCards.filter(c => c.id !== id);
+  }
+  // 再描画（同じフェーズ）
+  const bar = document.querySelector('#outputContent > div:first-child')?.outerHTML || '';
+  if (phase === 'meaning') renderBulkMeaning(bar, document.getElementById('outputContent'));
+  else renderBulkWriting(bar, document.getElementById('outputContent'));
+}
+
+function finishBulkWriting() {
+  const wrong = bulkTest.retryCards;
+  if (wrong.length > 0) {
+    // ×があった→再出題フェーズへ
+    bulkTest.phase = 'retry';
+    bulkTest.retryRound = [...wrong].sort(() => Math.random() - 0.5);
+    bulkTest.results = {};
+    renderBulkTest();
+  } else {
+    bulkTest.phase = 'done';
+    renderBulkTest();
+  }
+}
+
+// ⑥ 再出題フェーズ（×だけもう一度）
+function renderBulkRetry(bar, content) {
+  const { retryRound, results } = bulkTest;
+  const rows = retryRound.map(c => {
+    const answered = c.id in results;
+    const ok = results[c.id];
+    return `
+      <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:6px">
+          <div style="flex:1">
+            <div style="font-size:16px;font-weight:700">${c.front}</div>
+            <div style="font-size:12px;color:var(--ink3)">${c.back}</div>
+          </div>
+          <div id="ans_r_${c.id}" style="display:none;font-size:13px;color:var(--teal);font-weight:600">✓ ${c.back}</div>
+          <button onclick="showRetryAnswer('${c.id}')" id="ansBtn_r_${c.id}"
+                  class="btn btn-secondary" style="padding:4px 10px;font-size:11px">
+            確認
+          </button>
+        </div>
+        <div id="judge_r_${c.id}" style="display:${answered?'flex':'none'};gap:8px">
+          <button onclick="setBulkRetryResult('${c.id}',true)" class="btn"
+                  style="flex:1;padding:8px;font-size:12px;background:${answered&&ok?'#4A9B5F':'#eee'};color:${answered&&ok?'#fff':'var(--ink2)'}">
+            ◎ 覚えた！
+          </button>
+          <button onclick="setBulkRetryResult('${c.id}',false)" class="btn"
+                  style="flex:1;padding:8px;font-size:12px;background:${answered&&!ok?'#D94F3D':'#eee'};color:${answered&&!ok?'#fff':'var(--ink2)'}">
+            × まだ
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+
+  const doneCount = Object.keys(results).length;
+  const allDone = doneCount === retryRound.length;
+
+  content.innerHTML = `
+    ${bar}
+    <div style="background:#FEF2F0;border-radius:9px;padding:10px;text-align:center;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--red)">もう一度！×だった${retryRound.length}単語</div>
+    </div>
+    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);max-height:52vh;overflow-y:auto">
+      ${rows}
+    </div>
+    ${allDone ? `
+    <button onclick="finishBulkRetry()"
+            class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
+      ✓ 完了！
+    </button>` : ''}`;
+}
+
+function showRetryAnswer(id) {
+  document.getElementById(`ans_r_${id}`).style.display = 'inline';
+  document.getElementById(`ansBtn_r_${id}`).style.display = 'none';
+  document.getElementById(`judge_r_${id}`).style.display = 'flex';
+}
+
+function setBulkRetryResult(id, ok) {
+  bulkTest.results[id] = ok;
+  const bar = document.querySelector('#outputContent > div:first-child')?.outerHTML || '';
+  renderBulkRetry(bar, document.getElementById('outputContent'));
+}
+
+function finishBulkRetry() {
+  // 結果をAppDataに反映
+  saveBulkTestResults();
+  bulkTest.phase = 'done';
+  renderBulkTest();
+}
+
+function saveBulkTestResults() {
+  const today = getTodayString();
+  bulkTest.cards.forEach(card => {
+    const retryResult = bulkTest.retryRound?.find ? bulkTest.results[card.id] : null;
+    const target = AppData.outputCards.find(c => c.id === card.id);
+    if (!target) return;
+    const ok = retryResult !== null ? retryResult : !bulkTest.retryCards.find(c => c.id === card.id);
+    const result = ok ? '◎' : '×';
+    const daysLater = ok ? 3 : 1;
+    const next = new Date(today);
+    next.setDate(next.getDate() + daysLater);
+    target.lastResult = result;
+    target.nextDate = next.toISOString().split('T')[0];
+    if (ok) target.correctCount = (target.correctCount || 0) + 1;
+    else target.wrongCount = (target.wrongCount || 0) + 1;
+  });
+  saveData();
+}
+
+// ⑦ 完了画面
+function renderBulkDone(content) {
+  const total = bulkTest.cards.length;
+  const wrong = bulkTest.retryCards.length;
+  const correct = total - wrong;
+  saveBulkTestResults();
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:32px 16px">
+      <div style="font-size:48px;margin-bottom:12px">${wrong === 0 ? '🎉' : '💪'}</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px">
+        ${wrong === 0 ? 'パーフェクト！' : 'テスト完了！'}
+      </div>
+      <div style="font-size:32px;font-weight:700;color:var(--purple);margin-bottom:4px">
+        ${correct} / ${total}
+      </div>
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:24px">
+        ${wrong > 0 ? `×が${wrong}単語あったよ。次回また出てくるよ！` : '全部できた！すごい！'}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:280px;margin:0 auto">
+        ${wrong > 0 ? `
+        <button onclick="startBulkTest()" class="btn btn-primary"
+                style="padding:14px;font-size:13px;background:var(--purple)">
+          🔄 もう一度（×だけ）
+        </button>` : ''}
+        <button onclick="showOutputMenu()" class="btn btn-secondary"
+                style="padding:14px;font-size:13px">
+          トップに戻る
+        </button>
+      </div>
+    </div>`;
+}
+
 function mascotTalk() {
   openAIChat();
 }
@@ -8167,6 +9011,25 @@ function setAISendingState(isSending) {
     if (abortBar) abortBar.style.display = 'none';
     if (abortBarInline) abortBarInline.style.display = 'none';
   }
+}
+
+function clearAIChat() {
+  if (aiChatHistory.length === 0) return;
+  if (!confirm('会話をクリアしますか？')) return;
+  aiChatHistory = [];
+  // インライン版は再描画、モーダル版はメッセージエリアをリセット
+  const modal = document.getElementById('aiChatModal');
+  if (modal && modal.classList.contains('show')) {
+    const container = document.getElementById('aiChatMessages');
+    container.innerHTML = `
+      <div style="text-align:center;padding:40px;color:var(--ink3)">
+        <div style="font-size:48px;margin-bottom:16px">🐾</div>
+        <div style="font-size:14px">会話をクリアしました。<br>新しい質問をどうぞ！</div>
+      </div>`;
+  } else {
+    renderHome();
+  }
+  showToast('🗑 会話をクリアしました');
 }
 
 function openAIChat() {
@@ -8872,9 +9735,9 @@ document.addEventListener('DOMContentLoaded', init);
       <div class="mobile-nav-icon">📝</div>
       <div>問題</div>
     </button>
-    <button class="mobile-nav-item" onclick="showPanel('settings')">
-      <div class="mobile-nav-icon">⚙️</div>
-      <div>設定</div>
+    <button class="mobile-nav-item" onclick="showParentMenu()">
+      <div class="mobile-nav-icon">👨‍👩‍👧</div>
+      <div>保護者</div>
     </button>
   </div>
 </nav>
