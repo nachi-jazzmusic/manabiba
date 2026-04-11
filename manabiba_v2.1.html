@@ -766,6 +766,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <span class="nav-icon">📖</span>
       <span>単元を学ぶ</span>
     </button>
+    <button class="nav-btn" onclick="showEikenMenu()">
+      <span class="nav-icon">🌟</span>
+      <span>英検練習</span>
+    </button>
     <button class="nav-btn" onclick="startOutputSession('word')">
       <span class="nav-icon">🔤</span>
       <span>暗記カードをやる</span>
@@ -1341,6 +1345,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 
 <!-- ══ 暗記ネタを作る・やる モーダル ══ -->
 <!-- ══ 保護者メニュー モーダル ══ -->
+<!-- ══ 英検練習 モーダル ══ -->
+<div id="eikenModal" class="modal">
+  <div class="modal-content" style="max-width:780px;max-height:92vh;display:flex;flex-direction:column">
+    <div class="modal-header">
+      <div class="modal-title" id="eikenModalTitle">🌟 英検練習</div>
+      <button class="modal-close" onclick="closeEikenModal()">×</button>
+    </div>
+    <div id="eikenContent" style="flex:1;overflow-y:auto;padding:24px">
+    </div>
+  </div>
+</div>
+
 <div id="parentModal" class="modal">
   <div class="modal-content" style="max-width:700px;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-header">
@@ -7642,6 +7658,465 @@ const STUDENT_PROFILE = {
 // ═══════════════════════════════════════
 // 保護者メニュー
 // ═══════════════════════════════════════
+
+// ═══════════════════════════════════════
+// 英検練習機能
+// ═══════════════════════════════════════
+
+// 4級の単元マスター（テキスト「文理 わからないをわかるに変える英検4級」準拠）
+const EIKEN_UNITS = {
+  '4級': {
+    '1. 4級の文法': [
+      '「〜します」「〜です」の文',
+      '「〜しなさい」「〜してください」の文',
+      '「〜しました」の文',
+      '「〜でした」「〜していました」の文',
+      '「〜するつもりです」「〜でしょう」の文',
+      '「〜がある」「〜がいる」の文',
+      '「〜しなければならない」の文',
+      '「〜すること」の表し方',
+      '「〜するために」「〜すべき」などの表し方',
+      '「…よりも〜」「一番〜」の文',
+      '注意すべき比較の文',
+      '「…に〜をあげる」「〜に見える」の文',
+      '「〜するとき」「〜なので」などの文',
+      '名詞の代わりをする言葉',
+    ],
+    '2. 4級でよく出ることば': [
+      '4級でよく出る動詞',
+      'いろいろな意味を表す動詞',
+      '一般動詞を使う熟語',
+      '前置詞を使う動詞の熟語',
+      'Be動詞を使う熟語',
+      '4級でよく出る名詞',
+      '4級でよく出る形容詞',
+      '時を表す言葉',
+      '場所・方向を表す言葉',
+    ],
+    '3. 4級の会話表現・疑問文': [
+      '「〜しましょう」「〜はどうですか」などの文',
+      '「〜してくれますか」「〜してもいいですか」などの文',
+      '買い物・道案内・電話での表現',
+      'その他会話表現',
+      '何・何の〜などの文',
+      '誰・誰の・どちら・どちらのなどの文',
+      'いつ・どこでなどの文',
+      'どれぐらい・なぜなどの文',
+    ],
+    '4. 長文読解': [
+      '掲示・案内などの読解',
+      'Eメールの読解',
+      '説明文の読解',
+    ],
+  },
+  '3級': { '全範囲': ['3級総合'] },
+  '準2級': { '全範囲': ['準2級総合'] },
+  '5級': { '全範囲': ['5級総合'] },
+};
+
+const EIKEN_QUESTION_TYPES = [
+  { id: 'vocab',    label: '大問1：語句補充',   icon: '📝', desc: '空欄に入る単語・熟語・文法を選ぶ' },
+  { id: 'conv',     label: '大問2：会話文',      icon: '💬', desc: '会話の空欄に入る表現を選ぶ' },
+  { id: 'reading',  label: '大問3：長文読解',    icon: '📖', desc: '長文を読んで質問に答える' },
+];
+
+let eikenSession = {};
+
+function showEikenMenu() {
+  document.getElementById('eikenModalTitle').textContent = '🌟 英検練習';
+  const content = document.getElementById('eikenContent');
+  const grade = AppData.settings?.eiken?.targetGrade || '4級';
+  const history = AppData.eikenHistory || {};
+
+  // 苦手単元（正答率50%未満）
+  const weakUnits = Object.entries(history)
+    .filter(([,v]) => v.total >= 3 && (v.correct / v.total) < 0.5)
+    .sort((a,b) => (a[1].correct/a[1].total) - (b[1].correct/b[1].total))
+    .slice(0, 3);
+
+  content.innerHTML = `
+    <div style="background:linear-gradient(135deg,#FFF9E6,#FFF);border:2px solid #C8922A;
+                border-radius:12px;padding:16px;margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;color:#C8922A;margin-bottom:4px">
+        🌟 英検${grade}　練習モード
+      </div>
+      <div style="font-size:12px;color:var(--ink3)">
+        設定の目標級に合わせて問題を自動生成します
+      </div>
+    </div>
+
+    ${weakUnits.length > 0 ? `
+    <div style="background:#FEF2F0;border-radius:10px;padding:14px;margin-bottom:20px;border:1px solid var(--red)">
+      <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:10px">⚠️ 苦手な単元</div>
+      ${weakUnits.map(([key, v]) => {
+        const [unit, type] = key.split('__');
+        const pct = Math.round((v.correct/v.total)*100);
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;
+                      background:#fff;border-radius:7px;padding:8px 10px;margin-bottom:6px">
+            <div>
+              <div style="font-size:12px;font-weight:700">${unit}</div>
+              <div style="font-size:10px;color:var(--ink3)">${type} · 正答率${pct}%</div>
+            </div>
+            <button onclick="startEikenPractice('${unit.replace(/'/g,"\\'")}','${type}')"
+                    class="btn btn-primary" style="padding:6px 12px;font-size:11px;background:var(--red)">
+              やる
+            </button>
+          </div>`;
+      }).join('')}
+    </div>` : ''}
+
+    <div style="font-size:14px;font-weight:700;margin-bottom:12px">単元を選んで練習する</div>
+
+    ${Object.entries(EIKEN_UNITS[grade] || EIKEN_UNITS['4級']).map(([chapter, units]) => `
+      <div style="margin-bottom:20px">
+        <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px;
+                    padding:6px 10px;background:var(--bg2);border-radius:7px">${chapter}</div>
+        ${units.map(unit => {
+          const stats = Object.entries(history)
+            .filter(([k]) => k.startsWith(unit + '__'))
+            .reduce((acc,[,v]) => ({ correct: acc.correct+v.correct, total: acc.total+v.total }), {correct:0,total:0});
+          const pct = stats.total > 0 ? Math.round((stats.correct/stats.total)*100) : null;
+          const pctColor = pct === null ? 'var(--ink3)' : pct >= 70 ? 'var(--green)' : pct >= 50 ? '#C8922A' : 'var(--red)';
+          return `
+            <div style="background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:6px;
+                        border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+              <div style="flex:1;font-size:13px;font-weight:600">${unit}</div>
+              ${pct !== null ? `<div style="font-size:11px;color:${pctColor};font-weight:700;margin-right:8px">${pct}%</div>` : ''}
+              <button onclick="showEikenTypeSelect('${unit.replace(/'/g,"\\'")}');closeSideEffects()"
+                      class="btn btn-primary" style="padding:6px 14px;font-size:12px">
+                練習する
+              </button>
+            </div>`;
+        }).join('')}
+      </div>
+    `).join('')}
+  `;
+
+  document.getElementById('eikenModal').classList.add('show');
+}
+
+function closeSideEffects() {
+  // サイドバーを閉じる（スマホ時）
+  document.getElementById('sidebar')?.classList.remove('show');
+  document.getElementById('mobileMenuOverlay')?.classList.remove('show');
+}
+
+function closeEikenModal() {
+  document.getElementById('eikenModal').classList.remove('show');
+}
+
+// 問題種類の選択
+function showEikenTypeSelect(unit) {
+  document.getElementById('eikenModalTitle').textContent = '🌟 英検練習';
+  const content = document.getElementById('eikenContent');
+  const grade = AppData.settings?.eiken?.targetGrade || '4級';
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showEikenMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">${unit}</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:20px">英検${grade} · 問題の種類を選んでね</div>
+
+    <div style="display:flex;flex-direction:column;gap:10px">
+      ${EIKEN_QUESTION_TYPES.map(t => `
+        <button onclick="startEikenPractice('${unit.replace(/'/g,"\\'")}','${t.id}')"
+                class="btn btn-secondary"
+                style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+          <span style="font-size:28px">${t.icon}</span>
+          <div>
+            <div style="font-weight:700;font-size:14px">${t.label}</div>
+            <div style="font-size:11px;color:var(--ink3);margin-top:3px">${t.desc}</div>
+          </div>
+          <span style="margin-left:auto;color:var(--ink3)">›</span>
+        </button>`).join('')}
+    </div>
+  `;
+}
+
+// 問題生成・開始
+async function startEikenPractice(unit, typeId) {
+  document.getElementById('eikenModalTitle').textContent = '🌟 英検練習';
+  const content = document.getElementById('eikenContent');
+  const grade = AppData.settings?.eiken?.targetGrade || '4級';
+  const typeInfo = EIKEN_QUESTION_TYPES.find(t => t.id === typeId);
+
+  if (!AppData.settings?.apiKey) {
+    content.innerHTML = `
+      <div style="text-align:center;padding:40px;color:var(--red)">
+        <div style="font-size:32px;margin-bottom:12px">⚠️</div>
+        <div style="font-weight:700">APIキーが必要です</div>
+        <div style="font-size:12px;margin-top:8px;color:var(--ink3)">設定画面でClaude APIキーを入力してください</div>
+        <button onclick="closeEikenModal();showPanel('settings')" class="btn btn-primary"
+                style="margin-top:16px;padding:10px 20px">設定を開く</button>
+      </div>`;
+    return;
+  }
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:48px;color:var(--ink3)">
+      <div style="font-size:32px;margin-bottom:12px">🌟</div>
+      <div style="font-weight:700;margin-bottom:8px">問題を作っています...</div>
+      <div style="font-size:12px">${grade} · ${unit}</div>
+    </div>`;
+
+  const prompts = {
+    vocab: `英検${grade}の「${unit}」に関する語句補充問題を5問作ってください。
+
+# 出力形式（JSONのみ・コードブロック不要）
+{"questions":[
+  {
+    "sentence": "空欄を含む英文（___で空欄を示す）",
+    "options": ["A","B","C","D"],
+    "answer": "正解の選択肢（A〜D）",
+    "explanation": "日本語での解説（1〜2文）"
+  }
+]}
+
+# 条件
+- 英検${grade}レベルに合った文・語彙
+- 「${unit}」の文法・語彙を使った問題
+- 選択肢は4つ（紛らわしいものを含む）
+- 説明は中学生向けにわかりやすく
+- JSONのみ出力`,
+
+    conv: `英検${grade}の「${unit}」に関する会話文補充問題を4問作ってください。
+
+# 出力形式（JSONのみ・コードブロック不要）
+{"questions":[
+  {
+    "dialogue": ["A: 発言1", "B: ___", "A: 発言3"],
+    "options": ["A","B","C","D"],
+    "answer": "正解の選択肢（A〜D）",
+    "explanation": "日本語での解説（1文）"
+  }
+]}
+
+# 条件
+- 自然な日常会話
+- ${grade}レベルの語彙・文法
+- 「${unit}」の表現を含む
+- JSONのみ出力`,
+
+    reading: `英検${grade}の「${unit}」に関連した短い長文読解問題を1題作ってください。
+
+# 出力形式（JSONのみ・コードブロック不要）
+{"passage": "英文（5〜8文程度）",
+ "questions":[
+  {
+    "question": "質問文（英語）",
+    "options": ["A","B","C","D"],
+    "answer": "正解（A〜D）",
+    "explanation": "日本語での解説"
+  }
+]}
+
+# 条件
+- ${grade}レベルの語彙・文章
+- 質問は2問
+- 掲示・メール・説明文のいずれか
+- JSONのみ出力`,
+  };
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': AppData.settings.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: prompts[typeId] }]
+      })
+    });
+
+    const data = await res.json();
+    let txt = data.content[0].text.trim().replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(txt);
+
+    eikenSession = { unit, typeId, grade, parsed, results: [], currentQ: 0 };
+    renderEikenQuestion();
+
+  } catch(e) {
+    content.innerHTML = `
+      <button class="btn btn-secondary" onclick="showEikenTypeSelect('${unit.replace(/'/g,"\\'")}')"
+              style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+      <div style="text-align:center;padding:40px;color:var(--red)">
+        <div style="font-weight:700">問題の生成に失敗しました</div>
+        <div style="font-size:12px;margin-top:8px;color:var(--ink3)">${e.message}</div>
+      </div>`;
+  }
+}
+
+// 問題表示
+function renderEikenQuestion() {
+  const { unit, typeId, grade, parsed, currentQ } = eikenSession;
+  const content = document.getElementById('eikenContent');
+  const questions = parsed.questions || [];
+  const total = questions.length;
+
+  if (currentQ >= total) {
+    renderEikenResult();
+    return;
+  }
+
+  const q = questions[currentQ];
+  const pct = Math.round((currentQ / total) * 100);
+
+  const barHtml = `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
+        <span>${unit}</span><span>${currentQ+1} / ${total}</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:4px;height:5px">
+        <div style="background:#C8922A;width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
+      </div>
+    </div>`;
+
+  let questionHtml = '';
+
+  if (typeId === 'vocab') {
+    questionHtml = `
+      <div style="background:linear-gradient(135deg,#FFF9E6,#fff);border:1.5px solid #C8922A;
+                  border-radius:12px;padding:20px;margin-bottom:20px;text-align:center">
+        <div style="font-size:11px;color:#C8922A;font-weight:700;margin-bottom:10px">空欄に入る言葉を選んでね</div>
+        <div style="font-size:18px;font-weight:700;line-height:1.8">${q.sentence}</div>
+      </div>`;
+  } else if (typeId === 'conv') {
+    const lines = q.dialogue || [];
+    questionHtml = `
+      <div style="background:linear-gradient(135deg,#EEF9F7,#fff);border:1.5px solid var(--teal);
+                  border-radius:12px;padding:20px;margin-bottom:20px">
+        <div style="font-size:11px;color:var(--teal);font-weight:700;margin-bottom:10px">会話の空欄に入る表現を選んでね</div>
+        ${lines.map(l => `
+          <div style="font-size:15px;font-weight:${l.includes('___')?'700':'400'};
+                      color:${l.includes('___')?'var(--accent)':'var(--ink)'};
+                      padding:4px 0;line-height:1.7">${l}</div>`).join('')}
+      </div>`;
+  } else if (typeId === 'reading') {
+    questionHtml = `
+      <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:16px;
+                  font-size:14px;line-height:1.9;max-height:200px;overflow-y:auto">
+        ${parsed.passage}
+      </div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">${q.question}</div>`;
+  }
+
+  const optLabels = ['A','B','C','D'];
+  const optionsHtml = (q.options || []).map((opt, i) => `
+    <button onclick="selectEikenAnswer('${optLabels[i]}')"
+            id="opt_${optLabels[i]}"
+            style="width:100%;padding:12px 16px;border-radius:9px;border:1.5px solid var(--border);
+                   background:#fff;text-align:left;font-family:var(--font);font-size:14px;
+                   cursor:pointer;margin-bottom:8px;transition:all .15s;display:flex;align-items:center;gap:10px"
+            onmouseover="this.style.borderColor='#C8922A';this.style.background='#FFF9E6'"
+            onmouseout="if(!this.dataset.selected){this.style.borderColor='var(--border)';this.style.background='#fff'}">
+      <span style="font-weight:700;color:#C8922A;min-width:20px">${optLabels[i]}</span>
+      <span>${opt}</span>
+    </button>`).join('');
+
+  content.innerHTML = `
+    ${barHtml}
+    ${questionHtml}
+    ${optionsHtml}
+    <div id="eikenFeedback" style="display:none;margin-top:12px"></div>
+  `;
+}
+
+function selectEikenAnswer(selected) {
+  const { parsed, currentQ, unit, typeId } = eikenSession;
+  const q = (parsed.questions || [])[currentQ];
+  if (!q) return;
+
+  const correct = q.answer === selected;
+  eikenSession.results.push({ correct, selected, answer: q.answer });
+
+  // ボタンの色を変える
+  ['A','B','C','D'].forEach(l => {
+    const btn = document.getElementById(`opt_${l}`);
+    if (!btn) return;
+    btn.style.cursor = 'default';
+    btn.onmouseover = null;
+    btn.onmouseout = null;
+    if (l === q.answer) {
+      btn.style.background = '#E8F5E9';
+      btn.style.borderColor = '#4A9B5F';
+    } else if (l === selected && !correct) {
+      btn.style.background = '#FEF2F0';
+      btn.style.borderColor = '#D94F3D';
+    }
+    btn.dataset.selected = '1';
+  });
+
+  // 解説を表示
+  const fb = document.getElementById('eikenFeedback');
+  fb.style.display = 'block';
+  fb.innerHTML = `
+    <div style="background:${correct?'#E8F5E9':'#FEF2F0'};border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px;color:${correct?'#4A9B5F':'#D94F3D'}">
+        ${correct ? '◎ 正解！' : `× 不正解（正解は ${q.answer}）`}
+      </div>
+      <div style="font-size:13px;color:var(--ink2);line-height:1.7">${q.explanation}</div>
+    </div>
+    <button onclick="nextEikenQuestion()"
+            class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;background:#C8922A">
+      ${eikenSession.currentQ + 1 < (parsed.questions||[]).length ? '次の問題へ →' : '結果を見る'}
+    </button>`;
+}
+
+function nextEikenQuestion() {
+  eikenSession.currentQ++;
+  renderEikenQuestion();
+}
+
+// 結果画面
+function renderEikenResult() {
+  const { unit, typeId, grade, results } = eikenSession;
+  const content = document.getElementById('eikenContent');
+  const total = results.length;
+  const correct = results.filter(r => r.correct).length;
+  const pct = Math.round((correct/total)*100);
+
+  // 履歴に記録
+  if (!AppData.eikenHistory) AppData.eikenHistory = {};
+  const key = `${unit}__${typeId}`;
+  if (!AppData.eikenHistory[key]) AppData.eikenHistory[key] = { correct:0, total:0 };
+  AppData.eikenHistory[key].correct += correct;
+  AppData.eikenHistory[key].total   += total;
+  saveData();
+
+  const typeInfo = EIKEN_QUESTION_TYPES.find(t => t.id === typeId);
+  const emoji = pct >= 80 ? '🎉' : pct >= 60 ? '😊' : '💪';
+  const msg   = pct >= 80 ? 'すごい！よく できたね！' : pct >= 60 ? 'いい調子！もう少し！' : 'もう一度練習しよう！';
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:32px 16px">
+      <div style="font-size:48px;margin-bottom:12px">${emoji}</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px">${msg}</div>
+      <div style="font-size:36px;font-weight:700;color:#C8922A;margin-bottom:4px">
+        ${correct} / ${total}
+      </div>
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">正答率 ${pct}%</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:28px">${unit} · ${typeInfo?.label}</div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:300px;margin:0 auto">
+        <button onclick="startEikenPractice('${unit.replace(/'/g,"\\'")}','${typeId}')"
+                class="btn btn-primary" style="padding:14px;font-size:14px;background:#C8922A">
+          🔄 もう一度
+        </button>
+        <button onclick="showEikenTypeSelect('${unit.replace(/'/g,"\\'")}'); eikenSession={}"
+                class="btn btn-secondary" style="padding:12px;font-size:13px">
+          別の問題種類をやる
+        </button>
+        <button onclick="showEikenMenu()" class="btn btn-secondary" style="padding:12px;font-size:13px">
+          単元一覧に戻る
+        </button>
+      </div>
+    </div>`;
+}
 
 function showParentMenu(section) {
   document.getElementById('parentModalTitle').textContent = '👨‍👩‍👧 保護者メニュー';
