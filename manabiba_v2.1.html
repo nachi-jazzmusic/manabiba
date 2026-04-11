@@ -535,6 +535,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
   #homeContent {
     display: none !important;
   }
+
+  /* スマホ: チャット入力エリアがナビバーに隠れないよう */
+  #homePome > div:last-child {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+  }
   
   /* モーダルの入力欄もタブバーに隠れないよう */
   .modal-content {
@@ -3012,7 +3017,7 @@ function renderAIChatInline() {
         </div>
       </div>
       
-      <div style="padding:16px;border-top:1px solid var(--border);flex-shrink:0">
+      <div style="padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));border-top:1px solid var(--border);flex-shrink:0">
         <!-- 中断ボタン（送信中のみ表示） -->
         <div id="aiAbortBarInline" style="display:none;margin-bottom:8px;text-align:center">
           <button onclick="abortAIMessage()" style="
@@ -10944,30 +10949,52 @@ function updateMobileNavActive(panelId) {
 }
 
 // スマホ用: AIチャットを全画面で開く
-function openAIChatMobile() {
-  // ホーム画面を表示
-  showPanel('home');
-  
-  // モバイルナビのハイライトを更新
-  const navItems = document.querySelectorAll('.mobile-nav-item');
-  navItems.forEach(item => item.classList.remove('active'));
-  navItems[1].classList.add('active'); // ポメボタン（2番目）
+// スマホナビの統合処理
+function mobileNav(target, btn) {
+  // アクティブ状態を切り替え
+  document.querySelectorAll('.mobile-nav-item').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  // サイドバー・オーバーレイを閉じる
+  document.getElementById('sidebar')?.classList.remove('show');
+  document.getElementById('mobileMenuOverlay')?.classList.remove('show');
+
+  switch(target) {
+    case 'home':
+      showPanel('home');
+      break;
+    case 'pome':
+      // ホームパネルに戻してポメに焦点
+      showPanel('home');
+      setTimeout(() => {
+        const input = document.getElementById('aiChatInput');
+        if (input) input.focus();
+      }, 100);
+      break;
+    case 'schedule':
+      openScheduleModal();
+      break;
+    case 'practice':
+      showPracticeMenu();
+      break;
+    case 'parent':
+      showParentMenu();
+      break;
+  }
 }
 
-// スケジュールモーダル（スマホ用）
+function openAIChatMobile() {
+  mobileNav('pome', document.querySelectorAll('.mobile-nav-item')[1]);
+}
+
+// スケジュールモーダル（スマホ用）→ 今日やることを全表示
 function openScheduleModal() {
   const modal = document.getElementById('scheduleModal');
   const modalBody = document.getElementById('scheduleModalBody');
-  
-  // スケジュール内容を生成
-  const today = getTodayString();
-  const todayPlan = AppData.dailyPlans?.[today];
-  
-  const scheduleHtml = renderCompactSchedule(todayPlan);
-  modalBody.innerHTML = scheduleHtml;
-  
+  // 今日やることハブの内容をそのまま表示
+  modalBody.innerHTML = `<div style="padding-bottom:20px">${renderTodayHub()}</div>`;
   modal.classList.add('show');
-  document.body.style.overflow = 'hidden'; // 背景スクロール防止
+  document.body.style.overflow = 'hidden';
 }
 
 function closeScheduleModal(event) {
@@ -10990,23 +11017,23 @@ document.addEventListener('DOMContentLoaded', init);
 <!-- モバイルナビゲーションバー -->
 <nav class="mobile-nav">
   <div class="mobile-nav-items">
-    <button class="mobile-nav-item active" onclick="showPanel('home')">
+    <button class="mobile-nav-item active" onclick="mobileNav('home',this)">
       <div class="mobile-nav-icon">🏠</div>
       <div>ホーム</div>
     </button>
-    <button class="mobile-nav-item" onclick="openAIChatMobile()">
+    <button class="mobile-nav-item" onclick="mobileNav('pome',this)">
       <div class="mobile-nav-icon">💬</div>
       <div>ポメ</div>
     </button>
-    <button class="mobile-nav-item" onclick="openScheduleModal()">
+    <button class="mobile-nav-item" onclick="mobileNav('schedule',this)">
       <div class="mobile-nav-icon">📋</div>
       <div>予定</div>
     </button>
-    <button class="mobile-nav-item" onclick="showPracticeMenu()">
+    <button class="mobile-nav-item" onclick="mobileNav('practice',this)">
       <div class="mobile-nav-icon">📝</div>
       <div>問題</div>
     </button>
-    <button class="mobile-nav-item" onclick="showParentMenu()">
+    <button class="mobile-nav-item" onclick="mobileNav('parent',this)">
       <div class="mobile-nav-icon">👨‍👩‍👧</div>
       <div>保護者</div>
     </button>
