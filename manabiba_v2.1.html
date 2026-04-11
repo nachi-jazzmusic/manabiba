@@ -1846,13 +1846,13 @@ function renderTodayHub() {
       <div style="margin-bottom:20px">
         <div style="font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
           <span>📚 机でやるもの</span>
-          <button onclick="showAddDeskTask()" style="border:none;background:none;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;padding:4px 8px">＋ 追加</button>
+          <button onclick="showParentMenu();setTimeout(()=>showParentHomework(),100)" style="border:none;background:none;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;padding:4px 8px">＋ 追加</button>
         </div>
         ${deskTasks.length === 0 ? `
           <div style="background:var(--bg2);border-radius:9px;padding:16px;text-align:center;color:var(--ink3);font-size:12px">
             宿題を追加してね
-            <button onclick="showAddDeskTask()" class="btn btn-primary" style="display:block;margin:10px auto 0;padding:8px 16px;font-size:12px">
-              ＋ 宿題を追加
+            <button onclick="showParentMenu();setTimeout(()=>showParentHomework(),100)" class="btn btn-primary" style="display:block;margin:10px auto 0;padding:8px 16px;font-size:12px">
+              ＋ 宿題を追加（保護者メニューへ）
             </button>
           </div>` :
           deskTasks.map(t => renderDeskTaskCard(t)).join('')
@@ -1962,9 +1962,10 @@ function renderDeskTaskCard(t) {
 function renderAppTaskCard(t) {
   const actionMap = {
     'word_session':     { fn: "startOutputSession('word')",  color: 'var(--teal)',   icon: '🔤' },
-    'sentence_session': { fn: "startOutputSession('sentence')", color: 'var(--purple)', icon: '📝' },
-    'eiken':            { fn: 'startTodayEiken()',            color: '#C8922A',        icon: '🌟' },
-    'bulk_test':        { fn: 'showBulkTestSetup()',          color: 'var(--purple)',  icon: '📋' },
+    'sentence_session': { fn: "startOutputSession('word')",  color: 'var(--teal)',   icon: '🔤' }, // 統合
+    'eiken':            { fn: 'startTodayEiken()',            color: '#C8922A',       icon: '🌟' },
+    'bulk_test':        { fn: 'showBulkTestSetup()',          color: 'var(--purple)', icon: '📋' },
+    'kanji':            { fn: 'startKanjiPractice()',         color: 'var(--ink)',    icon: '🖊️' },
   };
   const act = actionMap[t.action] || { fn: '', color: 'var(--accent)', icon: '📚' };
 
@@ -2061,6 +2062,159 @@ function unmarkAppTaskDone(itemId) {
 }
 
 // ── 今日の英検（自動単元提案） ──
+// ── 漢字練習 ──
+
+async function startKanjiPractice() {
+  if (!AppData.settings?.apiKey) {
+    alert('設定画面でAPIキーを入力してください');
+    return;
+  }
+
+  const grade = AppData.settings?.grade || '中1';
+  const modal = document.getElementById('outputModal');
+  const content = document.getElementById('outputContent');
+  document.getElementById('outputModalTitle').textContent = '🖊️ 漢字練習';
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:48px;color:var(--ink3)">
+      <div style="font-size:32px;margin-bottom:12px">🖊️</div>
+      <div style="font-weight:700;margin-bottom:8px">漢字の問題を作っています...</div>
+      <div style="font-size:12px">${grade}レベルの漢字</div>
+    </div>`;
+  modal.classList.add('show');
+
+  const prompt = `${grade}生向けの漢字問題を8問作ってください。
+国語の教科書で習う漢字と、時々小学校の漢字（復習）を混ぜてください。
+
+# 出力形式（JSONのみ・コードブロック不要）
+{"questions":[
+  {"type":"read","question":"漢字を読んでみよう","kanji":"漢字を含む文","answer":"読み方（ひらがな）"},
+  {"type":"write","question":"書いてみよう","kana":"ひらがな文","kanji":"正解の漢字","hint":"部首や使い方のヒント（1文）"}
+]}
+
+# 条件
+- readとwriteを4問ずつ
+- 中学生が実際に使う文脈で出す
+- 小学校の漢字も2〜3問混ぜる（復習として）
+- JSONのみ出力`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': AppData.settings.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1200,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    let txt = data.content[0].text.trim().replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(txt);
+
+    // セッション開始
+    eikenSession = { unit:'漢字', typeId:'kanji', grade, parsed, results:[], currentQ:0 };
+    renderKanjiQuestion();
+  } catch(e) {
+    content.innerHTML = `
+      <div style="text-align:center;padding:40px;color:var(--red)">
+        <div style="font-weight:700">問題の生成に失敗しました</div>
+        <div style="font-size:12px;margin-top:8px;color:var(--ink3)">${e.message}</div>
+        <button onclick="closeOutputModal()" class="btn btn-secondary" style="margin-top:16px;padding:10px 20px">閉じる</button>
+      </div>`;
+  }
+}
+
+function renderKanjiQuestion() {
+  const { parsed, currentQ } = eikenSession;
+  const questions = parsed.questions || [];
+  const content   = document.getElementById('outputContent');
+  const total     = questions.length;
+
+  if (currentQ >= total) { renderKanjiResult(); return; }
+
+  const q   = questions[currentQ];
+  const pct = Math.round((currentQ/total)*100);
+  const isRead = q.type === 'read';
+
+  content.innerHTML = `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
+        <span>漢字練習　${isRead?'読み':'書き'}</span><span>${currentQ+1} / ${total}</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:4px;height:5px">
+        <div style="background:var(--ink);width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
+      </div>
+    </div>
+
+    <div style="background:linear-gradient(135deg,#F5F3EF,#fff);border:1.5px solid var(--border);
+                border-radius:12px;padding:24px;margin-bottom:20px;text-align:center">
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:12px">${q.question}</div>
+      ${isRead ? `
+        <div style="font-size:32px;font-weight:700;line-height:1.6">${q.kanji}</div>` : `
+        <div style="font-size:22px;font-weight:700;margin-bottom:8px">${q.kana}</div>
+        <div style="font-size:12px;color:var(--teal)">${q.hint}</div>
+      `}
+    </div>
+
+    <div style="font-size:13px;color:var(--ink2);text-align:center;margin-bottom:12px">
+      ${isRead ? 'ひらがなで読んでから、答えを確認しよう' : 'ノートに漢字を書いてから、答えを確認しよう'}
+    </div>
+
+    <div id="kanjiAnswer" style="display:none;background:var(--bg2);border-radius:10px;
+                                  padding:16px;text-align:center;margin-bottom:16px">
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">答え</div>
+      <div style="font-size:28px;font-weight:700">${isRead ? q.answer : q.kanji}</div>
+    </div>
+    <button id="kanjiAnswerBtn" onclick="document.getElementById('kanjiAnswer').style.display='block';this.style.display='none';document.getElementById('kanjiJudge').style.display='flex'"
+            class="btn btn-secondary" style="width:100%;padding:12px;margin-bottom:12px">
+      答えを見る
+    </button>
+    <div id="kanjiJudge" style="display:none;gap:10px">
+      <button onclick="kanjiResult(true)" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:14px">◎ できた</button>
+      <button onclick="kanjiResult(false)" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:14px">× できなかった</button>
+    </div>
+  `;
+}
+
+function kanjiResult(ok) {
+  eikenSession.results.push({ correct: ok });
+  eikenSession.currentQ++;
+  renderKanjiQuestion();
+}
+
+function renderKanjiResult() {
+  const content = document.getElementById('outputContent');
+  const total   = eikenSession.results.length;
+  const correct = eikenSession.results.filter(r=>r.correct).length;
+  const pct     = Math.round((correct/total)*100);
+  const emoji   = pct>=80?'🎉':pct>=60?'😊':'💪';
+
+  // 完了マーク
+  markAppTaskDone('kanji');
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:32px 16px">
+      <div style="font-size:48px;margin-bottom:12px">${emoji}</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px">漢字練習完了！</div>
+      <div style="font-size:32px;font-weight:700;color:var(--ink);margin-bottom:4px">${correct} / ${total}</div>
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:24px">正答率 ${pct}%</div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:280px;margin:0 auto">
+        <button onclick="startKanjiPractice()" class="btn btn-primary" style="padding:14px;font-size:13px">
+          🔄 もう一度
+        </button>
+        <button onclick="closeOutputModal()" class="btn btn-secondary" style="padding:12px;font-size:13px">
+          閉じる
+        </button>
+      </div>
+    </div>`;
+}
+
 function startTodayEiken() {
   const grade = AppData.settings?.eiken?.targetGrade || '4級';
   const history = AppData.eikenHistory || {};
@@ -8560,6 +8714,134 @@ function renderEikenResult() {
     </div>`;
 }
 
+// ── 保護者：宿題登録 ──
+
+function showParentHomework() {
+  document.getElementById('parentModalTitle').textContent = '📚 宿題を登録する';
+  const content = document.getElementById('parentContent');
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div class="input-group">
+      <label class="input-label">科目</label>
+      <select class="select-field" id="phw_subject" onchange="updatePhwUnits()">
+        <option value="">選択してください</option>
+        ${SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">内容</label>
+      <select class="select-field" id="phw_unit" onchange="updatePhwPreview()">
+        <option value="">科目を先に選んでください</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:12px">
+      <div class="input-group" style="flex:1">
+        <label class="input-label">総量</label>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input type="number" class="input-field" id="phw_qty" value="3" min="1" max="200"
+                 oninput="updatePhwPreview()">
+          <span id="phw_unit_label" style="font-size:12px;color:var(--ink3);white-space:nowrap">ページ</span>
+        </div>
+      </div>
+      <div class="input-group" style="flex:1">
+        <label class="input-label">期限</label>
+        <input type="date" class="input-field" id="phw_due" value="${tomorrowStr}"
+               onchange="updatePhwPreview()">
+      </div>
+    </div>
+
+    <div id="phw_preview" style="background:var(--bg2);border-radius:10px;padding:14px;
+                                   margin-bottom:20px;min-height:50px"></div>
+
+    <button onclick="saveParentHomework()" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px">✓ 登録する</button>
+
+    <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">登録済みの宿題</div>
+      ${renderProgressInParent()}
+    </div>
+  `;
+}
+
+function updatePhwUnits() {
+  const subject = document.getElementById('phw_subject').value;
+  const units = Object.keys(getTimeEstimates()[subject] || {});
+  const sel = document.getElementById('phw_unit');
+  sel.innerHTML = units.map(u=>`<option value="${u}">${u}</option>`).join('');
+  const label = document.getElementById('phw_unit_label');
+  if (label) label.textContent = getUnitShort(units[0]) || 'ページ';
+  updatePhwPreview();
+}
+
+function updatePhwPreview() {
+  const subject = document.getElementById('phw_subject')?.value;
+  const unit    = document.getElementById('phw_unit')?.value;
+  const qty     = parseInt(document.getElementById('phw_qty')?.value) || 0;
+  const due     = document.getElementById('phw_due')?.value;
+  const preview = document.getElementById('phw_preview');
+  if (!preview) return;
+
+  if (!subject || !unit || !qty || !due) {
+    preview.innerHTML = '<span style="color:var(--ink3);font-size:12px">科目・内容・量・期限を入力してください</span>';
+    return;
+  }
+
+  const dueDate  = new Date(due);
+  const today    = new Date(); today.setHours(0,0,0,0);
+  const daysLeft = Math.ceil((dueDate - today) / (1000*60*60*24));
+  const perDay   = daysLeft > 0 ? Math.ceil(qty / daysLeft) : qty;
+  const minPerDay= getEstimatedTime(subject, unit, perDay);
+  const unitShort= getUnitShort(unit) || 'ページ';
+
+  preview.innerHTML = `
+    <div style="font-size:13px;font-weight:700;margin-bottom:6px">${subject}：${unit} ${qty}${unitShort}　期限まで${daysLeft}日</div>
+    <div style="font-size:12px;color:var(--ink2)">→ 1日あたり <strong>${perDay}${unitShort}</strong>（約<strong>${minPerDay}分</strong>）</div>
+  `;
+}
+
+function saveParentHomework() {
+  const subject = document.getElementById('phw_subject')?.value;
+  const unit    = document.getElementById('phw_unit')?.value;
+  const qty     = parseInt(document.getElementById('phw_qty')?.value) || 0;
+  const due     = document.getElementById('phw_due')?.value;
+
+  if (!subject || !unit || !qty || !due) { alert('全て入力してください'); return; }
+
+  if (!AppData.homeworkCards) AppData.homeworkCards = [];
+
+  const dueDate  = new Date(due);
+  const today    = new Date(); today.setHours(0,0,0,0);
+  const daysLeft = Math.ceil((dueDate - today) / (1000*60*60*24));
+  const perDay   = daysLeft > 0 ? Math.ceil(qty / daysLeft) : qty;
+
+  const schedule = [];
+  for (let i = 0; i < Math.max(daysLeft, 1); i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const remaining = qty - (perDay * i);
+    const todayQty  = Math.min(perDay, Math.max(remaining, 0));
+    if (todayQty <= 0) break;
+    schedule.push({ date: d.toISOString().split('T')[0], quantity: todayQty, done: false });
+  }
+
+  AppData.homeworkCards.push({
+    id: `hw_${Date.now()}`,
+    subject, content: unit, unit,
+    totalQty: qty, dueDate: due,
+    createdDate: getTodayString(),
+    schedule
+  });
+
+  saveData();
+  showToast(`✓ ${subject}の宿題を登録しました`);
+  showParentHomework(); // 画面を更新
+  renderHome();
+}
+
 // ── 保護者：進捗・宿題カード管理 ──
 
 function showParentProgress() {
@@ -8575,10 +8857,10 @@ function showParentProgress() {
 // ── 保護者：毎日やること設定 ──
 
 const DAILY_ITEM_PRESETS = [
-  { type:'eiken',            label:'英検練習',       icon:'🌟', estimatedMin:10, action:'eiken',            detail:'今日の単元をAIが提案' },
-  { type:'word_session',     label:'英単語暗記カード', icon:'🔤', estimatedMin:10, action:'word_session',     detail:'今日の5単語' },
-  { type:'sentence_session', label:'例文暗記カード',   icon:'📝', estimatedMin:10, action:'sentence_session', detail:'今日の3例文' },
-  { type:'bulk_test',        label:'単語小テスト',     icon:'📋', estimatedMin:15, action:'bulk_test',        detail:'登録済みカードでテスト' },
+  { type:'eiken',        label:'英検練習',     icon:'🌟', estimatedMin:10, action:'eiken',        detail:'今日の単元をAIが提案' },
+  { type:'word_session', label:'暗記カード',    icon:'🔤', estimatedMin:10, action:'word_session', detail:'単語・例文を一緒にやる' },
+  { type:'kanji',        label:'漢字練習',      icon:'🖊️', estimatedMin:10, action:'kanji',        detail:'学年に合った漢字をAIが出題' },
+  { type:'bulk_test',    label:'単語小テスト',  icon:'📋', estimatedMin:15, action:'bulk_test',    detail:'登録済みカードでテスト' },
 ];
 
 function showDailyItemsSettings() {
@@ -8637,6 +8919,19 @@ function showParentMenu(section) {
 
   content.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- 宿題登録 -->
+      <button onclick="showParentHomework()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:28px">📚</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">宿題を登録する</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            科目・量・期限を入力→1日分を自動計算
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
 
       <!-- 進捗・宿題管理 -->
       <button onclick="showParentProgress()" class="btn btn-secondary"
@@ -9210,9 +9505,11 @@ function showAddUnit() {
 }
 
 function selectInitialUnderstanding(val, btn) {
-  document.getElementById('addUnitUnderstanding').value = val;
+  // 両方のIDに対応（保護者メニュー用: puUnderstanding、旧フォーム用: addUnitUnderstanding）
+  const el = document.getElementById('puUnderstanding') || document.getElementById('addUnitUnderstanding');
+  if (el) el.value = val;
   // ボタンの見た目を切り替え
-  btn.closest('div').querySelectorAll('button').forEach(b => {
+  btn.closest('div').querySelectorAll('button[data-val]').forEach(b => {
     b.style.opacity = b.dataset.val === val ? '1' : '0.4';
   });
 }
