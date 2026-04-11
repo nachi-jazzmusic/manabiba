@@ -528,11 +528,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
     height:100%;
   }
   
-  /* スマホ: homeGridを1カラムに（今日やることのみ表示） */
+  /* スマホ: homeGridを1カラムに（ポメちゃんのみ表示） */
   #homeGrid {
     grid-template-columns: 1fr !important;
   }
-  #homePome {
+  #homeContent {
     display: none !important;
   }
   
@@ -811,12 +811,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
   <!-- ══ ホーム ══ -->
   <div class="panel active" id="panel-home">
     <div style="display:grid;grid-template-columns:1fr 320px;height:100%;overflow:hidden" id="homeGrid">
-      <!-- 左：今日やること -->
-      <div style="overflow-y:auto;border-right:1px solid var(--border);background:var(--bg)" id="homeContent">
+      <!-- 左（大）：ポメちゃん固定 -->
+      <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#fff" id="homePome">
         <!-- JavaScriptで動的に生成 -->
       </div>
-      <!-- 右：ポメちゃん固定 -->
-      <div style="display:flex;flex-direction:column;height:100%;overflow:hidden;background:#fff" id="homePome">
+      <!-- 右（小）：今日やること -->
+      <div style="overflow-y:auto;border-left:1px solid var(--border);background:var(--bg)" id="homeContent">
         <!-- JavaScriptで動的に生成 -->
       </div>
     </div>
@@ -1768,10 +1768,10 @@ function renderHome() {
   const pomePane   = document.getElementById('homePome');
   if (!container) return;
 
-  // 左：今日やること
+  // 右（小）：今日やること
   container.innerHTML = renderTodayHub();
 
-  // 右：ポメちゃん固定
+  // 左（大）：ポメちゃん固定
   if (pomePane) pomePane.innerHTML = renderAIChatInline();
 }
 
