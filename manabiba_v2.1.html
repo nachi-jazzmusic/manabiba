@@ -512,14 +512,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
     display:block;
   }
   
-  /* モバイルナビを表示 */
+  /* モバイルナビを非表示（ハンバーガーメニューで代替） */
   .mobile-nav{
-    display:block;
+    display:none !important;
   }
-  
-  /* パネルに下部余白を追加（タブバー分） */
+
+  /* パネルの下部余白を削除（ナビバーがなくなったので不要） */
   .panel-body{
-    padding-bottom:calc(70px + env(safe-area-inset-bottom));
+    padding-bottom:calc(20px + env(safe-area-inset-bottom));
   }
   
   /* パネル全体を調整 */
@@ -536,12 +536,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
     display: none !important;
   }
 
-  /* スマホ: チャット入力エリアがナビバーに隠れないよう */
-  #homePome > div:last-child {
-    padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
-  }
-  
-  /* モーダルの入力欄もタブバーに隠れないよう */
+  /* モーダルの入力欄もsafe-area対応 */
   .modal-content {
     padding-bottom:calc(env(safe-area-inset-bottom));
   }
@@ -1866,7 +1861,7 @@ function renderTodayHub() {
           </div>` :
           appTasks.map(t => renderAppTaskCardCompact(t)).join('')
         }
-        ${isWeekend && hasWeekendChecks() ? renderWeekendCheckCardCompact() : ''}
+        ${hasWeekendChecks() ? renderWeekendCheckCardCompact() : ''}
       </div>
 
       <!-- 3日分スケジュール -->
@@ -7808,27 +7803,30 @@ let outputSession = {};
 
 function startOutputSession(type) {
   const today = getTodayString();
-  const limit = type === 'word' ? 5 : 5; // 両方5問に統一
+  const limit = 5;
   const due = (AppData.outputCards || [])
     .filter(c => c.type === type && (!c.nextDate || c.nextDate <= today))
     .slice(0, limit);
 
   if (due.length === 0) { showToast('今日の分はありません！'); return; }
 
+  // モーダルを開く
+  document.getElementById('outputModalTitle').textContent = type === 'word' ? '🔤 暗記カード' : '📝 例文セッション';
+  document.getElementById('outputModal').classList.add('show');
+
   if (type === 'word') {
     outputSession = { type, cards: due, index: 0, phase: 'word_recall', step: 1, reciteResults: {} };
     renderOutputSession();
   } else {
-    // 例文: フェーズ1=音読、フェーズ2=暗唱（ランダム）、フェーズ3=書き取り
     const shuffled = [...due].sort(() => Math.random() - 0.5);
     outputSession = {
       type,
-      readCards: due,          // 音読用（順番通り）
-      reciteCards: shuffled,   // 暗唱用（シャッフル）
+      readCards: due,
+      reciteCards: shuffled,
       index: 0,
       phase: 'reading',
       readCount: 0,
-      reciteResults: {},       // {id: '◎'|'○'|'×'}
+      reciteResults: {},
       writeQueue: []
     };
     renderOutputSession();
