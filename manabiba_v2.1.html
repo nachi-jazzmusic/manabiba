@@ -2047,11 +2047,18 @@ function adjustTodayTask(cardId, action) {
   const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
   if (!card) return;
 
+  const today = getTodayString();
+
   if (action === 'skip') {
-    // 今日は休む→1日あたりの目安を翌日以降に分散（perDayを増やさない・期限が延びる感覚）
-    // 実装上は何もしない（今日のdoneLogに記録しないだけ）
-    showToast('今日の分はスキップします。残りは期限内で分散されます。');
+    // 今日はスキップ → skipLogに記録（今日は表示しない）
+    if (!AppData.homeworkSkipLog) AppData.homeworkSkipLog = {};
+    if (!AppData.homeworkSkipLog[today]) AppData.homeworkSkipLog[today] = {};
+    AppData.homeworkSkipLog[today][cardId] = true;
+    saveData();
+    showToast('今日はスキップ。期限内で残りを分散します');
+    // オーバーレイを閉じずに再描画（モーダル内で内容を更新）
     document.getElementById('threeDayOverlay')?.remove();
+    showThreeDayConfirm();
   } else if (action === 'more') {
     // 多めにやる→perDayを+1
     card.perDay = (card.perDay || 1) + 1;
@@ -2059,19 +2066,23 @@ function adjustTodayTask(cardId, action) {
     document.getElementById('threeDayOverlay')?.remove();
     showThreeDayConfirm();
   }
-  renderHome();
+  // renderHome()はここでは呼ばない（モーダル内で完結）
 }
 
 // ── 机でやるタスク（宿題カード）を取得 ──
 function getDeskTasksForToday() {
   const today = getTodayString();
   const doneLog = AppData.homeworkDoneLog || {};
+  const skipLog = AppData.homeworkSkipLog?.[today] || {};
   const tasks = [];
 
   (AppData.homeworkCards || []).forEach(card => {
     // 残り量が0以下なら完了済み → 表示しない
     const remaining = card.remainingQty ?? card.totalQty ?? 0;
     if (remaining <= 0) return;
+
+    // 今日スキップされた → 表示しない
+    if (skipLog[card.id]) return;
 
     // 今日の完了済み量
     const todayDone = doneLog[today]?.[card.id] || 0;
