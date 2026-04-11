@@ -1790,127 +1790,318 @@ function renderTodayHub() {
   const today     = getTodayString();
   const dayOfWeek = DAYS_JP[new Date().getDay()];
   const todayPlan = AppData.dailyPlans?.[today];
-  const name      = AppData.settings?.name || 'かりん';
   const isWeekend = [0,6].includes(new Date().getDay());
 
-  // ── タスクを収集 ──
-  const deskTasks   = getDeskTasksForToday();   // 机でやるもの
-  const appTasks    = getAppTasksForToday();    // アプリでやるもの
-
-  const deskDone  = deskTasks.filter(t => t.done).length;
-  const appDone   = appTasks.filter(t => t.done).length;
+  const deskTasks = getDeskTasksForToday();
+  const appTasks  = getAppTasksForToday();
+  const doneAll   = deskTasks.filter(t=>t.done).length + appTasks.filter(t=>t.done).length;
   const totalAll  = deskTasks.length + appTasks.length;
-  const doneAll   = deskDone + appDone;
   const pct       = totalAll > 0 ? Math.round((doneAll/totalAll)*100) : 0;
 
-  // ── スケジュール情報 ──
-  const schedule = todayPlan?.schedule || [];
-  const pending  = schedule.filter(t => t.status !== 'completed' && t.status !== 'skipped' && t.type !== 'break');
-  const totalMin = pending.reduce((s,t) => s + (t.estimatedMin||0), 0);
-  const startTime= schedule.find(t=>t.startTime)?.startTime || '--:--';
-  const lastTask = schedule[schedule.length-1];
-  const endTime  = lastTask?.endTime || '--:--';
+  const schedule  = todayPlan?.schedule || [];
+  const pending   = schedule.filter(t => t.status !== 'completed' && t.type !== 'break');
+  const totalMin  = pending.reduce((s,t) => s+(t.estimatedMin||0), 0);
+  const startTime = checkinData?.startTime || schedule.find(t=>t.startTime)?.startTime || '--:--';
+  const endTime   = todayPlan?.endTime || '--:--';
+
+  // 3日分の宿題カード概要
+  const threeDays = getThreeDaySchedule();
 
   return `
-    <div style="padding:16px 20px;border-bottom:1px solid var(--border);background:#fff;flex-shrink:0">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-size:18px;font-weight:700">📅 今日やること</div>
-          <div style="font-size:12px;color:var(--ink3);margin-top:2px">
-            ${formatDate(new Date())} ${dayOfWeek}曜日
-          </div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:22px;font-weight:700;color:${pct===100?'var(--green)':'var(--accent)'}">${pct}%</div>
-          <div style="font-size:10px;color:var(--ink3)">${doneAll}/${totalAll} 完了</div>
-        </div>
+    <!-- ヘッダー（コンパクト） -->
+    <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:#fff;flex-shrink:0;
+                display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:14px;font-weight:700">📅 今日やること</div>
+        <div style="font-size:10px;color:var(--ink3)">${formatDate(new Date())} ${dayOfWeek}曜日</div>
       </div>
-      ${pct===100 ? `
-        <div style="background:#E8F5E9;border-radius:8px;padding:8px 12px;margin-top:10px;font-size:13px;font-weight:700;color:var(--green);text-align:center">
-          🎉 今日の分は全部終わったよ！すごい！
-        </div>` : ''}
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:700;color:${pct===100?'var(--green)':'var(--accent)'}">${pct}%</div>
+        <div style="font-size:10px;color:var(--ink3)">${doneAll}/${totalAll}</div>
+      </div>
     </div>
 
-    <div style="padding:16px 20px;overflow-y:auto">
+    <div style="padding:10px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
 
-      <!-- スケジュール概要 -->
-      <div style="background:#fff;border-radius:11px;border:1px solid var(--border);padding:14px;margin-bottom:16px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:13px;font-weight:700">⏰ 今日のスケジュール</div>
-          <div style="display:flex;gap:6px">
-            <button onclick="startCheckin()" class="btn btn-primary" style="padding:5px 10px;font-size:11px">
-              ${schedule.length > 0 ? '立て直す' : '予定を立てる'}
-            </button>
-          </div>
+      <!-- スケジュール（1行） -->
+      <div style="background:#fff;border-radius:9px;border:1px solid var(--border);
+                  padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:11px;color:var(--ink2)">
+          ${schedule.length > 0
+            ? `⏰ ${startTime}〜${endTime}　残り<strong style="color:var(--accent)">${totalMin}分</strong>`
+            : '⏰ 予定なし'}
         </div>
-        ${schedule.length > 0 ? `
-          <div style="display:flex;gap:16px;font-size:12px">
-            <div><span style="color:var(--ink3)">開始</span> <strong>${startTime}</strong></div>
-            <div><span style="color:var(--ink3)">終了予定</span> <strong>${endTime}</strong></div>
-            <div><span style="color:var(--ink3)">残り</span> <strong style="color:var(--accent)">${Math.floor(totalMin/60)?Math.floor(totalMin/60)+'時間':''}${totalMin%60}分</strong></div>
-          </div>` : `
-          <div style="font-size:12px;color:var(--ink3)">まだ予定がありません</div>`}
+        <button onclick="startCheckin()" class="btn btn-primary"
+                style="padding:4px 10px;font-size:11px">
+          ${schedule.length > 0 ? '立て直す' : '予定を立てる'}
+        </button>
       </div>
 
-      <!-- 机でやるもの -->
-      <div style="margin-bottom:20px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <!-- 机でやるもの（コンパクト） -->
+      <div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
           <span>📚 机でやるもの</span>
-          <button onclick="showParentMenu();setTimeout(()=>showParentHomework(),100)" style="border:none;background:none;color:var(--accent);font-size:12px;font-weight:700;cursor:pointer;padding:4px 8px">＋ 追加</button>
+          <button onclick="showParentMenu();setTimeout(()=>showParentHomework(),100)"
+                  style="border:none;background:none;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer">＋</button>
         </div>
         ${deskTasks.length === 0 ? `
-          <div style="background:var(--bg2);border-radius:9px;padding:16px;text-align:center;color:var(--ink3);font-size:12px">
+          <div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center;color:var(--ink3);font-size:11px">
             宿題を追加してね
-            <button onclick="showParentMenu();setTimeout(()=>showParentHomework(),100)" class="btn btn-primary" style="display:block;margin:10px auto 0;padding:8px 16px;font-size:12px">
-              ＋ 宿題を追加（保護者メニューへ）
-            </button>
           </div>` :
-          deskTasks.map(t => renderDeskTaskCard(t)).join('')
+          deskTasks.map(t => renderDeskTaskCardCompact(t)).join('')
         }
       </div>
 
-      <!-- アプリでやるもの -->
-      <div style="margin-bottom:20px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:10px">📱 アプリでやるもの</div>
+      <!-- アプリでやるもの（コンパクト） -->
+      <div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px">📱 アプリでやるもの</div>
         ${appTasks.length === 0 ? `
-          <div style="background:var(--bg2);border-radius:9px;padding:12px;text-align:center;color:var(--ink3);font-size:12px">
-            保護者メニューで「毎日やること」を設定してね
+          <div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center;color:var(--ink3);font-size:11px">
+            保護者メニューで設定してね
           </div>` :
-          appTasks.map(t => renderAppTaskCard(t)).join('')
+          appTasks.map(t => renderAppTaskCardCompact(t)).join('')
         }
-        ${isWeekend && hasWeekendChecks() ? renderWeekendCheckCard() : ''}
+        ${isWeekend && hasWeekendChecks() ? renderWeekendCheckCardCompact() : ''}
       </div>
+
+      <!-- 3日分スケジュール -->
+      ${threeDays.length > 0 ? `
+      <div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+          <span>📆 3日間の予定</span>
+          <button onclick="showThreeDayConfirm()" style="border:none;background:none;color:var(--teal);font-size:11px;font-weight:700;cursor:pointer">確認・調整</button>
+        </div>
+        ${threeDays.map(day => `
+          <div style="background:#fff;border-radius:8px;border:1px solid var(--border);
+                      padding:7px 10px;margin-bottom:5px">
+            <div style="font-size:10px;font-weight:700;color:${day.isToday?'var(--accent)':'var(--ink3)'};margin-bottom:3px">
+              ${day.label}${day.isToday?' ← 今日':''}
+            </div>
+            ${day.tasks.map(t => `
+              <div style="font-size:11px;color:var(--ink2);display:flex;justify-content:space-between">
+                <span>${t.subject}：${t.quantity}${getUnitShort(t.unit)}</span>
+                <span style="color:var(--ink3)">${t.estimatedMin}分</span>
+              </div>`).join('')}
+            ${day.totalMin > 0 ? `<div style="font-size:10px;color:var(--ink3);text-align:right;margin-top:2px">計${day.totalMin}分</div>` : ''}
+          </div>`).join('')}
+      </div>` : ''}
 
     </div>
   `;
 }
 
+// ── 3日分スケジュールデータを生成 ──
+function getThreeDaySchedule() {
+  const days = [];
+  const today = new Date(); today.setHours(0,0,0,0);
+  const doneLog = AppData.homeworkDoneLog || {};
+
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const dateStr = d.toISOString().split('T')[0];
+    const isToday = i === 0;
+    const label = i === 0 ? '今日' : i === 1 ? '明日' : `明後日`;
+    const tasks = [];
+    let totalMin = 0;
+
+    (AppData.homeworkCards || []).forEach(card => {
+      const remaining = card.remainingQty ?? card.totalQty ?? 0;
+      if (remaining <= 0) return;
+
+      // 今日の完了分を考慮
+      const doneSoFar = Object.values(doneLog).reduce((sum, dayLog) => {
+        return sum + (dayLog[card.id] || 0);
+      }, 0);
+      const actualRemaining = Math.max((card.totalQty || 0) - doneSoFar, 0);
+      if (actualRemaining <= 0) return;
+
+      const daysLeft = Math.max(Math.ceil((new Date(card.dueDate) - d) / (1000*60*60*24)) + 1, 1);
+      const perDay = card.perDay || Math.ceil(actualRemaining / daysLeft);
+      const qty = Math.min(perDay, actualRemaining);
+      const min = getEstimatedTime(card.subject, card.unit, qty);
+
+      tasks.push({ subject: card.subject, quantity: qty, unit: card.unit, estimatedMin: min });
+      totalMin += min;
+    });
+
+    if (tasks.length > 0) days.push({ label, dateStr, isToday, tasks, totalMin });
+  }
+  return days;
+}
+
+// ── コンパクト版カード描画 ──
+function renderDeskTaskCardCompact(t) {
+  const dueDate = t.dueDate ? new Date(t.dueDate) : null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const daysLeft = dueDate ? Math.ceil((dueDate - today) / (1000*60*60*24)) : null;
+  const urgentColor = daysLeft === 0 ? 'var(--red)' : daysLeft === 1 ? '#C8922A' : 'var(--teal)';
+
+  return `
+    <div style="background:#fff;border-radius:8px;border:1px solid var(--border);
+                border-left:3px solid ${t.done?'var(--bg3)':urgentColor};
+                padding:8px 10px;margin-bottom:5px;display:flex;align-items:center;gap:8px;
+                cursor:pointer;opacity:${t.done?0.6:1}"
+         onclick="toggleDeskTask('${t.cardId}','${getTodayString()}')">
+      <div style="font-size:16px">${t.done?'✅':'☐'}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                    ${t.done?'text-decoration:line-through;color:var(--ink3)':''}">${t.subject}：${t.content}</div>
+        <div style="font-size:10px;color:var(--ink3)">${t.quantity}${getUnitShort(t.unit)} · ${t.estimatedMin}分 · <span style="color:${urgentColor}">${daysLeft===0?'今日まで':daysLeft===1?'明日まで':`あと${daysLeft}日`}</span></div>
+      </div>
+    </div>`;
+}
+
+function renderAppTaskCardCompact(t) {
+  const actionMap = {
+    'word_session': { fn:"startOutputSession('word')", color:'var(--teal)',   icon:'🔤' },
+    'sentence_session': { fn:"startOutputSession('word')", color:'var(--teal)', icon:'🔤' },
+    'eiken':        { fn:'startTodayEiken()',           color:'#C8922A',      icon:'🌟' },
+    'bulk_test':    { fn:'showBulkTestSetup()',         color:'var(--purple)', icon:'📋' },
+    'kanji':        { fn:'startKanjiPractice()',        color:'var(--ink)',   icon:'🖊️' },
+  };
+  const act = actionMap[t.action] || { fn:'', color:'var(--accent)', icon:'📚' };
+
+  return `
+    <div style="background:#fff;border-radius:8px;border:1px solid var(--border);
+                border-left:3px solid ${t.done?'var(--bg3)':act.color};
+                padding:7px 10px;margin-bottom:5px;display:flex;align-items:center;gap:8px;
+                opacity:${t.done?0.6:1}">
+      <div style="font-size:15px">${t.done?'✅':act.icon}</div>
+      <div style="flex:1;font-size:12px;font-weight:700;${t.done?'text-decoration:line-through;color:var(--ink3)':''}">${t.label}</div>
+      ${!t.done ? `
+        <button onclick="${act.fn};markAppTaskDone('${t.id}')"
+                style="padding:4px 10px;border-radius:6px;border:none;background:${act.color};
+                       color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
+          やる→
+        </button>` : `
+        <button onclick="unmarkAppTaskDone('${t.id}')"
+                style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);
+                       background:var(--bg2);color:var(--ink3);font-size:10px;cursor:pointer">
+          取消
+        </button>`}
+    </div>`;
+}
+
+function renderWeekendCheckCardCompact() {
+  const today = getTodayString();
+  const due = (AppData.unitRecords || []).filter(r =>
+    r.checkSchedule?.some(c => !c.done && c.date <= today)
+  );
+  return `
+    <div style="background:#FFF5EF;border-radius:8px;border:1.5px solid var(--accent);
+                padding:7px 10px;display:flex;align-items:center;gap:8px">
+      <div style="font-size:15px">📒</div>
+      <div style="flex:1;font-size:12px;font-weight:700">週末チェック（${due.length}件）</div>
+      <button onclick="showUnitTracker()"
+              style="padding:4px 10px;border-radius:6px;border:none;background:var(--accent);
+                     color:#fff;font-size:11px;font-weight:700;cursor:pointer">やる→</button>
+    </div>`;
+}
+
+// ── 3日分スケジュール確認・調整モーダル ──
+function showThreeDayConfirm() {
+  const overlay = document.createElement('div');
+  overlay.id = 'threeDayOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+
+  const days = getThreeDaySchedule();
+  const daysRows = days.map((day, di) => `
+    <div style="background:${day.isToday?'linear-gradient(135deg,#FFF5EF,#fff)':'#fff'};
+                border-radius:10px;border:1px solid ${day.isToday?'var(--accent)':'var(--border)'};
+                padding:12px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:${day.isToday?'var(--accent)':'var(--ink)'}">
+        ${day.label}　合計${day.totalMin}分
+      </div>
+      ${day.tasks.map((t, ti) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:5px 0;border-bottom:1px solid var(--bg2)">
+          <div style="font-size:12px">${t.subject}：${t.quantity}${getUnitShort(t.unit)}（${t.estimatedMin}分）</div>
+          ${day.isToday ? `
+            <div style="display:flex;gap:4px">
+              <button onclick="adjustTodayTask('${AppData.homeworkCards?.find(c=>c.subject===t.subject)?.id}','skip')"
+                      style="padding:3px 8px;border-radius:5px;border:1px solid var(--border);
+                             background:var(--bg2);font-size:10px;cursor:pointer">今日は休む</button>
+              <button onclick="adjustTodayTask('${AppData.homeworkCards?.find(c=>c.subject===t.subject)?.id}','more')"
+                      style="padding:3px 8px;border-radius:5px;border:1px solid var(--teal);
+                             background:var(--teal);color:#fff;font-size:10px;cursor:pointer">多めにやる</button>
+            </div>` : ''}
+        </div>`).join('')}
+    </div>`).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:14px;padding:20px;width:100%;max-width:440px;
+                max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="font-size:16px;font-weight:700;margin-bottom:16px">📆 3日間の予定確認</div>
+      ${days.length === 0 ? '<div style="text-align:center;color:var(--ink3);padding:20px">登録済みの宿題がありません</div>' : daysRows}
+      <button onclick="document.getElementById('threeDayOverlay').remove();renderHome()"
+              class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;margin-top:8px">
+        ✓ この予定でOK
+      </button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+}
+
+function adjustTodayTask(cardId, action) {
+  const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
+  if (!card) return;
+
+  if (action === 'skip') {
+    // 今日は休む→1日あたりの目安を翌日以降に分散（perDayを増やさない・期限が延びる感覚）
+    // 実装上は何もしない（今日のdoneLogに記録しないだけ）
+    showToast('今日の分はスキップします。残りは期限内で分散されます。');
+    document.getElementById('threeDayOverlay')?.remove();
+  } else if (action === 'more') {
+    // 多めにやる→perDayを+1
+    card.perDay = (card.perDay || 1) + 1;
+    saveData();
+    document.getElementById('threeDayOverlay')?.remove();
+    showThreeDayConfirm();
+  }
+  renderHome();
+}
+
 // ── 机でやるタスク（宿題カード）を取得 ──
 function getDeskTasksForToday() {
   const today = getTodayString();
+  const doneLog = AppData.homeworkDoneLog || {};
   const tasks = [];
-  const homeworkCards = AppData.homeworkCards || [];
 
-  homeworkCards.forEach(card => {
-    // 今日の分を探す
-    const todaySlot = card.schedule?.find(s => s.date === today);
-    if (!todaySlot) return;
+  (AppData.homeworkCards || []).forEach(card => {
+    // 残り量が0以下なら完了済み → 表示しない
+    const remaining = card.remainingQty ?? card.totalQty ?? 0;
+    if (remaining <= 0) return;
+
+    // 今日の完了済み量
+    const todayDone = doneLog[today]?.[card.id] || 0;
+    // 今日やる予定量（1日あたりの目安、ただし残り量を超えない）
+    const perDay = card.perDay || Math.ceil(remaining / Math.max(daysUntilDue(card.dueDate), 1));
+    const todayQty = Math.min(perDay, remaining);
 
     tasks.push({
       id: card.id,
+      cardId: card.id,
       subject: card.subject,
       content: card.content,
-      quantity: todaySlot.quantity,
+      quantity: todayQty,
       unit: card.unit,
-      done: todaySlot.done || false,
-      cardId: card.id,
-      slotDate: today,
+      done: todayDone >= todayQty,
+      todayDone,
+      remaining,
       dueDate: card.dueDate,
-      estimatedMin: getEstimatedTime(card.subject, card.unit, todaySlot.quantity)
+      estimatedMin: getEstimatedTime(card.subject, card.unit, todayQty)
     });
   });
 
   return tasks;
+}
+
+function daysUntilDue(dueDate) {
+  if (!dueDate) return 1;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const due = new Date(dueDate);
+  return Math.max(Math.ceil((due - today) / (1000*60*60*24)), 1);
 }
 
 // ── アプリでやるタスクを取得 ──
@@ -2040,16 +2231,34 @@ function getUnitShort(unit) {
 }
 
 // ── 机タスクの完了トグル ──
-function toggleDeskTask(cardId, date) {
-  if (!AppData.homeworkCards) return;
-  const card = AppData.homeworkCards.find(c => c.id === cardId);
+function toggleDeskTask(cardId, slotDate) {
+  const today = getTodayString();
+  if (!AppData.homeworkDoneLog) AppData.homeworkDoneLog = {};
+  if (!AppData.homeworkDoneLog[today]) AppData.homeworkDoneLog[today] = {};
+
+  const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
   if (!card) return;
-  const slot = card.schedule?.find(s => s.date === date);
-  if (!slot) return;
-  slot.done = !slot.done;
+
+  const remaining = card.remainingQty ?? card.totalQty ?? 0;
+  const perDay = card.perDay || Math.ceil(remaining / Math.max(daysUntilDue(card.dueDate), 1));
+  const todayQty = Math.min(perDay, remaining);
+  const alreadyDone = AppData.homeworkDoneLog[today][cardId] || 0;
+
+  if (alreadyDone >= todayQty) {
+    // 完了→未完了に戻す
+    AppData.homeworkDoneLog[today][cardId] = 0;
+    // remainingQtyを戻す
+    card.remainingQty = Math.min((card.remainingQty || 0) + todayQty, card.totalQty);
+  } else {
+    // 完了にする
+    AppData.homeworkDoneLog[today][cardId] = todayQty;
+    // remainingQtyを減らす
+    card.remainingQty = Math.max((card.remainingQty ?? card.totalQty) - todayQty, 0);
+    showToast('✓ 完了！');
+  }
+
   saveData();
   renderHome();
-  if (slot.done) showToast('✓ 完了！');
 }
 
 // ── アプリタスクの完了マーク ──
@@ -2380,38 +2589,71 @@ function saveAddDeskTask() {
 // ── 進捗を保護者メニューに表示 ──
 function renderProgressInParent() {
   const cards = AppData.homeworkCards || [];
+  const doneLog = AppData.homeworkDoneLog || {};
   const today = getTodayString();
+  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
 
   if (cards.length === 0) return '<div style="color:var(--ink3);font-size:13px;text-align:center;padding:20px">宿題カードがまだありません</div>';
 
   return cards.map(card => {
-    const done  = card.schedule?.filter(s => s.done).length || 0;
-    const total = card.schedule?.length || 0;
-    const pct   = total > 0 ? Math.round((done/total)*100) : 0;
+    const totalQty = card.totalQty || 0;
+
+    // 全日付の完了量を合計
+    const doneSoFar = Object.values(doneLog).reduce((sum, dayLog) => sum + (dayLog[card.id] || 0), 0);
+    const remaining = Math.max(totalQty - doneSoFar, 0);
+    const pct = totalQty > 0 ? Math.round((doneSoFar / totalQty) * 100) : 0;
+
+    // 遅れ判定
     const dueDate = card.dueDate ? new Date(card.dueDate) : null;
-    const todayD  = new Date(); todayD.setHours(0,0,0,0);
-    const daysLeft = dueDate ? Math.ceil((dueDate - todayD)/(1000*60*60*24)) : null;
-    const statusColor = pct===100 ? 'var(--green)' : daysLeft===0 ? 'var(--red)' : daysLeft===1 ? '#C8922A' : 'var(--teal)';
+    const daysLeft = dueDate ? Math.ceil((dueDate - todayDate) / (1000*60*60*24)) : null;
+    const perDay = card.perDay || 1;
+
+    // 今日時点で何ページ終わっていれば予定通りか
+    const elapsedDays = card.createdDate
+      ? Math.ceil((todayDate - new Date(card.createdDate)) / (1000*60*60*24)) + 1
+      : 1;
+    const expectedDone = Math.min(perDay * elapsedDays, totalQty);
+    const diff = doneSoFar - expectedDone;
+
+    let statusLabel, statusColor;
+    if (remaining === 0) {
+      statusLabel = '✅ 完了';
+      statusColor = 'var(--green)';
+    } else if (diff >= 0) {
+      statusLabel = '● 予定通り';
+      statusColor = 'var(--teal)';
+    } else if (diff >= -perDay) {
+      statusLabel = '⚠️ 少し遅れ';
+      statusColor = '#C8922A';
+    } else {
+      statusLabel = `🔴 ${Math.abs(Math.round(diff/perDay))}日遅れ`;
+      statusColor = 'var(--red)';
+    }
+
+    const urgency = daysLeft !== null && daysLeft <= 1 && remaining > 0
+      ? `<div style="font-size:11px;color:var(--red);font-weight:700;margin-top:4px">⚠️ ${daysLeft===0?'今日が期限！':'明日が期限！'}</div>`
+      : '';
 
     return `
       <div style="background:#fff;border-radius:9px;padding:12px;margin-bottom:8px;border:1px solid var(--border)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <div>
             <div style="font-size:13px;font-weight:700">${card.subject}：${card.content}</div>
             <div style="font-size:11px;color:var(--ink3)">
-              ${card.totalQty}${getUnitShort(card.unit)} · ${daysLeft!==null?`あと${daysLeft}日`:''}
+              残り${remaining}${getUnitShort(card.unit)} · ${daysLeft!==null?`あと${daysLeft}日`:''}
             </div>
+            ${urgency}
           </div>
           <div style="text-align:right">
-            <div style="font-size:16px;font-weight:700;color:${statusColor}">${pct}%</div>
-            <div style="font-size:10px;color:var(--ink3)">${done}/${total}日</div>
+            <div style="font-size:14px;font-weight:700;color:${statusColor}">${statusLabel}</div>
+            <div style="font-size:11px;color:var(--ink3)">${doneSoFar}/${totalQty} 完了</div>
           </div>
         </div>
-        <div style="background:var(--bg2);border-radius:4px;height:6px">
+        <div style="background:var(--bg2);border-radius:4px;height:5px">
           <div style="background:${statusColor};width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
         </div>
         <button onclick="deleteHomeworkCard('${card.id}')"
-                style="margin-top:8px;border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">
+                style="margin-top:6px;border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">
           削除
         </button>
       </div>`;
@@ -8562,30 +8804,24 @@ function saveParentHomework() {
 
   const dueDate  = new Date(due);
   const today    = new Date(); today.setHours(0,0,0,0);
-  const daysLeft = Math.ceil((dueDate - today) / (1000*60*60*24));
-  const perDay   = daysLeft > 0 ? Math.ceil(qty / daysLeft) : qty;
+  const daysLeft = Math.max(Math.ceil((dueDate - today) / (1000*60*60*24)), 1);
+  const perDay   = Math.ceil(qty / daysLeft);
 
-  const schedule = [];
-  for (let i = 0; i < Math.max(daysLeft, 1); i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() + i);
-    const remaining = qty - (perDay * i);
-    const todayQty  = Math.min(perDay, Math.max(remaining, 0));
-    if (todayQty <= 0) break;
-    schedule.push({ date: d.toISOString().split('T')[0], quantity: todayQty, done: false });
-  }
-
+  // 日付スロットは固定しない：総量・期限・1日あたりの目安だけ持つ
+  // doneLog[date][cardId] で完了管理する
   AppData.homeworkCards.push({
     id: `hw_${Date.now()}`,
     subject, content: unit, unit,
-    totalQty: qty, dueDate: due,
+    totalQty: qty,
+    remainingQty: qty,   // 残り量
+    perDay,              // 1日あたりの目安
+    dueDate: due,
     createdDate: getTodayString(),
-    schedule
   });
 
   saveData();
   showToast(`✓ ${subject}の宿題を登録しました`);
-  showParentHomework(); // 画面を更新
+  showParentHomework();
   renderHome();
 }
 
