@@ -3877,7 +3877,19 @@ function removeMemorizationTask(idx) {
 }
 
 function confirmCheckin() {
-  // チェックイン画面を閉じて、AI推奨予定を表示
+  // DOMのinput[type=time]から直接値を読み取って確実に反映
+  const timeInputs = document.querySelectorAll('#checkinContent input[type="time"]');
+  if (timeInputs.length > 0) {
+    if (!checkinData.timeSlots) checkinData.timeSlots = [];
+    timeInputs.forEach((input, i) => {
+      if (checkinData.timeSlots[i]) {
+        checkinData.timeSlots[i].start = input.value;
+      }
+    });
+    checkinData.startTime = checkinData.timeSlots[0]?.start || '18:30';
+  } else if (checkinData.timeSlots && checkinData.timeSlots.length > 0) {
+    checkinData.startTime = checkinData.timeSlots[0].start || '18:30';
+  }
   closeCheckin();
   showRecommendedSchedule();
 }
@@ -3894,7 +3906,8 @@ function showRecommendedSchedule() {
   const allTasks = [];
 
   // 宿題カードから今日のタスクを収集
-  (AppData.homeworkCards || []).forEach(card => {
+  const cards = AppData.homeworkCards || [];
+  cards.forEach(card => {
     const slot = card.schedule?.find(s => s.date === today && !s.done);
     if (!slot) return;
     const estimatedMin = getEstimatedTime(card.subject, card.unit, slot.quantity);
@@ -3938,6 +3951,26 @@ function showRecommendedSchedule() {
       });
     }
   });
+
+  // タスクが0件のとき、宿題カードはあるが今日分が見つからない場合のフォールバック
+  if (allTasks.length === 0 && cards.length > 0) {
+    // doneフラグを無視して今日以降の最初のスロットを拾う
+    cards.forEach(card => {
+      const slot = card.schedule?.find(s => s.date >= today);
+      if (!slot) return;
+      const estimatedMin = getEstimatedTime(card.subject, card.unit, slot.quantity);
+      allTasks.push({
+        id: `hw_fallback_${card.id}`,
+        name: `${card.subject}：${card.content}`,
+        desc: `${slot.quantity}${getUnitShort(card.unit)}（${slot.date}分）`,
+        estimatedMin,
+        status: 'pending',
+        type: 'study',
+        priority: 50,
+        enabled: true
+      });
+    });
+  }
 
   allTasks.sort((a, b) => b.priority - a.priority);
   renderRecommendedSchedule(allTasks);
