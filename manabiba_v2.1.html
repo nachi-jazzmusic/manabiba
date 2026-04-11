@@ -1431,34 +1431,44 @@ const TIME_ESTIMATES_DEFAULT = {
   国語: {
     'ドリル（ページ）': 30,
     '問題（問）': 5,
-    'プリント（枚）': 20
+    'プリント（枚）': 20,
+    '教科書の暗記（ページ）': 20,
+    'テスト・プリントのやり直し（枚）': 15
   },
   数学: {
     '問題集（ページ）': 10,
     '計算ドリル（ページ）': 6,
     '問題（問）': 4,
-    'プリント（枚）': 12
+    'プリント（枚）': 12,
+    'テスト・プリントのやり直し（枚）': 15
   },
   英語: {
     '問題集（ページ）': 8,
     '単語（個）': 0.3,
     'リスニング（問）': 2,
-    'プリント（枚）': 10
+    'プリント（枚）': 10,
+    '教科書の暗記（ページ）': 15,
+    'テスト・プリントのやり直し（枚）': 15
   },
   理科: {
     '問題集（ページ）': 8,
     '問題（問）': 3,
-    'プリント（枚）': 10
+    'プリント（枚）': 10,
+    'テスト・プリントのやり直し（枚）': 15
   },
   '社会（地理）': {
     '問題集（ページ）': 7,
     '問題（問）': 3,
-    'プリント（枚）': 9
+    'プリント（枚）': 9,
+    '教科書の暗記（ページ）': 15,
+    'テスト・プリントのやり直し（枚）': 15
   },
   '社会（歴史）': {
     '問題集（ページ）': 7,
     '問題（問）': 3,
-    'プリント（枚）': 9
+    'プリント（枚）': 9,
+    '教科書の暗記（ページ）': 15,
+    'テスト・プリントのやり直し（枚）': 15
   }
 };
 
@@ -3679,337 +3689,106 @@ function startCheckin() {
 
 function renderCheckin() {
   const container = document.getElementById('checkinContent');
-  
-  // デフォルト開始時刻を18:30に固定
-  if (!checkinData.startTime) {
-    checkinData.startTime = '18:30';
-  }
-  
-  if (checkinData.hasJuku === undefined) {
-    checkinData.hasJuku = false;
-  }
-  
-  // 今日の塾の情報を取得（長期休み対応）
-  const jukuTime = getJukuTimeForToday();
-  
-  // 登録済み暗記タスクの確認欄を生成
-  const activeMemos = (AppData.memorizationTasks || []).filter(t => t.active);
-  let memoConfirmHtml = '';
-  if (activeMemos.length > 0) {
-    const today = new Date(); today.setHours(0,0,0,0);
-    memoConfirmHtml = `
-      <div style="background:#EEF6FF;border:1px solid #BDD9F2;border-radius:9px;padding:12px;margin-bottom:16px">
-        <div style="font-size:12px;font-weight:700;color:#2A6FA8;margin-bottom:8px">
-          📌 登録済みの暗記タスク（自動で予定に追加されます）
-        </div>
-    `;
-    activeMemos.forEach(task => {
-      const startDate = new Date(task.startDate);
-      const daysPassed = Math.floor((today - startDate) / (1000*60*60*24));
-      const daysLeft = task.daysTotal - daysPassed;
-      const isExpired = daysLeft <= 0;
-      const statusColor = isExpired ? '#D94F3D' : daysLeft <= 2 ? '#E8824A' : '#3A9B8C';
-      const statusLabel = isExpired ? '期限切れ' : `残り${daysLeft}日`;
-      memoConfirmHtml += `
-        <div style="display:flex;align-items:center;justify-content:space-between;
-                    background:#fff;padding:7px 9px;border-radius:6px;margin-bottom:5px;
-                    border-left:3px solid ${statusColor}">
-          <div style="font-size:12px;font-weight:600">${task.subject}：${task.range}</div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:10px;color:${statusColor};font-weight:700">${statusLabel}</span>
-            <button onclick="deleteMemorizationTaskFromPanel('${task.id}');renderCheckin()"
-                    style="border:none;background:none;color:#C0807A;font-size:15px;
-                           cursor:pointer;padding:0 2px;line-height:1;font-weight:700"
-                    title="削除">×</button>
-          </div>
-        </div>
-      `;
-    });
-    memoConfirmHtml += `
-        <div style="font-size:10px;color:#5A8FAA;margin-top:4px">
-          ※ 重複して追加しないでください。新しいタスクは「暗記タスクを追加」から入力してください。
-        </div>
-      </div>
-    `;
+  if (!checkinData.startTime) checkinData.startTime = '18:30';
+  if (!checkinData.timeSlots) {
+    checkinData.timeSlots = [{ start: checkinData.startTime, label: '' }];
   }
 
-  let html = memoConfirmHtml + `
-    <div style="margin-bottom:20px;font-size:13px;color:var(--ink3);line-height:1.6">
-      学校から出された宿題を入力してください。<br>
-      アプリが自動で時間を計算してスケジュールを調整します。
+  const jukuTime = getJukuTimeForToday();
+
+  // 今日の宿題カードを表示（保護者が登録済みのもの）
+  const today = getTodayString();
+  const todayCards = (AppData.homeworkCards || []).filter(c =>
+    c.schedule?.some(s => s.date === today)
+  );
+
+  let hwHtml = '';
+  if (todayCards.length > 0) {
+    hwHtml = `
+      <div style="background:#E8F5E9;border-radius:9px;padding:12px;margin-bottom:16px;border:1px solid #4A9B5F">
+        <div style="font-size:12px;font-weight:700;color:#4A9B5F;margin-bottom:8px">✅ 今日の宿題（保護者登録済み）</div>
+        ${todayCards.map(c => {
+          const slot = c.schedule.find(s => s.date === today);
+          const min = getEstimatedTime(c.subject, c.unit, slot.quantity);
+          return `<div style="font-size:12px;background:#fff;border-radius:6px;padding:6px 10px;margin-bottom:4px">
+            ${c.subject}：${c.content}　${slot.quantity}${getUnitShort(c.unit)}（約${min}分）
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  let html = `
+    <div style="font-size:13px;color:var(--ink3);margin-bottom:20px;line-height:1.6">
+      勉強する時間帯を設定してください。<br>
+      宿題カードの内容を自動でスケジュールに割り当てます。
     </div>
-    
-    <div class="input-group">
-      <label class="input-label">今日は何時から勉強する？</label>
-      <input type="time" class="input-field" value="${checkinData.startTime}" 
-             onchange="checkinData.startTime = this.value; renderCheckin()" 
-             style="width:150px;font-size:16px">
-      <div style="font-size:11px;color:var(--ink3);margin-top:6px">
-        この時間からスケジュールを組みます
-      </div>
+
+    ${hwHtml}
+
+    <!-- 時間枠設定 -->
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px">⏰ 勉強する時間帯</div>
+    <div id="timeSlotsList">
+      ${renderTimeSlots()}
     </div>
-    
+    <button onclick="addTimeSlot()" class="btn btn-secondary"
+            style="width:100%;padding:10px;font-size:13px;margin-bottom:16px">
+      ＋ 時間帯を追加（午前・午後など）
+    </button>
+
     ${jukuTime ? `
-      <div class="input-group">
+      <div style="background:var(--bg2);border-radius:9px;padding:12px;margin-bottom:16px">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="hasJuku" ${checkinData.hasJuku ? 'checked' : ''} 
-                 onchange="checkinData.hasJuku = this.checked; renderCheckin()" 
+          <input type="checkbox" id="hasJuku" ${checkinData.hasJuku ? 'checked' : ''}
+                 onchange="checkinData.hasJuku = this.checked; renderCheckin()"
                  style="width:18px;height:18px">
           <span style="font-size:14px;font-weight:500">今日は塾がある（${jukuTime.start}〜）</span>
         </label>
         ${checkinData.hasJuku ? `
           <div style="font-size:11px;color:var(--accent);margin-top:6px;margin-left:26px">
             ${jukuTime.start}までに終わるようスケジュールを組みます
-          </div>
-        ` : ''}
-      </div>
-    ` : ''}
-    
-    <div style="border-top:1px solid var(--border);margin:20px 0;padding-top:20px">
-      <div class="input-label" style="margin-bottom:12px">学校の宿題</div>
-    </div>
-  `;
-  
-  // 宿題入力フォーム
-  checkinData.homework.forEach((hw, idx) => {
-    const unitOptions = hw.subject ? Object.keys(TIME_ESTIMATES[hw.subject] || {}) : [];
-    const estimatedMin = hw.subject && hw.unit && hw.quantity ? 
-      getEstimatedTime(hw.subject, hw.unit, hw.quantity) : 0;
-    
-    html += `
-      <div class="homework-input-row" style="align-items:flex-end">
-        <div class="hw-field">
-          <label class="input-label">科目</label>
-          <select class="select-field" onchange="updateHomework(${idx}, 'subject', this.value)">
-            <option value="">選択</option>
-            <option value="国語" ${hw.subject === '国語' ? 'selected' : ''}>国語</option>
-            <option value="数学" ${hw.subject === '数学' ? 'selected' : ''}>数学</option>
-            <option value="英語" ${hw.subject === '英語' ? 'selected' : ''}>英語</option>
-            <option value="理科" ${hw.subject === '理科' ? 'selected' : ''}>理科</option>
-            <option value="社会（地理）" ${hw.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
-            <option value="社会（歴史）" ${hw.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
-          </select>
-        </div>
-        ${hw.subject ? `
-          <div class="hw-field">
-            <label class="input-label">内容</label>
-            <select class="select-field" onchange="updateHomework(${idx}, 'unit', this.value)">
-              ${unitOptions.map(opt => 
-                `<option value="${opt}" ${hw.unit === opt ? 'selected' : ''}>${opt}</option>`
-              ).join('')}
-            </select>
-          </div>
-          <div class="hw-field-small">
-            <label class="input-label">数量</label>
-            <input type="number" class="input-field" value="${hw.quantity || 1}" 
-                   min="1" max="100" step="1"
-                   onchange="updateHomework(${idx}, 'quantity', this.value)">
-          </div>
-          <div class="hw-field-small">
-            <label class="input-label">期限</label>
-            <div style="display:flex;align-items:center;gap:4px">
-              <input type="number" class="input-field" value="${hw.daysUntil || 1}" 
-                     min="1" max="30" step="1"
-                     onchange="updateHomework(${idx}, 'daysUntil', this.value)"
-                     style="width:50px">
-              <span style="font-size:11px;color:var(--ink3);white-space:nowrap">日後</span>
-            </div>
-          </div>
-          <div class="hw-field-small">
-            <label class="input-label">時間</label>
-            <input type="text" class="input-field" value="${estimatedMin}分" 
-                   disabled style="background:var(--bg2);color:var(--ink3)">
-          </div>
-        ` : ''}
-        ${checkinData.homework.length > 1 ? `
-          <button class="hw-remove-btn" onclick="removeHomework(${idx})">削除</button>
-        ` : ''}
-      </div>
-    `;
-  });
-  
-  html += `
-    <button class="btn-add" onclick="addHomework()" style="width:100%;margin:16px 0">
-      ＋ 学校の宿題を追加
-    </button>
-    
-    <div style="border-top:1px solid var(--border);margin:20px 0;padding-top:20px">
-      <div class="input-label" style="margin-bottom:6px">💡 暗記タスク</div>
-      <div style="font-size:11px;color:var(--ink3);margin-bottom:12px">覚えることがあれば入力してね</div>
-    </div>
-  `;
-  
-  // 暗記タスク入力フォーム
-  if (!checkinData.memorizationTasks) {
-    checkinData.memorizationTasks = [];
-  }
-  
-  checkinData.memorizationTasks.forEach((task, idx) => {
-    const estimatedWords = estimateWordsFromRange(task.range);
-    const daysUntil = parseInt(task.daysUntil) || 5;
-    const dailyWords = Math.ceil(estimatedWords / daysUntil);
-    const dailyMinutes = dailyWords * 2;
-    
-    html += `
-      <div style="background:var(--bg2);padding:10px;border-radius:7px;margin-bottom:10px">
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:${estimatedWords > 0 ? '6px' : '0'}">
-          <select class="select-field" style="width:70px;font-size:12px" onchange="updateMemorizationTask(${idx}, 'subject', this.value)">
-            <option value="">教科</option>
-            <option value="英語" ${task.subject === '英語' ? 'selected' : ''}>英語</option>
-            <option value="社会（地理）" ${task.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
-            <option value="社会（歴史）" ${task.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
-            <option value="理科" ${task.subject === '理科' ? 'selected' : ''}>理科</option>
-            <option value="国語" ${task.subject === '国語' ? 'selected' : ''}>国語</option>
-          </select>
-          <input type="text" class="input-field" placeholder="Unit5" value="${task.range || ''}"
-                 onchange="updateMemorizationTask(${idx}, 'range', this.value)"
-                 style="flex:1;font-size:12px">
-          <input type="number" class="input-field" value="${task.daysUntil || 5}" min="1" max="30"
-                 onchange="updateMemorizationTask(${idx}, 'daysUntil', this.value)"
-                 placeholder="5"
-                 style="width:50px;font-size:12px">
-          <span style="font-size:11px;color:var(--ink3);white-space:nowrap">日後</span>
-          <button class="hw-remove-btn" onclick="removeMemorizationTask(${idx})" style="margin:0;padding:4px 8px;font-size:11px">×</button>
-        </div>
-        ${estimatedWords > 0 ? `
-          <div style="font-size:10px;color:var(--ink3)">
-            約${estimatedWords}個、1日${dailyWords}個 × ${daysUntil}日間 = ${dailyMinutes}分/日
-          </div>
-        ` : ''}
-      </div>
-    `;
-  });
-  
-  html += `
-    <button class="btn-add" onclick="addMemorizationTaskToCheckin()" style="width:100%;margin:16px 0">
-      ＋ 暗記タスクを追加
-    </button>
-  `;
-  
-  // 塾の宿題セクション
-  if (AppData.settings.juku?.enabled) {
-    html += `
-      <div style="border-top:1px solid var(--border);margin:20px 0;padding-top:20px">
-        <div class="input-label" style="margin-bottom:12px">塾の宿題</div>
-      </div>
-    `;
-    
-    if (!checkinData.jukuHomework) {
-      checkinData.jukuHomework = [];
-    }
-    
-    // 既存の宿題と新規の宿題を分ける
-    const existingHw = checkinData.jukuHomework.filter(hw => hw.isExisting);
-    const newHw = checkinData.jukuHomework.filter(hw => !hw.isExisting);
-    
-    // 既存の宿題を表示
-    if (existingHw.length > 0) {
-      html += `
-        <div style="background:var(--bg2);border-radius:9px;padding:12px;margin-bottom:16px">
-          <div style="font-size:12px;font-weight:700;color:var(--ink3);margin-bottom:12px">
-            📚 前回からの続き
-          </div>
-      `;
-      
-      existingHw.forEach((hw, idx) => {
-        const realIdx = checkinData.jukuHomework.indexOf(hw);
-        html += `
-          <div style="background:var(--bg);border-radius:7px;padding:10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-            <div style="flex:1">
-              <div style="font-weight:700">${hw.subject} ${hw.unit}</div>
-              <div style="font-size:11px;color:var(--ink3);margin-top:2px">
-                残り：
-                <input type="number" value="${hw.quantity}" min="0" max="100" 
-                       onchange="updateJukuHomework(${realIdx}, 'quantity', this.value)"
-                       style="width:50px;padding:2px 6px;border:1px solid var(--border);border-radius:4px;text-align:center">
-                ページ（${hw.totalQuantity}ページ中${hw.completed}ページ完了）
-              </div>
-            </div>
-            <button class="hw-remove-btn" onclick="removeJukuHomework(${realIdx})" style="margin:0">削除</button>
-          </div>
-        `;
-      });
-      
-      html += `</div>`;
-    }
-    
-    // 新規追加の宿題を表示
-    if (newHw.length > 0) {
-      html += `<div style="font-size:12px;font-weight:700;color:var(--ink3);margin-bottom:12px">➕ 新しい宿題</div>`;
-    }
-    
-    newHw.forEach((hw, idx) => {
-      const realIdx = checkinData.jukuHomework.indexOf(hw);
-      const unitOptions = hw.subject ? Object.keys(TIME_ESTIMATES[hw.subject] || {}) : [];
-      const estimatedMin = hw.subject && hw.unit && hw.quantity ? 
-        getEstimatedTime(hw.subject, hw.unit, hw.quantity) : 0;
-      
-      html += `
-        <div class="homework-input-row" style="align-items:flex-end">
-          <div class="hw-field">
-            <label class="input-label">科目</label>
-            <select class="select-field" onchange="updateJukuHomework(${realIdx}, 'subject', this.value)">
-              <option value="">選択</option>
-              <option value="国語" ${hw.subject === '国語' ? 'selected' : ''}>国語</option>
-              <option value="数学" ${hw.subject === '数学' ? 'selected' : ''}>数学</option>
-              <option value="英語" ${hw.subject === '英語' ? 'selected' : ''}>英語</option>
-              <option value="理科" ${hw.subject === '理科' ? 'selected' : ''}>理科</option>
-              <option value="社会（地理）" ${hw.subject === '社会（地理）' ? 'selected' : ''}>社会（地理）</option>
-            <option value="社会（歴史）" ${hw.subject === '社会（歴史）' ? 'selected' : ''}>社会（歴史）</option>
-            </select>
-          </div>
-          ${hw.subject ? `
-            <div class="hw-field">
-              <label class="input-label">内容</label>
-              <select class="select-field" onchange="updateJukuHomework(${realIdx}, 'unit', this.value)">
-                ${unitOptions.map(opt => 
-                  `<option value="${opt}" ${hw.unit === opt ? 'selected' : ''}>${opt}</option>`
-                ).join('')}
-              </select>
-            </div>
-            <div class="hw-field-small">
-              <label class="input-label">数量</label>
-              <input type="number" class="input-field" value="${hw.quantity || 4}" 
-                     min="1" max="100" step="1"
-                     onchange="updateJukuHomework(${realIdx}, 'quantity', this.value)">
-            </div>
-            <div class="hw-field-small">
-              <label class="input-label">期限</label>
-              <div style="display:flex;align-items:center;gap:4px">
-                <input type="number" class="input-field" value="${hw.daysUntil || 3}" 
-                       min="1" max="30" step="1"
-                       onchange="updateJukuHomework(${realIdx}, 'daysUntil', this.value)"
-                       style="width:50px">
-                <span style="font-size:11px;color:var(--ink3);white-space:nowrap">日後</span>
-              </div>
-            </div>
-            <div class="hw-field-small">
-              <label class="input-label">時間</label>
-              <input type="text" class="input-field" value="${estimatedMin}分" 
-                     disabled style="background:var(--bg2);color:var(--ink3)">
-            </div>
-          ` : ''}
-          <button class="hw-remove-btn" onclick="removeJukuHomework(${realIdx})">削除</button>
-        </div>
-      `;
-    });
-    
-    html += `
-      <button class="btn-add" onclick="addJukuHomework()" style="width:100%;margin:16px 0">
-        ＋ 塾の宿題を追加
-      </button>
-    `;
-  }
-  
-  html += `
+          </div>` : ''}
+      </div>` : ''}
+
     <div class="action-buttons">
       <button class="btn btn-secondary" onclick="closeCheckin()">キャンセル</button>
-      <button class="btn btn-primary" onclick="confirmCheckin()">✓ 確定してスケジュール調整</button>
+      <button class="btn btn-primary" onclick="confirmCheckin()">✓ スケジュールを作る</button>
     </div>
   `;
-  
+
   container.innerHTML = html;
 }
+
+function renderTimeSlots() {
+  return (checkinData.timeSlots || []).map((slot, i) => `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;background:#fff;
+                border-radius:9px;padding:12px;border:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">開始時間</div>
+        <input type="time" class="input-field" value="${slot.start || '18:30'}"
+               onchange="checkinData.timeSlots[${i}].start = this.value"
+               style="width:130px;font-size:15px">
+      </div>
+      <div style="flex:1">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">メモ（任意）</div>
+        <input type="text" class="input-field" value="${slot.label || ''}"
+               placeholder="午前・夜など"
+               onchange="checkinData.timeSlots[${i}].label = this.value"
+               style="font-size:13px">
+      </div>
+      ${i > 0 ? `
+        <button onclick="checkinData.timeSlots.splice(${i},1);renderCheckin()"
+                style="border:none;background:none;color:var(--red);font-size:20px;cursor:pointer;padding:4px">×</button>` :
+        '<div style="width:28px"></div>'}
+    </div>`).join('');
+}
+
+function addTimeSlot() {
+  if (!checkinData.timeSlots) checkinData.timeSlots = [];
+  checkinData.timeSlots.push({ start: '19:00', label: '' });
+  renderCheckin();
+}
+  
+
 
 function updateHomework(idx, field, value) {
   if (field === 'quantity') {
@@ -4105,131 +3884,66 @@ function confirmCheckin() {
 
 function showRecommendedSchedule() {
   const today = getTodayString();
-  
-  // dailyPlansの初期化
+
   if (!AppData.dailyPlans) AppData.dailyPlans = {};
   if (!AppData.dailyPlans[today]) {
-    AppData.dailyPlans[today] = {
-      date: today,
-      dayOfWeek: DAYS_JP[new Date().getDay()]
-    };
+    AppData.dailyPlans[today] = { date: today, dayOfWeek: DAYS_JP[new Date().getDay()] };
   }
-  
+
   const plan = AppData.dailyPlans[today];
-  
-  // 暗記タスクの重複チェックと保存
-  if (!AppData.memorizationTasks) AppData.memorizationTasks = [];
-  
-  if (checkinData.memorizationTasks) {
-    for (const task of checkinData.memorizationTasks) {
-      const estimatedWords = estimateWordsFromRange(task.range);
-      
-      if (estimatedWords > 0 && task.subject && task.range) {
-        // 重複チェック
-        const existing = AppData.memorizationTasks.find(m => 
-          m.subject === task.subject && m.range === task.range && m.active
-        );
-        
-        if (existing) {
-          // 既に存在する場合は確認
-          const add = confirm(`既に「${task.subject} ${task.range}」が登録されています。\n新しいタスクとして追加しますか？`);
-          if (!add) continue; // キャンセルされたらスキップ
-        }
-        
-        // 新規追加
-        const daysUntil = parseInt(task.daysUntil) || 5;
-        AppData.memorizationTasks.push({
-          id: task.id,
-          subject: task.subject,
-          range: task.range,
-          totalWords: estimatedWords,
-          startDate: today,
-          daysTotal: daysUntil,
-          active: true
-        });
-      }
-    }
-  }
-  
-  // 全タスクを収集
   const allTasks = [];
-  
-  // 今日出た宿題を追加
-  checkinData.homework.forEach(hw => {
-    if (hw.subject && hw.unit && hw.quantity > 0) {
-      const estimatedMin = getEstimatedTime(hw.subject, hw.unit, hw.quantity);
-      
+
+  // 宿題カードから今日のタスクを収集
+  (AppData.homeworkCards || []).forEach(card => {
+    const slot = card.schedule?.find(s => s.date === today && !s.done);
+    if (!slot) return;
+    const estimatedMin = getEstimatedTime(card.subject, card.unit, slot.quantity);
+    allTasks.push({
+      id: `hw_${card.id}`,
+      name: `${card.subject}：${card.content}`,
+      desc: `${slot.quantity}${getUnitShort(card.unit)}`,
+      estimatedMin,
+      status: 'pending',
+      type: 'study',
+      priority: 50,
+      enabled: true,
+      homeworkCardId: card.id,
+      slotDate: today
+    });
+  });
+
+  // 継続中の暗記タスクを追加
+  if (!AppData.memorizationTasks) AppData.memorizationTasks = [];
+  const todayDate = new Date(today);
+  AppData.memorizationTasks.forEach(task => {
+    if (!task.active) return;
+    const startDate = new Date(task.startDate);
+    const daysPassed = Math.floor((todayDate - startDate) / (1000*60*60*24));
+    const currentDay = daysPassed + 1;
+    if (currentDay <= task.daysTotal) {
+      const dailyWords = Math.ceil(task.totalWords / task.daysTotal);
+      const estimatedMin = dailyWords * 2;
+      const daysLeft = task.daysTotal - currentDay + 1;
+      const priority = daysLeft === 1 ? 100 : daysLeft === 2 ? 80 : 60;
       allTasks.push({
-        id: `hw_${Date.now()}_${Math.random()}`,
-        name: `${hw.subject}：${hw.unit}`,
-        desc: `${hw.quantity}ページ`,
-        estimatedMin: estimatedMin,
+        id: `memo_${task.id}`,
+        name: `${task.subject}：暗記`,
+        desc: `${task.range} ${currentDay}/${task.daysTotal}日目`,
+        estimatedMin,
         status: 'pending',
         type: 'study',
-        priority: 50,
+        memorizationTaskId: task.id,
+        priority,
         enabled: true
       });
     }
   });
 
-  // 塾の宿題を追加
-  if (checkinData.jukuHomework) {
-    checkinData.jukuHomework.forEach(hw => {
-      if (hw.subject && hw.unit && hw.quantity > 0) {
-        const estimatedMin = getEstimatedTime(hw.subject, hw.unit, hw.quantity);
-        allTasks.push({
-          id: `juku_${Date.now()}_${Math.random()}`,
-          name: `塾：${hw.subject}：${hw.unit}`,
-          desc: `${hw.quantity}ページ`,
-          estimatedMin: estimatedMin,
-          status: 'pending',
-          type: 'study',
-          priority: 70, // 塾の宿題は学校より優先
-          enabled: true
-        });
-      }
-    });
-  }
-  
-  // 継続中の暗記タスクを追加
-  const todayDate = new Date(today);
-  AppData.memorizationTasks.forEach(task => {
-    if (!task.active) return; // 削除されたタスクはスキップ
-    
-    const startDate = new Date(task.startDate);
-    const daysPassed = Math.floor((todayDate - startDate) / (1000 * 60 * 60 * 24));
-    const currentDay = daysPassed + 1;
-    
-    // 期限内のみ追加
-    if (currentDay <= task.daysTotal) {
-      const dailyWords = Math.ceil(task.totalWords / task.daysTotal);
-      const estimatedMin = dailyWords * 2; // 1単語2分
-      
-      // 優先度判定: 最終日に近いほど高い
-      const daysLeft = task.daysTotal - currentDay + 1;
-      const priority = daysLeft === 1 ? 100 : daysLeft === 2 ? 80 : 60;
-      
-      allTasks.push({
-        id: `memo_${task.id}`,
-        name: `${task.subject}：暗記`,
-        desc: `${task.range} ${currentDay}/${task.daysTotal}日目`,
-        estimatedMin: estimatedMin,
-        status: 'pending',
-        type: 'study',
-        memorizationTaskId: task.id,
-        priority: priority,
-        enabled: true
-      });
-    }
-  });
-  
-  // 優先度でソート
   allTasks.sort((a, b) => b.priority - a.priority);
-  
-  // AI推奨予定画面を表示
   renderRecommendedSchedule(allTasks);
   document.getElementById('recommendedScheduleModal').classList.add('show');
 }
+
 
 // タスクを時間に振り分ける（簡易版）
 function distributeTasksToTime(plan, startTime) {
