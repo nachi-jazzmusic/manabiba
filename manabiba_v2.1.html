@@ -8918,43 +8918,15 @@ function showParentMenu(section) {
   const content = document.getElementById('parentContent');
 
   content.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;flex-direction:column;gap:10px">
 
-      <!-- 宿題登録 -->
+      <!-- 宿題を登録する -->
       <button onclick="showParentHomework()" class="btn btn-secondary"
               style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
-        <span style="font-size:28px">📚</span>
+        <span style="font-size:26px">📝</span>
         <div>
           <div style="font-weight:700;font-size:14px">宿題を登録する</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
-            科目・量・期限を入力→1日分を自動計算
-          </div>
-        </div>
-        <span style="margin-left:auto;color:var(--ink3)">›</span>
-      </button>
-
-      <!-- 進捗・宿題管理 -->
-      <button onclick="showParentProgress()" class="btn btn-secondary"
-              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
-        <span style="font-size:28px">📊</span>
-        <div>
-          <div style="font-weight:700;font-size:14px">進捗・宿題カード管理</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
-            宿題の進み具合・達成率を確認
-          </div>
-        </div>
-        <span style="margin-left:auto;color:var(--ink3)">›</span>
-      </button>
-
-      <!-- 毎日やること設定 -->
-      <button onclick="showDailyItemsSettings()" class="btn btn-secondary"
-              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
-        <span style="font-size:28px">🔄</span>
-        <div>
-          <div style="font-weight:700;font-size:14px">毎日やること設定</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
-            英検・暗記カードなど毎日のルーティンを設定
-          </div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">科目・量・期限を入力→1日分を自動計算</div>
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
@@ -8962,25 +8934,35 @@ function showParentMenu(section) {
       <!-- 単元を登録する -->
       <button onclick="showParentUnitList()" class="btn btn-secondary"
               style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
-        <span style="font-size:28px">📚</span>
+        <span style="font-size:26px">📒</span>
         <div>
           <div style="font-weight:700;font-size:14px">習った単元を登録する</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
-            塾・学校で習った単元を登録。理解度チェックが自動で来ます
-          </div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">塾・学校で習った単元を登録。週末チェックが自動で来ます</div>
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
 
-      <!-- 単語カードを作る -->
-      <button onclick="showParentCardMaker()" class="btn btn-secondary"
+      <!-- 進捗・宿題管理 -->
+      <button onclick="showParentProgress()" class="btn btn-secondary"
               style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
-        <span style="font-size:28px">🔤</span>
+        <span style="font-size:26px">📊</span>
         <div>
-          <div style="font-weight:700;font-size:14px">暗記カードを作る</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
-            単語・例文カードをAI生成またはタイピングで作成
-          </div>
+          <div style="font-weight:700;font-size:14px">進捗・宿題カード管理</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">宿題の進み具合・達成率を確認・削除</div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
+
+      <!-- 仕切り線 -->
+      <div style="border-top:1.5px solid var(--border);margin:4px 0"></div>
+
+      <!-- 毎日やること設定 -->
+      <button onclick="showDailyItemsSettings()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">🔄</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">毎日やること設定</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">英検・漢字・暗記カードなど毎日のルーティンを設定</div>
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
@@ -8988,19 +8970,17 @@ function showParentMenu(section) {
       <!-- 設定 -->
       <button onclick="closeParentModal();showPanel('settings')" class="btn btn-secondary"
               style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
-        <span style="font-size:28px">⚙️</span>
+        <span style="font-size:26px">⚙️</span>
         <div>
           <div style="font-weight:700;font-size:14px">設定</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
-            名前・学年・教科書・目安時間・塾の設定
-          </div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">名前・学年・教科書・目安時間・塾の設定</div>
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
     </div>
 
     <!-- 今週の状況サマリー -->
-    <div style="margin-top:24px;background:var(--bg2);border-radius:12px;padding:16px">
+    <div style="margin-top:20px;background:var(--bg2);border-radius:12px;padding:16px">
       <div style="font-size:13px;font-weight:700;margin-bottom:12px">📊 今週の状況</div>
       ${renderParentSummary()}
     </div>
@@ -9008,10 +8988,7 @@ function showParentMenu(section) {
 
   document.getElementById('parentModal').classList.add('show');
 
-  // セクション直接指定があれば
-  if (section === 'units') {
-    setTimeout(() => showParentUnitList(), 100);
-  }
+  if (section === 'units') setTimeout(() => showParentUnitList(), 100);
 }
 
 function closeParentModal() {
