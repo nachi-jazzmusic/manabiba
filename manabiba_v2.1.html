@@ -730,7 +730,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 <!-- ══ SIDEBAR ══ -->
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo"><span>✦</span>まなびば</div>
-  <div class="sb-version">v2.8 - 今日やること</div>
+  <div class="sb-version">v2.9 - 弱点・テスト対策</div>
   
   <nav class="sb-nav">
     <!-- 子供が使う -->
@@ -1959,6 +1959,8 @@ function renderAppTaskCardCompact(t) {
     'eiken':        { fn:'startTodayEiken()',           color:'#C8922A',      icon:'🌟' },
     'bulk_test':    { fn:'showBulkTestSetup()',         color:'var(--purple)', icon:'📋' },
     'kanji':        { fn:'startKanjiPractice()',        color:'var(--ink)',   icon:'🖊️' },
+    'test_prep':    { fn:`startTestPrepSession('${t.testPrepId}')`, color:'var(--red)', icon:'🎯' },
+    'weak_point':   { fn:'startWeakPointSession()',     color:'#8B4513',      icon:'⚠️' },
   };
   const act = actionMap[t.action] || { fn:'', color:'var(--accent)', icon:'📚' };
 
@@ -2001,39 +2003,88 @@ function renderWeekendCheckCardCompact() {
 
 // ── 3日分スケジュール確認・調整モーダル ──
 function showThreeDayConfirm() {
+  // 既存のオーバーレイを削除
+  document.getElementById('threeDayOverlay')?.remove();
+
   const overlay = document.createElement('div');
   overlay.id = 'threeDayOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
 
   const days = getThreeDaySchedule();
-  const daysRows = days.map((day, di) => `
-    <div style="background:${day.isToday?'linear-gradient(135deg,#FFF5EF,#fff)':'#fff'};
-                border-radius:10px;border:1px solid ${day.isToday?'var(--accent)':'var(--border)'};
-                padding:12px;margin-bottom:10px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:${day.isToday?'var(--accent)':'var(--ink)'}">
-        ${day.label}　合計${day.totalMin}分
-      </div>
-      ${day.tasks.map((t, ti) => `
+  const today = getTodayString();
+  const skipLog = AppData.homeworkSkipLog?.[today] || {};
+
+  const daysRows = days.map((day) => {
+    // スキップ済みカードを識別
+    const skippedSubjects = new Set();
+    if (day.isToday) {
+      Object.keys(skipLog).forEach(cardId => {
+        const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
+        if (card) skippedSubjects.add(card.subject);
+      });
+    }
+
+    const taskRows = day.tasks.map(t => {
+      const isSkipped = day.isToday && skippedSubjects.has(t.subject);
+      const cardId = AppData.homeworkCards?.find(c => c.subject === t.subject)?.id;
+
+      return `
         <div style="display:flex;align-items:center;justify-content:space-between;
-                    padding:5px 0;border-bottom:1px solid var(--bg2)">
-          <div style="font-size:12px">${t.subject}：${t.quantity}${getUnitShort(t.unit)}（${t.estimatedMin}分）</div>
-          ${day.isToday ? `
+                    padding:6px 0;border-bottom:1px solid var(--bg2);
+                    opacity:${isSkipped ? 0.5 : 1}">
+          <div style="font-size:12px;${isSkipped ? 'text-decoration:line-through;color:var(--ink3)' : ''}">
+            ${t.subject}：${t.quantity}${getUnitShort(t.unit)}（${t.estimatedMin}分）
+            ${isSkipped ? '<span style="font-size:10px;color:var(--ink3);margin-left:4px">スキップ済み</span>' : ''}
+          </div>
+          ${day.isToday && !isSkipped ? `
             <div style="display:flex;gap:4px">
-              <button onclick="adjustTodayTask('${AppData.homeworkCards?.find(c=>c.subject===t.subject)?.id}','skip')"
+              <button onclick="adjustTodayTask('${cardId}','skip')"
                       style="padding:3px 8px;border-radius:5px;border:1px solid var(--border);
                              background:var(--bg2);font-size:10px;cursor:pointer">今日は休む</button>
-              <button onclick="adjustTodayTask('${AppData.homeworkCards?.find(c=>c.subject===t.subject)?.id}','more')"
+              <button onclick="adjustTodayTask('${cardId}','more')"
                       style="padding:3px 8px;border-radius:5px;border:1px solid var(--teal);
                              background:var(--teal);color:#fff;font-size:10px;cursor:pointer">多めにやる</button>
-            </div>` : ''}
-        </div>`).join('')}
-    </div>`).join('');
+            </div>` :
+          day.isToday && isSkipped ? `
+            <button onclick="unskipTodayTask('${cardId}')"
+                    style="padding:3px 8px;border-radius:5px;border:1px solid var(--accent);
+                           background:#fff;color:var(--accent);font-size:10px;cursor:pointer">取り消す</button>
+          ` : ''}
+        </div>`;
+    }).join('');
+
+    const activeMin = day.tasks
+      .filter(t => !skippedSubjects.has(t.subject))
+      .reduce((s,t) => s + t.estimatedMin, 0);
+    const skippedCount = [...skippedSubjects].filter(s => day.tasks.some(t => t.subject === s)).length;
+
+    return `
+      <div style="background:${day.isToday?'linear-gradient(135deg,#FFF5EF,#fff)':'#fff'};
+                  border-radius:10px;border:1px solid ${day.isToday?'var(--accent)':'var(--border)'};
+                  padding:12px;margin-bottom:10px">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:${day.isToday?'var(--accent)':'var(--ink)'}">
+            ${day.label}
+          </div>
+          <div style="font-size:11px;color:var(--ink3)">
+            ${skippedCount > 0
+              ? `<span style="text-decoration:line-through">${day.totalMin}分</span>
+                 → <strong style="color:var(--accent)">${activeMin}分</strong>
+                 <span style="color:var(--ink3)">（${skippedCount}件スキップ）</span>`
+              : `合計${day.totalMin}分`}
+          </div>
+        </div>
+        ${taskRows}
+      </div>`;
+  }).join('');
 
   overlay.innerHTML = `
     <div style="background:var(--bg);border-radius:14px;padding:20px;width:100%;max-width:440px;
                 max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
       <div style="font-size:16px;font-weight:700;margin-bottom:16px">📆 3日間の予定確認</div>
-      ${days.length === 0 ? '<div style="text-align:center;color:var(--ink3);padding:20px">登録済みの宿題がありません</div>' : daysRows}
+      ${days.length === 0
+        ? '<div style="text-align:center;color:var(--ink3);padding:20px">登録済みの宿題がありません</div>'
+        : daysRows}
       <button onclick="document.getElementById('threeDayOverlay').remove();renderHome()"
               class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;margin-top:8px">
         ✓ この予定でOK
@@ -2043,6 +2094,16 @@ function showThreeDayConfirm() {
   document.body.appendChild(overlay);
 }
 
+
+function unskipTodayTask(cardId) {
+  const today = getTodayString();
+  if (AppData.homeworkSkipLog?.[today]) {
+    delete AppData.homeworkSkipLog[today][cardId];
+    saveData();
+  }
+  showThreeDayConfirm();
+  renderHome();
+}
 function adjustTodayTask(cardId, action) {
   const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
   if (!card) return;
@@ -2122,16 +2183,29 @@ function getAppTasksForToday() {
   const dailyItems = AppData.settings?.dailyItems || [];
   const doneLog = AppData.dailyDoneLog || {};
 
+  // テスト対策アイテムを最新の状態に同期
+  updateTestPrepDailyItems();
+  // 弱点アイテムを最新の状態に同期
+  updateWeakPointDailyItem();
+
   dailyItems.forEach(item => {
+    // test_prepの場合テスト日を過ぎていたら表示しない
+    if (item.type === 'test_prep' && item.testDate < today) return;
+
     const isDone = doneLog[today]?.[item.id] || false;
+    const dueDate = item.type === 'test_prep' ? new Date(item.testDate) : null;
+    const todayD  = new Date(); todayD.setHours(0,0,0,0);
+    const daysLeft = dueDate ? Math.ceil((dueDate - todayD) / (1000*60*60*24)) : null;
+
     tasks.push({
       id: item.id,
       type: item.type,
+      testPrepId: item.testPrepId || null,
       label: item.label,
-      detail: item.detail || '',
+      detail: daysLeft !== null ? `あと${daysLeft}日 · ${item.detail}` : (item.detail || ''),
       estimatedMin: item.estimatedMin || 10,
       done: isDone,
-      action: item.action // 'word_session' | 'eiken' | 'sentence_session'
+      action: item.action
     });
   });
 
@@ -2663,12 +2737,109 @@ function renderProgressInParent() {
         <div style="background:var(--bg2);border-radius:4px;height:5px">
           <div style="background:${statusColor};width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
         </div>
-        <button onclick="deleteHomeworkCard('${card.id}')"
-                style="margin-top:6px;border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">
-          削除
-        </button>
+        <div style="display:flex;gap:12px;margin-top:6px">
+          <button onclick="editHomeworkCard('${card.id}')"
+                  style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">
+            編集
+          </button>
+          <button onclick="deleteHomeworkCard('${card.id}')"
+                  style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">
+            削除
+          </button>
+        </div>
       </div>`;
   }).join('');
+}
+
+function editHomeworkCard(id) {
+  const card = (AppData.homeworkCards || []).find(c => c.id === id);
+  if (!card) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'editHwOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:13px;padding:24px;width:100%;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="font-size:16px;font-weight:700;margin-bottom:20px">✏️ 宿題を編集</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:16px;color:var(--ink2)">${card.subject}：${card.content}</div>
+
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <div style="flex:1">
+          <label class="input-label">残り量</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" class="input-field" id="edit_remaining"
+                   value="${card.remainingQty ?? card.totalQty}" min="0" max="999" style="width:80px">
+            <span style="font-size:12px;color:var(--ink3)">${getUnitShort(card.unit)||'ページ'}</span>
+          </div>
+        </div>
+        <div style="flex:1">
+          <label class="input-label">1日あたりの目安</label>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" class="input-field" id="edit_perday"
+                   value="${card.perDay || 1}" min="1" max="99" style="width:80px">
+            <span style="font-size:12px;color:var(--ink3)">${getUnitShort(card.unit)||'ページ'}/日</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">期限</label>
+        <input type="date" class="input-field" id="edit_due" value="${card.dueDate || ''}">
+      </div>
+
+      <div id="edit_preview" style="background:var(--bg2);border-radius:8px;padding:10px;
+                                     font-size:12px;color:var(--ink2);margin-bottom:16px"></div>
+
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('editHwOverlay').remove()"
+                class="btn btn-secondary" style="flex:1;padding:12px">キャンセル</button>
+        <button onclick="saveEditHomeworkCard('${id}')"
+                class="btn btn-primary" style="flex:1;padding:12px">✓ 保存する</button>
+      </div>
+    </div>`;
+
+  // プレビュー更新
+  const updatePreview = () => {
+    const rem  = parseInt(overlay.querySelector('#edit_remaining').value) || 0;
+    const per  = parseInt(overlay.querySelector('#edit_perday').value) || 1;
+    const due  = overlay.querySelector('#edit_due').value;
+    const prev = overlay.querySelector('#edit_preview');
+    if (!due) { prev.textContent = ''; return; }
+    const dueDate = new Date(due);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const daysLeft = Math.ceil((dueDate - today) / (1000*60*60*24));
+    const min = getEstimatedTime(card.subject, card.unit, per);
+    prev.innerHTML = `残り${rem}${getUnitShort(card.unit)} · 期限まで${daysLeft}日 · 1日${per}${getUnitShort(card.unit)}（約${min}分）`;
+  };
+
+  overlay.querySelector('#edit_remaining').oninput = updatePreview;
+  overlay.querySelector('#edit_perday').oninput = updatePreview;
+  overlay.querySelector('#edit_due').onchange = updatePreview;
+
+  document.body.appendChild(overlay);
+  updatePreview();
+}
+
+function saveEditHomeworkCard(id) {
+  const card = (AppData.homeworkCards || []).find(c => c.id === id);
+  if (!card) return;
+
+  const remaining = parseInt(document.getElementById('edit_remaining')?.value);
+  const perDay    = parseInt(document.getElementById('edit_perday')?.value);
+  const due       = document.getElementById('edit_due')?.value;
+
+  if (!due) { alert('期限を入力してください'); return; }
+
+  card.remainingQty = remaining;
+  card.perDay = perDay;
+  card.dueDate = due;
+
+  saveData();
+  document.getElementById('editHwOverlay')?.remove();
+  showToast('✓ 宿題を更新しました');
+  showParentHomework(); // 保護者メニューを更新
+  renderHome();
 }
 
 function deleteHomeworkCard(id) {
@@ -8910,12 +9081,771 @@ function saveDailyItems() {
   renderHome();
 }
 
+// ═══════════════════════════════════════
+// テスト対策機能
+// ═══════════════════════════════════════
+
+// ── 一覧画面 ──
+function showTestPrepList() {
+  document.getElementById('parentModalTitle').textContent = '🎯 テスト対策';
+  const content = document.getElementById('parentContent');
+  const items = AppData.testPrepItems || [];
+  const today = getTodayString();
+
+  const rows = items.map(item => {
+    const dueDate = new Date(item.testDate);
+    const todayD  = new Date(); todayD.setHours(0,0,0,0);
+    const daysLeft = Math.ceil((dueDate - todayD) / (1000*60*60*24));
+    const expired  = daysLeft < 0;
+    const color    = expired ? 'var(--ink3)' : daysLeft <= 3 ? 'var(--red)' : 'var(--teal)';
+    return `
+      <div style="background:#fff;border-radius:9px;padding:12px;margin-bottom:8px;
+                  border:1px solid var(--border);border-left:4px solid ${color}">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:13px;font-weight:700">${item.name}</div>
+            <div style="font-size:11px;color:var(--ink3);margin-top:2px">
+              ${item.subject} · テスト日：${item.testDate}
+              ${expired ? '（終了）' : ` · あと${daysLeft}日`}
+            </div>
+            <div style="font-size:11px;color:var(--ink3)">
+              ${item.rangeType === 'ai' ? `AIが「${item.rangeText}」から出題` : `登録単語：${item.words?.length || 0}個`}
+              · 1日${item.dailyCount}問
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="editTestPrepItem('${item.id}')"
+                    style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">編集</button>
+            <button onclick="deleteTestPrepItem('${item.id}')"
+                    style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+    <button onclick="showAddTestPrep()" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px;margin-bottom:20px">
+      ＋ テスト対策を追加
+    </button>
+    ${items.length === 0 ? `
+      <div style="text-align:center;padding:32px;color:var(--ink3)">
+        <div style="font-size:32px;margin-bottom:8px">🎯</div>
+        <div style="font-size:13px">テスト対策がまだ登録されていません</div>
+      </div>` : rows}
+  `;
+}
+
+// ── 追加フォーム ──
+function showAddTestPrep(prefill) {
+  document.getElementById('parentModalTitle').textContent = '＋ テスト対策を追加';
+  const content = document.getElementById('parentContent');
+  const p = prefill || {};
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+7);
+  const defaultDate = p.testDate || tomorrow.toISOString().split('T')[0];
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showTestPrepList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div class="input-group">
+      <label class="input-label">テスト名</label>
+      <input type="text" class="input-field" id="tp_name"
+             placeholder="例：単語テスト（月・曜日）、塾の英語小テスト"
+             value="${p.name||''}">
+    </div>
+    <div class="input-group">
+      <label class="input-label">科目</label>
+      <select class="select-field" id="tp_subject">
+        <option value="">選択してください</option>
+        ${SUBJECTS.map(s=>`<option value="${s}" ${p.subject===s?'selected':''}>${s}</option>`).join('')}
+        <option value="英語" ${p.subject==='英語'?'selected':''}>英語</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">テスト日</label>
+      <input type="date" class="input-field" id="tp_date" value="${defaultDate}">
+    </div>
+    <div class="input-group">
+      <label class="input-label">1日あたりの出題数</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" class="input-field" id="tp_count" value="${p.dailyCount||10}" min="1" max="50" style="width:80px">
+        <span style="font-size:12px;color:var(--ink3)">問/日</span>
+      </div>
+    </div>
+
+    <!-- 範囲の指定方法 -->
+    <div class="input-group">
+      <label class="input-label">出題範囲の指定方法</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button onclick="selectRangeType('ai',this)" data-type="ai"
+                class="btn ${!p.rangeType||p.rangeType==='ai'?'btn-primary':'btn-secondary'}"
+                style="flex:1;padding:10px;font-size:13px">
+          🤖 AIに任せる
+        </button>
+        <button onclick="selectRangeType('manual',this)" data-type="manual"
+                class="btn ${p.rangeType==='manual'?'btn-primary':'btn-secondary'}"
+                style="flex:1;padding:10px;font-size:13px">
+          ✏️ 自分で入力
+        </button>
+      </div>
+    </div>
+
+    <!-- AI任せ用 -->
+    <div id="tp_ai_area" style="${p.rangeType==='manual'?'display:none':''}">
+      <div class="input-group">
+        <label class="input-label">出題範囲（AIへの指示）</label>
+        <input type="text" class="input-field" id="tp_range"
+               placeholder="例：月・曜日の英単語、数字の英語表現、be動詞の基本文"
+               value="${p.rangeText||''}">
+        <div style="font-size:11px;color:var(--ink3);margin-top:4px">
+          書いたテーマに沿ってAIが毎日問題を作ります
+        </div>
+      </div>
+    </div>
+
+    <!-- 手打ち用 -->
+    <div id="tp_manual_area" style="${p.rangeType==='manual'?'':'display:none'}">
+      <div class="input-group">
+        <label class="input-label">単語リスト（英語 = 日本語、1行1単語）</label>
+        <textarea class="input-field" id="tp_words" rows="8"
+                  placeholder="January = 1月&#10;February = 2月&#10;Sunday = 日曜日&#10;Monday = 月曜日"
+                  style="resize:vertical;font-size:13px;font-family:monospace">${(p.words||[]).map(w=>`${w.front} = ${w.back}`).join('\n')}</textarea>
+        <div style="font-size:11px;color:var(--ink3);margin-top:4px">
+          「英語 = 日本語」の形式で入力してください
+        </div>
+      </div>
+    </div>
+
+    <button onclick="saveTestPrepItem('${p.id||''}')" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px;margin-top:8px">
+      ✓ 登録する
+    </button>
+  `;
+}
+
+function selectRangeType(type, btn) {
+  // ボタンの見た目を切り替え
+  btn.closest('div').querySelectorAll('button').forEach(b => {
+    b.className = b.dataset.type === type ? 'btn btn-primary' : 'btn btn-secondary';
+    b.style.flex = '1';
+    b.style.padding = '10px';
+    b.style.fontSize = '13px';
+  });
+  document.getElementById('tp_ai_area').style.display     = type === 'ai' ? '' : 'none';
+  document.getElementById('tp_manual_area').style.display = type === 'manual' ? '' : 'none';
+}
+
+function saveTestPrepItem(existingId) {
+  const name       = document.getElementById('tp_name')?.value.trim();
+  const subject    = document.getElementById('tp_subject')?.value;
+  const testDate   = document.getElementById('tp_date')?.value;
+  const dailyCount = parseInt(document.getElementById('tp_count')?.value) || 10;
+  const aiArea     = document.getElementById('tp_ai_area');
+  const rangeType  = aiArea?.style.display === 'none' ? 'manual' : 'ai';
+  const rangeText  = document.getElementById('tp_range')?.value.trim();
+  const wordsRaw   = document.getElementById('tp_words')?.value.trim();
+
+  if (!name)    { alert('テスト名を入力してください'); return; }
+  if (!testDate) { alert('テスト日を入力してください'); return; }
+  if (rangeType === 'ai' && !rangeText) { alert('出題範囲を入力してください'); return; }
+
+  let words = [];
+  if (rangeType === 'manual') {
+    words = wordsRaw.split('\n')
+      .map(line => {
+        const parts = line.split(/\s*[=＝]\s*/);
+        return parts.length >= 2
+          ? { front: parts[0].trim(), back: parts.slice(1).join('=').trim() }
+          : null;
+      })
+      .filter(Boolean);
+    if (words.length === 0) { alert('単語リストを入力してください（英語 = 日本語の形式）'); return; }
+  }
+
+  if (!AppData.testPrepItems) AppData.testPrepItems = [];
+
+  if (existingId) {
+    // 編集
+    const idx = AppData.testPrepItems.findIndex(i => i.id === existingId);
+    if (idx >= 0) {
+      AppData.testPrepItems[idx] = { ...AppData.testPrepItems[idx], name, subject, testDate, dailyCount, rangeType, rangeText, words };
+    }
+  } else {
+    AppData.testPrepItems.push({
+      id: `tp_${Date.now()}`,
+      name, subject, testDate, dailyCount, rangeType, rangeText, words,
+      active: true
+    });
+  }
+
+  // 毎日やることにテスト対策を自動追加
+  updateTestPrepDailyItems();
+
+  saveData();
+  showToast(`✓ 「${name}」を登録しました`);
+  showTestPrepList();
+  renderHome();
+}
+
+function editTestPrepItem(id) {
+  const item = (AppData.testPrepItems || []).find(i => i.id === id);
+  if (!item) return;
+  showAddTestPrep(item);
+}
+
+function deleteTestPrepItem(id) {
+  if (!confirm('このテスト対策を削除しますか？')) return;
+  AppData.testPrepItems = (AppData.testPrepItems || []).filter(i => i.id !== id);
+  updateTestPrepDailyItems();
+  saveData();
+  showToast('削除しました');
+  showTestPrepList();
+  renderHome();
+}
+
+// 毎日やることにテスト対策を反映
+function updateTestPrepDailyItems() {
+  const today = getTodayString();
+  const activeItems = (AppData.testPrepItems || []).filter(item => item.testDate >= today);
+
+  if (!AppData.settings) AppData.settings = {};
+  if (!AppData.settings.dailyItems) AppData.settings.dailyItems = [];
+
+  // 既存のtestPrepタイプを削除して再追加
+  AppData.settings.dailyItems = AppData.settings.dailyItems.filter(d => d.type !== 'test_prep');
+  activeItems.forEach(item => {
+    const dueDate = new Date(item.testDate);
+    const todayD  = new Date(); todayD.setHours(0,0,0,0);
+    const daysLeft = Math.ceil((dueDate - todayD) / (1000*60*60*24));
+    AppData.settings.dailyItems.push({
+      id: `testprep_${item.id}`,
+      type: 'test_prep',
+      testPrepId: item.id,
+      label: `🎯 ${item.name}`,
+      detail: `あと${daysLeft}日 · ${item.dailyCount}問`,
+      estimatedMin: Math.ceil(item.dailyCount * 1.5),
+      action: 'test_prep',
+      testDate: item.testDate
+    });
+  });
+}
+
+// テスト対策セッション開始
+async function startTestPrepSession(itemId) {
+  const item = (AppData.testPrepItems || []).find(i => i.id === itemId);
+  if (!item) return;
+
+  if (!AppData.settings?.apiKey && item.rangeType === 'ai') {
+    alert('APIキーが必要です。設定画面で入力してください。');
+    return;
+  }
+
+  document.getElementById('outputModalTitle').textContent = `🎯 ${item.name}`;
+  document.getElementById('outputModal').classList.add('show');
+  const content = document.getElementById('outputContent');
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:48px;color:var(--ink3)">
+      <div style="font-size:28px;margin-bottom:12px">🎯</div>
+      <div style="font-weight:700">問題を準備中...</div>
+    </div>`;
+
+  let questions = [];
+
+  if (item.rangeType === 'manual' && item.words?.length > 0) {
+    // 手打ち単語からランダムに出題
+    const shuffled = [...item.words].sort(() => Math.random() - 0.5);
+    questions = shuffled.slice(0, item.dailyCount).map(w => ({
+      front: w.front, back: w.back, type: 'word'
+    }));
+    renderTestPrepSession(item, questions);
+  } else {
+    // AI生成
+    const dueDate  = new Date(item.testDate);
+    const todayD   = new Date(); todayD.setHours(0,0,0,0);
+    const daysLeft = Math.ceil((dueDate - todayD) / (1000*60*60*24));
+
+    const prompt = `中学生（中1）の${item.subject || '英語'}のテスト対策問題を${item.dailyCount}問作ってください。
+
+テスト範囲：「${item.rangeText}」
+テストまで：${daysLeft}日
+
+# 出力形式（JSONのみ・コードブロック不要）
+{"questions":[
+  {"front":"英語または問題","back":"日本語または答え"}
+]}
+
+# 条件
+- 指定した範囲の単語・表現を網羅する
+- 毎回少しずつ変化をつける（同じ問題の繰り返しにならないよう）
+- JSONのみ出力`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': AppData.settings.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await res.json();
+      const txt  = data.content[0].text.trim().replace(/```json|```/g,'').trim();
+      const parsed = JSON.parse(txt);
+      questions = parsed.questions || [];
+      renderTestPrepSession(item, questions);
+    } catch(e) {
+      content.innerHTML = `
+        <div style="text-align:center;padding:40px;color:var(--red)">
+          <div style="font-weight:700">問題の生成に失敗しました</div>
+          <div style="font-size:12px;margin-top:8px">${e.message}</div>
+          <button onclick="closeOutputModal()" class="btn btn-secondary" style="margin-top:16px;padding:10px 20px">閉じる</button>
+        </div>`;
+    }
+  }
+}
+
+// テスト対策セッション描画
+function renderTestPrepSession(item, questions) {
+  const content = document.getElementById('outputContent');
+  // bulkTestと同じUIを使い回す
+  bulkTest = {
+    cards: questions.map((q,i) => ({ id:`tp_q_${i}`, front:q.front, back:q.back })),
+    phase: 'meaning',
+    results: {},
+    retryCards: [],
+    index: 0,
+    isTestPrep: true,
+    testPrepItem: item
+  };
+
+  const bar = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px">🎯 ${item.name}</div>
+      <div style="font-size:11px;color:var(--ink3)">
+        テスト日：${item.testDate} · ${questions.length}問
+      </div>
+    </div>`;
+
+  renderBulkMeaning(bar, content);
+}
+
+// ═══════════════════════════════════════
+// 弱点問題カード機能
+// ═══════════════════════════════════════
+//
+// AppData.weakPoints = [
+//   { id, subject, unit, memo, 
+//     correctStreak,   // 連続正解数
+//     nextDate,        // 次に出す日
+//     lastResult,      // '◎'|'×'
+//     active }
+// ]
+
+// ── 一覧 ──
+function showWeakPointList() {
+  document.getElementById('parentModalTitle').textContent = '⚠️ 弱点問題';
+  const content = document.getElementById('parentContent');
+  const items = AppData.weakPoints || [];
+  const today = getTodayString();
+
+  const dueCount = items.filter(w => w.active && (!w.nextDate || w.nextDate <= today)).length;
+
+  const rows = items.map(item => {
+    const isDue = !item.nextDate || item.nextDate <= today;
+    const streakColor = item.correctStreak >= 3 ? 'var(--green)' : item.correctStreak >= 1 ? '#C8922A' : 'var(--red)';
+    const statusLabel = item.correctStreak >= 3 ? '✅ 定着済み' :
+                        item.correctStreak >= 1 ? `○ ${item.correctStreak}連続正解` : '× 要練習';
+
+    return `
+      <div style="background:#fff;border-radius:9px;padding:12px;margin-bottom:8px;
+                  border:1px solid var(--border);border-left:4px solid ${isDue?'var(--red)':'var(--border)'}">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700">${item.subject}：${item.unit}</div>
+            <div style="font-size:11px;color:var(--ink3);margin-top:2px">${item.memo}</div>
+            <div style="font-size:11px;font-weight:700;color:${streakColor};margin-top:4px">${statusLabel}</div>
+            ${isDue ? '<div style="font-size:10px;color:var(--red)">📍 今日の出題あり</div>' :
+              `<div style="font-size:10px;color:var(--ink3)">次回：${item.nextDate}</div>`}
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <button onclick="deleteWeakPoint('${item.id}')"
+                    style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    ${dueCount > 0 ? `
+      <div style="background:linear-gradient(135deg,#FEF2F0,#fff);border:1.5px solid var(--red);
+                  border-radius:10px;padding:12px;margin-bottom:16px;text-align:center">
+        <div style="font-size:13px;font-weight:700;color:var(--red)">今日の弱点練習：${dueCount}件</div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:4px">「今日やること」のアプリでやるものから練習できます</div>
+      </div>` : ''}
+
+    <button onclick="showAddWeakPoint()" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px;margin-bottom:20px">
+      ＋ 弱点を追加
+    </button>
+
+    ${items.length === 0 ? `
+      <div style="text-align:center;padding:32px;color:var(--ink3)">
+        <div style="font-size:32px;margin-bottom:8px">⚠️</div>
+        <div style="font-size:13px">間違えた問題・苦手なポイントを<br>登録しておこう</div>
+      </div>` : rows}
+  `;
+}
+
+// ── 追加フォーム ──
+function showAddWeakPoint() {
+  document.getElementById('parentModalTitle').textContent = '＋ 弱点を追加';
+  const content = document.getElementById('parentContent');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showWeakPointList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div class="input-group">
+      <label class="input-label">科目</label>
+      <select class="select-field" id="wp_subject">
+        <option value="">選択してください</option>
+        ${SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">単元・テーマ</label>
+      <input type="text" class="input-field" id="wp_unit"
+             placeholder="例：単位変換、速さの計算、be動詞の疑問文">
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">つまずきポイント（具体的に）</label>
+      <textarea class="input-field" id="wp_memo" rows="3"
+                placeholder="例：km→mへの変換で混乱する。300÷60のような0を消す割り算ができない。"
+                style="resize:vertical"></textarea>
+      <div style="font-size:11px;color:var(--ink3);margin-top:4px">
+        具体的に書くほどAIが的確な問題を出せます
+      </div>
+    </div>
+
+    <div style="background:var(--bg2);border-radius:9px;padding:12px;margin-bottom:20px;font-size:12px;color:var(--ink3);line-height:1.7">
+      📝 登録すると今日から毎日出題されます。<br>
+      正解が続くと出題間隔が広がり（1日→3日→1週間→定着）、<br>
+      最終的に一覧から卒業します。
+    </div>
+
+    <button onclick="saveWeakPoint()" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px">
+      ✓ 登録する
+    </button>
+  `;
+}
+
+function saveWeakPoint() {
+  const subject = document.getElementById('wp_subject')?.value;
+  const unit    = document.getElementById('wp_unit')?.value.trim();
+  const memo    = document.getElementById('wp_memo')?.value.trim();
+
+  if (!subject) { alert('科目を選択してください'); return; }
+  if (!unit)    { alert('単元・テーマを入力してください'); return; }
+  if (!memo)    { alert('つまずきポイントを入力してください'); return; }
+
+  if (!AppData.weakPoints) AppData.weakPoints = [];
+
+  AppData.weakPoints.push({
+    id: `wp_${Date.now()}`,
+    subject, unit, memo,
+    correctStreak: 0,
+    nextDate: getTodayString(),
+    lastResult: null,
+    active: true
+  });
+
+  // 毎日やることに弱点練習を追加（まだなければ）
+  updateWeakPointDailyItem();
+  saveData();
+
+  showToast(`✓ 「${subject}：${unit}」を登録しました`);
+  showWeakPointList();
+  renderHome();
+}
+
+function deleteWeakPoint(id) {
+  if (!confirm('この弱点問題を削除しますか？')) return;
+  AppData.weakPoints = (AppData.weakPoints || []).filter(w => w.id !== id);
+  updateWeakPointDailyItem();
+  saveData();
+  showToast('削除しました');
+  showWeakPointList();
+  renderHome();
+}
+
+// 毎日やることに弱点練習を追加
+function updateWeakPointDailyItem() {
+  const today = getTodayString();
+  const hasDue = (AppData.weakPoints || []).some(w => w.active && (!w.nextDate || w.nextDate <= today));
+
+  if (!AppData.settings) AppData.settings = {};
+  if (!AppData.settings.dailyItems) AppData.settings.dailyItems = [];
+
+  // 既存の弱点アイテムを削除
+  AppData.settings.dailyItems = AppData.settings.dailyItems.filter(d => d.id !== 'weak_point');
+
+  // 出題があれば追加
+  const allActive = (AppData.weakPoints || []).filter(w => w.active);
+  if (allActive.length > 0) {
+    AppData.settings.dailyItems.push({
+      id: 'weak_point',
+      type: 'weak_point',
+      label: '⚠️ 弱点練習',
+      detail: `${allActive.length}件登録中`,
+      estimatedMin: Math.min(allActive.length * 3, 20),
+      action: 'weak_point'
+    });
+  }
+}
+
+// ── 弱点練習セッション ──
+async function startWeakPointSession() {
+  if (!AppData.settings?.apiKey) {
+    alert('設定画面でAPIキーを入力してください');
+    return;
+  }
+
+  const today = getTodayString();
+  const duePoints = (AppData.weakPoints || [])
+    .filter(w => w.active && (!w.nextDate || w.nextDate <= today));
+
+  if (duePoints.length === 0) {
+    showToast('今日の弱点練習はありません！');
+    return;
+  }
+
+  document.getElementById('outputModalTitle').textContent = '⚠️ 弱点練習';
+  document.getElementById('outputModal').classList.add('show');
+  const content = document.getElementById('outputContent');
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:48px;color:var(--ink3)">
+      <div style="font-size:28px;margin-bottom:12px">⚠️</div>
+      <div style="font-weight:700">問題を準備中...</div>
+      <div style="font-size:12px;margin-top:8px">${duePoints.length}件の弱点から出題します</div>
+    </div>`;
+
+  // 全弱点の問題を並列生成
+  const allQuestions = [];
+
+  for (const wp of duePoints) {
+    const prompt = `中学生（中1）の「${wp.subject}」「${wp.unit}」の問題を2問作ってください。
+
+つまずきポイント：${wp.memo}
+
+# 出力形式（JSONのみ・コードブロック不要）
+{"questions":[
+  {"question":"問題文","answer":"答え（簡潔に）","explanation":"なぜそうなるかの解説（1〜2文）","weakPointId":"${wp.id}"}
+]}
+
+# 条件
+- つまずきポイントに直接対応した問題を作る
+- 「なぜそうなるか」がわかる解説を付ける
+- 中1レベルの難易度
+- JSONのみ出力`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': AppData.settings.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 800,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+      const data = await res.json();
+      const txt  = data.content[0].text.trim().replace(/```json|```/g,'').trim();
+      const parsed = JSON.parse(txt);
+      allQuestions.push(...(parsed.questions || []));
+    } catch(e) {
+      console.warn('弱点問題生成エラー:', wp.unit, e);
+    }
+  }
+
+  if (allQuestions.length === 0) {
+    content.innerHTML = `
+      <div style="text-align:center;padding:40px;color:var(--red)">
+        <div style="font-weight:700">問題の生成に失敗しました</div>
+        <button onclick="closeOutputModal()" class="btn btn-secondary" style="margin-top:16px;padding:10px 20px">閉じる</button>
+      </div>`;
+    return;
+  }
+
+  renderWeakPointQuestions(allQuestions, 0);
+}
+
+function renderWeakPointQuestions(questions, index) {
+  const content = document.getElementById('outputContent');
+  if (index >= questions.length) {
+    renderWeakPointComplete(questions);
+    return;
+  }
+
+  const q = questions[index];
+  const pct = Math.round((index / questions.length) * 100);
+  const wp  = (AppData.weakPoints || []).find(w => w.id === q.weakPointId);
+
+  content.innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
+        <span>⚠️ 弱点練習</span><span>${index+1} / ${questions.length}</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:4px;height:5px">
+        <div style="background:var(--red);width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
+      </div>
+    </div>
+
+    ${wp ? `<div style="font-size:11px;color:var(--red);background:#FEF2F0;border-radius:6px;
+                         padding:6px 10px;margin-bottom:12px">
+      ⚠️ ${wp.subject}：${wp.unit}
+    </div>` : ''}
+
+    <div style="background:linear-gradient(135deg,#FEF2F0,#fff);border:1.5px solid var(--red);
+                border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:700;line-height:1.8">${q.question}</div>
+    </div>
+
+    <button id="wpAnswerBtn" onclick="showWeakAnswer(${JSON.stringify(questions).replace(/"/g,'&quot;')},${index})"
+            class="btn btn-secondary" style="width:100%;padding:12px;margin-bottom:12px">
+      答えを見る
+    </button>
+    <div id="wpAnswerArea" style="display:none">
+      <div style="background:var(--bg2);border-radius:10px;padding:16px;margin-bottom:12px">
+        <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">答え</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:10px">${q.answer}</div>
+        <div style="font-size:12px;color:var(--teal);line-height:1.7">
+          💡 ${q.explanation}
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <button onclick="saveWeakResult(${JSON.stringify(questions).replace(/"/g,'&quot;')},${index},'ok')"
+                class="btn" style="padding:14px;background:#4A9B5F;color:#fff;font-size:14px;font-weight:700">
+          ◎ わかった！
+        </button>
+        <button onclick="saveWeakResult(${JSON.stringify(questions).replace(/"/g,'&quot;')},${index},'ng')"
+                class="btn" style="padding:14px;background:#D94F3D;color:#fff;font-size:14px;font-weight:700">
+          × まだわからない
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function showWeakAnswer(questions, index) {
+  document.getElementById('wpAnswerArea').style.display = 'block';
+  document.getElementById('wpAnswerBtn').style.display = 'none';
+}
+
+function saveWeakResult(questions, index, result) {
+  const q  = questions[index];
+  const wp = (AppData.weakPoints || []).find(w => w.id === q.weakPointId);
+
+  if (wp) {
+    if (result === 'ok') {
+      wp.correctStreak = (wp.correctStreak || 0) + 1;
+      // 忘却曲線：1回目→3日後、2回目→7日後、3回目以上→定着
+      const intervals = [1, 3, 7, 14, 30];
+      const days = intervals[Math.min(wp.correctStreak, intervals.length - 1)];
+      const next = new Date(); next.setDate(next.getDate() + days);
+      wp.nextDate = next.toISOString().split('T')[0];
+      wp.lastResult = '◎';
+      if (wp.correctStreak >= 5) {
+        wp.active = false; // 5回連続正解で卒業
+        showToast(`🎉 「${wp.unit}」を完全定着！`);
+      }
+    } else {
+      wp.correctStreak = 0;
+      const next = new Date(); next.setDate(next.getDate() + 1);
+      wp.nextDate = next.toISOString().split('T')[0];
+      wp.lastResult = '×';
+    }
+    saveData();
+  }
+
+  renderWeakPointQuestions(questions, index + 1);
+}
+
+function renderWeakPointComplete(questions) {
+  const content = document.getElementById('outputContent');
+  const okCount = questions.filter((_, i) => {
+    // 結果はsaveWeakResultで保存済みなので、lastResultで判定
+    const wp = (AppData.weakPoints || []).find(w => w.id === questions[i].weakPointId);
+    return wp?.lastResult === '◎';
+  }).length;
+
+  markAppTaskDone('weak_point');
+  updateWeakPointDailyItem();
+  saveData();
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:32px 16px">
+      <div style="font-size:48px;margin-bottom:12px">${okCount === questions.length ? '🎉' : '💪'}</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:8px">弱点練習完了！</div>
+      <div style="font-size:32px;font-weight:700;color:var(--red);margin-bottom:4px">
+        ${okCount} / ${questions.length}
+      </div>
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:24px">
+        ${okCount < questions.length ? '×だった問題は明日また出てくるよ' : '全問正解！この調子で続けよう'}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-width:280px;margin:0 auto">
+        <button onclick="closeOutputModal()" class="btn btn-secondary" style="padding:14px;font-size:13px">
+          閉じる
+        </button>
+      </div>
+    </div>`;
+}
+
 function showParentMenu(section) {
   document.getElementById('parentModalTitle').textContent = '👨‍👩‍👧 保護者メニュー';
   const content = document.getElementById('parentContent');
 
   content.innerHTML = `
     <div style="display:flex;flex-direction:column;gap:10px">
+
+      <!-- テスト対策を登録する -->
+      <button onclick="showTestPrepList()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">🎯</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">テスト対策を登録する</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">単語テストなど期限付きの対策を毎日出題</div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
+
+      <!-- 弱点問題を登録する -->
+      <button onclick="showWeakPointList()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">⚠️</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">弱点問題を登録する</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">何度も間違える問題をAIが繰り返し出題</div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
 
       <!-- 宿題を登録する -->
       <button onclick="showParentHomework()" class="btn btn-secondary"
