@@ -18,7 +18,7 @@
   --sidebar:180px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;height:100dvh;overflow:hidden}
+html,body{height:100%;height:var(--real-vh, 100dvh);overflow:hidden}
 body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.7}
 ::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px}
 
@@ -504,7 +504,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
   .main{
     width:100%;
     margin-left:0;
-    height: calc(100vh - 48px); height: calc(100dvh - 48px); /* モバイルヘッダー分を引く */
+    height: calc(100vh - 48px); height: calc(var(--real-vh, 100dvh) - 48px); /* モバイルヘッダー分を引く */
     overflow: hidden;
   }
   
@@ -770,7 +770,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 <!-- ══ SIDEBAR ══ -->
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo"><span>✦</span>まなびば</div>
-  <div class="sb-version">v2.9 - 弱点・テスト対策</div>
+  <div class="sb-version">v2.10 - 埼玉学力調査</div>
   
   <nav class="sb-nav">
     <!-- 子供が使う -->
@@ -3203,67 +3203,114 @@ function renderNormalHome(todayPlan) {
   return renderAIChatInline();
 }
 
-// インライン表示用のAIチャット
+// インライン表示用のAIチャット（Claude/Gemini風）
 function renderAIChatInline() {
   const name = AppData.settings.name || 'かりん';
-  
+  const hasHistory = aiChatHistory.length > 0;
+
   return `
-    <div style="display:flex;flex-direction:column;height:100%;min-height:0;background:#fff;overflow:hidden">
-      <div style="padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div style="font-size:18px;font-weight:700">💬 ポメちゃん</div>
-          <div style="font-size:12px;color:var(--ink3);margin-top:2px">勉強の相談、質問、なんでも聞いてね！</div>
-        </div>
-        <button onclick="clearAIChat()" title="会話をリセット" style="
-          padding:6px 12px;border-radius:16px;border:1px solid var(--border);
-          background:var(--bg2);color:var(--ink3);font-family:var(--font);
-          font-size:11px;cursor:pointer;white-space:nowrap;
-        ">🗑 会話をクリア</button>
-      </div>
-      
-      <div id="aiChatMessages" style="flex:1;overflow-y:auto;padding:20px;min-height:0">
-        <div class="ai-message">
-          <div class="ai-avatar">🐾</div>
-          <div class="ai-bubble">
-            こんにちは、${name}！<br>
-            勉強で分からないことがあったら、なんでも聞いてね😊<br>
-            <span style="font-size:12px;color:var(--ink3);margin-top:4px;display:block">
-              📷 問題を写真で送ったり、🎤 声で質問もできるよ！
-            </span>
+    <div id="pomeChatWrap" style="display:flex;flex-direction:column;height:100%;min-height:0;
+                background:var(--bg);overflow:hidden;position:relative">
+
+      <!-- ヘッダー（常時表示） -->
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;
+                  display:flex;align-items:center;justify-content:space-between;background:#fff">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="font-size:20px">🐾</div>
+          <div>
+            <div style="font-size:15px;font-weight:700">ポメちゃん</div>
+            <div style="font-size:10px;color:var(--ink3)">なんでも聞いてね</div>
           </div>
         </div>
+        <button onclick="clearAIChat()" style="
+          padding:5px 10px;border-radius:14px;border:1px solid var(--border);
+          background:var(--bg2);color:var(--ink3);font-family:var(--font);
+          font-size:11px;cursor:pointer;white-space:nowrap;">🗑 クリア</button>
       </div>
-      
-      <div style="padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));border-top:1px solid var(--border);flex-shrink:0">
-        <!-- 中断ボタン（送信中のみ表示） -->
+
+      <!-- メッセージエリア（会話あり：flex:1でスクロール、なし：非表示） -->
+      <div id="aiChatMessages"
+           style="flex:${hasHistory?'1':'0'};overflow-y:auto;padding:${hasHistory?'16px':'0'};
+                  min-height:0;transition:flex 0.3s">
+      </div>
+
+      <!-- 空状態：中央のウェルカム表示 -->
+      <div id="pomeChatEmpty" style="display:${hasHistory?'none':'flex'};flex:1;
+                flex-direction:column;align-items:center;justify-content:center;
+                padding:24px;text-align:center">
+        <div style="font-size:48px;margin-bottom:16px">🐾</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:8px">こんにちは、${name}！</div>
+        <div style="font-size:13px;color:var(--ink3);line-height:1.8;margin-bottom:24px">
+          勉強で分からないことがあったら<br>なんでも聞いてね😊
+        </div>
+        <!-- サジェスト -->
+        <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:360px">
+          ${[
+            '数学の問題を解いてほしい',
+            '英単語の覚え方を教えて',
+            '今日の勉強を手伝って'
+          ].map(s => `
+            <button onclick="pomeQuickSend('${s}')"
+                    style="padding:10px 16px;border-radius:20px;border:1px solid var(--border);
+                           background:#fff;color:var(--ink2);font-family:var(--font);font-size:13px;
+                           cursor:pointer;text-align:left;transition:background 0.15s"
+                    onmouseover="this.style.background='var(--bg2)'"
+                    onmouseout="this.style.background='#fff'">
+              ${s}
+            </button>`).join('')}
+        </div>
+      </div>
+
+      <!-- 入力エリア（常時下部固定） -->
+      <div id="pomeChatInputArea"
+           style="flex-shrink:0;padding:12px 16px;padding-bottom:calc(12px + env(safe-area-inset-bottom));
+                  border-top:1px solid var(--border);background:#fff">
+        <!-- 中断ボタン -->
         <div id="aiAbortBarInline" style="display:none;margin-bottom:8px;text-align:center">
           <button onclick="abortAIMessage()" style="
             padding:6px 16px;border-radius:20px;border:1.5px solid var(--red);
             background:#fff;color:var(--red);font-family:var(--font);font-size:12px;
-            font-weight:700;cursor:pointer;
-          ">✕ 送信を中断する</button>
+            font-weight:700;cursor:pointer;">✕ 中断する</button>
         </div>
-        <div style="display:flex;gap:8px;align-items:flex-end">
-          <button class="btn btn-secondary" onclick="openCamera()" 
-                  style="padding:10px;font-size:20px;flex-shrink:0" title="問題を撮影">
-            📷
-          </button>
-          <button class="btn btn-secondary" onclick="startVoiceInput()" id="voiceBtn"
-                  style="padding:10px;font-size:20px;flex-shrink:0" title="音声入力">
-            🎤
-          </button>
-          <textarea id="aiChatInput" class="input-field" 
-                 placeholder="メッセージを入力…（Enterで送信 / Shift+Enterで改行）" 
+        <div style="display:flex;gap:8px;align-items:flex-end;
+                    background:var(--bg2);border-radius:24px;padding:8px 8px 8px 16px;
+                    border:1.5px solid var(--border)">
+          <textarea id="aiChatInput"
+                 placeholder="メッセージを入力..."
                  rows="1"
                  oninput="this.style.height='';this.style.height=Math.min(this.scrollHeight,120)+'px'"
                  onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIMessage();}"
-                 style="flex:1;font-size:14px;resize:none;min-height:44px;max-height:120px;line-height:1.5;font-family:inherit"></textarea>
-          <button class="btn btn-primary" id="aiSendBtn" onclick="sendAIMessage()" style="padding:10px 20px;flex-shrink:0;height:44px">
-            送信
-          </button>
+                 style="flex:1;font-size:15px;resize:none;min-height:28px;max-height:120px;
+                        line-height:1.5;font-family:inherit;background:transparent;
+                        border:none;outline:none;padding:2px 0"></textarea>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="openCamera()"
+                    style="padding:8px;border-radius:50%;border:none;background:none;
+                           font-size:18px;cursor:pointer;color:var(--ink3)" title="写真">📷</button>
+            <button onclick="startVoiceInput()" id="voiceBtn"
+                    style="padding:8px;border-radius:50%;border:none;background:none;
+                           font-size:18px;cursor:pointer;color:var(--ink3)" title="音声">🎤</button>
+            <button id="aiSendBtn" onclick="sendAIMessage()"
+                    style="padding:8px 14px;border-radius:20px;border:none;
+                           background:var(--accent);color:#fff;font-family:var(--font);
+                           font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">
+              送信
+            </button>
+          </div>
         </div>
+      </div>
+
     </div>
   `;
+}
+
+// サジェストボタンから送信
+function pomeQuickSend(text) {
+  const input = document.getElementById('aiChatInput');
+  if (input) {
+    input.value = text;
+    sendAIMessage();
+  }
 }
 
 function startMorningBriefing() {
@@ -9178,6 +9225,69 @@ function showTestPrepList() {
 }
 
 // ── 追加フォーム ──
+// ═══════════════════════════════════════
+// 埼玉県学力・学習状況調査 出題データ（R5〜R7）
+// ═══════════════════════════════════════
+const SAITAMA_DATA = {
+  国語: {
+    傾向: '漢字・語彙（大問1〜16相当）、文法・敬語、古文、文学的文章読解、説明的文章読解、話す・聞く・書く表現が毎年出題される。特に漢字・語彙が全体の約半数を占める。',
+    頻出単元: [
+      '漢字の読み書き（音訓・同訓異字・同音異義語）',
+      '語彙（擬態語・接頭語・熟語・四字熟語・対義語・慣用句・ことわざ）',
+      '文法（主語・被修飾語・敬語）',
+      '古文（語の意味・内容把握）',
+      '文学的文章（心情・登場人物・表現の特徴）',
+      '説明的文章（要点・キーワード・筆者の考え）',
+      '話す・聞く・書く（スライド並べ替え・作文推敲・二段落構成）',
+    ],
+    R7: ['漢字の読み（訓）','同訓異字','同じ読みの漢字','擬態語','打ち消しの接頭語','二字熟語の構成','対義語','四字熟語','同じ意味の言葉','助詞','主語','被修飾語','敬語','慣用句','資料の選択・並び替え','漢字の意味・熟語','作文推敲','古文の語の意味','古文の内容','登場人物の心情・言動・表現','説明的文章の要点・キーワード・筆者の考え','インタビューの話し合い'],
+    R6: ['漢字の読み（音＋音）','同訓異字','同じ漢字','擬態語','打ち消しの接頭語','三字熟語の成り立ち','対義語','四字熟語','同じ意味の動詞','助詞','主語','被修飾語','敬語','慣用句','資料の組み合わせ','作文推敲','漢字の意味・熟語','古文の語の意味','古文の内容','文学的文章（語句・内容・特徴）','説明的文章（指示語・キーワード・要点・筆者の考え）','話し合い（発言の役割）','文章構成・作文'],
+    R5: ['漢字（音）','漢字（訓）','同音異義語','擬態語','打ち消しの接頭語','三字熟語','対義語','四字熟語','同じ意味の言葉×2','主語','被修飾語','敬語','資料の組み合わせ','ことわざ','慣用句','作文推敲','古文の語の意味','古文の内容','文学的文章（心情・言動・表現）','説明的文章（要点・接続語・キーワード・筆者の考え）','発表（工夫・スライド順番）','話し合い（司会の工夫・意見まとめ）'],
+  },
+  数学: {
+    傾向: '大問1は計算・数の性質（分数・小数・四則混合・逆数・比・場合の数）が毎年11問前後。大問2〜3は図形（拡大縮図・体積・面積・対称）と変化と関係（比例・文字式）。大問4はデータの活用（ヒストグラム・中央値・最頻値）。計算と図形が最重要。',
+    頻出単元: [
+      '分数・小数の四則計算（特に乗除・混合）',
+      '逆数',
+      '等しい比',
+      '場合の数・組み合わせ',
+      '文字を使った式',
+      '拡大図・縮図',
+      '体積（三角柱・四角柱・円柱）',
+      '面積（円・複合図形）',
+      '線対称・点対称',
+      '比例・反比例（式・グラフ・表）',
+      'データの活用（中央値・最頻値・ヒストグラム・ドットプロット）',
+    ],
+    R7: ['分数の除法','分数の乗除','分数と小数の四則混合','逆数','かっこを含む四則混合','もとの数より小さくなる計算','演算記号の組み合わせ','文字を使った式','等しい比','場合の数','組み合わせ','文章題（分数・比）','三角柱の体積','線対称の軸','グラフ','比を用いた計算','半円の面積','拡大した図形','縮図の周囲','縮図から実際の長さ','拡大図のかき方','正多角形の対称','およその面積','円柱の体積','速さと時間の表','比例の式','ドットプロット・中央値','度数分布表・%','条件にあてはまるものを求める','比例の式','比例の変化','中央値の説明'],
+    R6: ['分数の除法','分数の四則混合','小数・分数の乗除','小数と分数の四則混合','かっこを含む四則混合','逆数','もとの数より大きくなる計算','演算記号','等しい比','並び方の場合の数','選び方の場合の数','小数の文章題','文字を使った式','円の面積','縮図の辺の長さ','三角柱の体積','比を用いた計算','比例の式','比例の選択','ドットプロット・中央値','拡大図の求め方式','拡大図のかき方','正多角形の対称（動画）','複合図形の面積','角柱の体積','およその面積','比例の式（動画）','拡大図・縮図の組み合わせ','直方体の水の深さ','縮図から川幅','比例の式','ヒストグラム・%','ペンキの面積'],
+    R5: ['分数の除法','小数・分数の乗除','かっこを含む四則混合','小数と分数の四則混合','逆数','分数の除法の応用','計算で分数を求める','文字を使った式','等しい比','場合の数','組み合わせ','文章題（一方を基準）','テープの長さの式','線対称の周囲の長さ','線対称の軸を引く','比を用いた計算','比例の選択','速さと距離の式','1日あたりのページ数の表','最頻値','計算のきまり','線対称・点対称の選択','円の面積の比較','円の面積の三角形変換','四角柱の体積','水の移し替え','比例の式','拡大図・縮図の組み合わせ','縮図から木の高さ','池のおよその面積','グラフから道のり','グラフと人物対応','ヒストグラム・%'],
+  }
+};
+
+function getSaitamaPrompt(subject) {
+  const data = SAITAMA_DATA[subject];
+  if (!data) return '';
+  return `
+# 埼玉県学力・学習状況調査 対策モード
+この調査の傾向：${data.傾向}
+
+## 頻出単元（必ず含める）
+${data.頻出単元.map(u => `- ${u}`).join('\n')}
+
+## 過去3年の出題実績
+R7: ${data.R7?.join('、') || ''}
+R6: ${data.R6?.join('、') || ''}
+R5: ${data.R5?.join('、') || ''}
+
+## 問題作成の方針
+- 上記の頻出単元を優先して出題する
+- 選択肢形式と記述形式を混ぜる（本番に合わせる）
+- 難易度は中学1年生レベルで、本番試験に近い形式にする
+- 3年連続で出ている単元は特に重点的に出題する
+`;
+}
+
 function showAddTestPrep(prefill) {
   document.getElementById('parentModalTitle').textContent = '＋ テスト対策を追加';
   const content = document.getElementById('parentContent');
@@ -9187,6 +9297,31 @@ function showAddTestPrep(prefill) {
 
   content.innerHTML = `
     <button class="btn btn-secondary" onclick="showTestPrepList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <!-- 埼玉県学力調査クイック登録 -->
+    <div style="background:linear-gradient(135deg,#EEF9F7,#fff);border:1.5px solid var(--teal);
+                border-radius:11px;padding:14px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:700;color:var(--teal);margin-bottom:8px">
+        🏫 埼玉県学力・学習状況調査 対策
+      </div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:10px">
+        R5〜R7の出題傾向を分析してAIが問題を生成します
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="quickSaitama('国語')"
+                class="btn btn-secondary"
+                style="flex:1;padding:10px;font-size:13px;font-weight:700;border-color:var(--teal);color:var(--teal)">
+          📖 国語で始める
+        </button>
+        <button onclick="quickSaitama('数学')"
+                class="btn btn-secondary"
+                style="flex:1;padding:10px;font-size:13px;font-weight:700;border-color:var(--teal);color:var(--teal)">
+          📐 数学で始める
+        </button>
+      </div>
+    </div>
+
+    <div style="text-align:center;font-size:12px;color:var(--ink3);margin-bottom:16px">── または手動で登録 ──</div>
 
     <div class="input-group">
       <label class="input-label">テスト名</label>
@@ -9262,6 +9397,43 @@ function showAddTestPrep(prefill) {
       ✓ 登録する
     </button>
   `;
+}
+
+// 埼玉県学力調査クイック登録
+function quickSaitama(subject) {
+  // テスト日を来年の4月（例年4月実施）に設定
+  const nextApril = new Date();
+  nextApril.setMonth(3); // 4月
+  nextApril.setDate(15);
+  if (nextApril < new Date()) nextApril.setFullYear(nextApril.getFullYear() + 1);
+  const testDate = nextApril.toISOString().split('T')[0];
+
+  if (!AppData.testPrepItems) AppData.testPrepItems = [];
+
+  // 既存チェック
+  const exists = AppData.testPrepItems.find(i => i.name.includes('埼玉県学力') && i.subject === subject);
+  if (exists) {
+    if (!confirm(`「埼玉県学力調査（${subject}）」はすでに登録されています。上書きしますか？`)) return;
+    AppData.testPrepItems = AppData.testPrepItems.filter(i => i.id !== exists.id);
+  }
+
+  AppData.testPrepItems.push({
+    id: `tp_saitama_${subject}_${Date.now()}`,
+    name: `埼玉県学力調査（${subject}）`,
+    subject,
+    testDate,
+    dailyCount: 5,
+    rangeType: 'saitama', // 特殊モード
+    rangeText: `埼玉県学力・学習状況調査 ${subject}`,
+    words: [],
+    active: true
+  });
+
+  updateTestPrepDailyItems();
+  saveData();
+  showToast(`✓ 埼玉県学力調査（${subject}）を登録しました`);
+  showTestPrepList();
+  renderHome();
 }
 
 function selectRangeType(type, btn) {
@@ -9406,7 +9578,27 @@ async function startTestPrepSession(itemId) {
     const todayD   = new Date(); todayD.setHours(0,0,0,0);
     const daysLeft = Math.ceil((dueDate - todayD) / (1000*60*60*24));
 
-    const prompt = `中学生（中1）の${item.subject || '英語'}のテスト対策問題を${item.dailyCount}問作ってください。
+    // 埼玉県学力調査モード：傾向データを使った専用プロンプト
+    const isSaitama = item.rangeType === 'saitama';
+    const saitamaExtra = isSaitama ? getSaitamaPrompt(item.subject) : '';
+
+    const prompt = isSaitama ? `
+中学1年生向け「埼玉県学力・学習状況調査」の${item.subject}対策問題を${item.dailyCount}問作ってください。
+テストまで：${daysLeft}日
+
+${saitamaExtra}
+
+# 出力形式（JSONのみ・コードブロック不要）
+{"questions":[
+  {"front":"問題文（選択肢や穴埋めなど本番に近い形式）","back":"答えと簡単な解説"}
+]}
+
+# 条件
+- 頻出単元から出題する（3年連続出題の単元を優先）
+- 本番試験に近い形式（選択肢・記述・抜き出し）
+- 1回のセッションで同じ単元を重複させない
+- JSONのみ出力` :
+    `中学生（中1）の${item.subject || '英語'}のテスト対策問題を${item.dailyCount}問作ってください。
 
 テスト範囲：「${item.rangeText}」
 テストまで：${daysLeft}日
@@ -11273,17 +11465,17 @@ function clearAIChat() {
   if (aiChatHistory.length === 0) return;
   if (!confirm('会話をクリアしますか？')) return;
   aiChatHistory = [];
-  // インライン版は再描画、モーダル版はメッセージエリアをリセット
+
   const modal = document.getElementById('aiChatModal');
   if (modal && modal.classList.contains('show')) {
     const container = document.getElementById('aiChatMessages');
-    container.innerHTML = `
-      <div style="text-align:center;padding:40px;color:var(--ink3)">
-        <div style="font-size:48px;margin-bottom:16px">🐾</div>
-        <div style="font-size:14px">会話をクリアしました。<br>新しい質問をどうぞ！</div>
-      </div>`;
+    if (container) container.innerHTML = '';
   } else {
-    renderHome();
+    // インライン版：空状態に戻す
+    const emptyEl = document.getElementById('pomeChatEmpty');
+    const messagesEl = document.getElementById('aiChatMessages');
+    if (emptyEl) { emptyEl.style.display = 'flex'; }
+    if (messagesEl) { messagesEl.innerHTML = ''; messagesEl.style.flex = '0'; }
   }
   showToast('🗑 会話をクリアしました');
 }
@@ -11314,29 +11506,39 @@ function closeAIChat() {
 
 function renderAIChatMessages() {
   const container = document.getElementById('aiChatMessages');
+  if (!container) return;
+
+  // 会話が始まったら空状態を非表示にしてメッセージエリアを展開
+  const hasHistory = aiChatHistory.length > 0;
+  const emptyEl = document.getElementById('pomeChatEmpty');
+  if (emptyEl) emptyEl.style.display = hasHistory ? 'none' : 'flex';
+  container.style.flex = hasHistory ? '1' : '0';
+  container.style.padding = hasHistory ? '16px' : '0';
+
   let html = '';
-  
   aiChatHistory.forEach(msg => {
     if (msg.role === 'user') {
       html += `
-        <div style="margin-bottom:16px;text-align:right">
-          <div style="display:inline-block;background:#3A9B8C;color:#fff;padding:12px 16px;border-radius:13px;max-width:80%;text-align:left;line-height:1.6;font-size:14px">
+        <div style="margin-bottom:16px;display:flex;justify-content:flex-end">
+          <div style="background:var(--teal);color:#fff;padding:10px 16px;border-radius:18px 18px 4px 18px;
+                      max-width:80%;line-height:1.6;font-size:14px;word-break:break-word">
             ${msg.content.replace(/\n/g, '<br>')}
           </div>
-        </div>
-      `;
+        </div>`;
     } else {
       const formattedContent = msg.content.replace(/\n/g, '<br>');
       html += `
-        <div style="margin-bottom:16px">
-          <div style="display:inline-block;background:var(--bg);padding:20px 24px;border-radius:13px;max-width:95%;box-shadow:0 2px 8px rgba(0,0,0,0.05);line-height:1.8;font-size:15px;color:var(--ink1)">
+        <div style="margin-bottom:16px;display:flex;gap:8px;align-items:flex-start">
+          <div style="font-size:22px;flex-shrink:0;margin-top:2px">🐾</div>
+          <div style="background:#fff;padding:12px 16px;border-radius:4px 18px 18px 18px;
+                      max-width:85%;box-shadow:0 1px 4px rgba(0,0,0,0.08);
+                      line-height:1.8;font-size:14px;color:var(--ink);word-break:break-word">
             ${formattedContent}
           </div>
-        </div>
-      `;
+        </div>`;
     }
   });
-  
+
   container.innerHTML = html;
   container.scrollTop = container.scrollHeight;
 }
@@ -12074,6 +12276,19 @@ function closeScheduleModal(event) {
 // ═══════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', init);
+
+// VisualViewport APIでURLバー対応（iPad/スマホ）
+function applyViewportHeight() {
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--real-vh', `${vh}px`);
+}
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', applyViewportHeight);
+  window.visualViewport.addEventListener('scroll', applyViewportHeight);
+}
+window.addEventListener('resize', applyViewportHeight);
+applyViewportHeight();
 </script>
 
 <!-- モバイルナビゲーションバー -->
