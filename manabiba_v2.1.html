@@ -770,7 +770,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 <!-- ══ SIDEBAR ══ -->
 <aside class="sidebar" id="sidebar">
   <div class="sb-logo"><span>✦</span>まなびば</div>
-  <div class="sb-version">v2.10 - 埼玉学力調査</div>
+  <div class="sb-version">v2.11 - 問題UI改善</div>
   
   <nav class="sb-nav">
     <!-- 子供が使う -->
@@ -8357,11 +8357,11 @@ function renderSentenceRecite(bar, content) {
       答えを見る
     </button>
     <div id="reciteJudge" style="display:none">
-      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:10px;text-align:center">言えた？</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="sentenceReciteDone('◎')" class="btn" style="flex:1;padding:14px;background:#4A9B5F;color:#fff;font-size:14px">◎ 言えた</button>
-        <button onclick="sentenceReciteDone('○')" class="btn" style="flex:1;padding:14px;background:#C8922A;color:#fff;font-size:14px">○ 惜しかった</button>
-        <button onclick="sentenceReciteDone('×')" class="btn" style="flex:1;padding:14px;background:#D94F3D;color:#fff;font-size:14px">× 言えなかった</button>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:10px;text-align:center">答えを見る前に言えた？</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="sentenceReciteDone('◎')" class="btn" style="padding:12px;background:#4A9B5F;color:#fff;font-size:13px;font-weight:700">✅ 見ずに言えた</button>
+        <button onclick="sentenceReciteDone('○')" class="btn" style="padding:12px;background:#C8922A;color:#fff;font-size:13px;font-weight:700">💡 答えを見てわかった</button>
+        <button onclick="sentenceReciteDone('×')" class="btn" style="padding:12px;background:#D94F3D;color:#fff;font-size:13px;font-weight:700">❌ 答えを見てもよくわからない</button>
       </div>
     </div>`;
 }
@@ -8914,9 +8914,16 @@ function selectEikenAnswer(selected) {
   fb.innerHTML = `
     <div style="background:${correct?'#E8F5E9':'#FEF2F0'};border-radius:10px;padding:14px;margin-bottom:12px">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px;color:${correct?'#4A9B5F':'#D94F3D'}">
-        ${correct ? '◎ 正解！' : `× 不正解（正解は ${q.answer}）`}
+        ${correct ? '✅ 正解！' : `❌ 不正解（正解は ${q.answer}）`}
       </div>
-      <div style="font-size:13px;color:var(--ink2);line-height:1.7">${q.explanation}</div>
+      <div style="font-size:13px;color:var(--ink2);line-height:1.7;margin-bottom:8px">${q.explanation}</div>
+      ${!correct ? `
+        <button onclick="askPomeQAExplanation('${(q.sentence||q.question||'').replace(/'/g,'&apos;')}','${q.answer}','英語')"
+                style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--teal);
+                       background:#fff;color:var(--teal);font-family:var(--font);font-size:12px;
+                       font-weight:700;cursor:pointer">
+          🐾 ポメにもっと詳しく解説してもらう
+        </button>` : ''}
     </div>
     <button onclick="nextEikenQuestion()"
             class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;background:#C8922A">
@@ -9582,6 +9589,7 @@ async function startTestPrepSession(itemId) {
     const isSaitama = item.rangeType === 'saitama';
     const saitamaExtra = isSaitama ? getSaitamaPrompt(item.subject) : '';
 
+    const isMath = item.subject === '数学';
     const prompt = isSaitama ? `
 中学1年生向け「埼玉県学力・学習状況調査」の${item.subject}対策問題を${item.dailyCount}問作ってください。
 テストまで：${daysLeft}日
@@ -9590,27 +9598,37 @@ ${saitamaExtra}
 
 # 出力形式（JSONのみ・コードブロック不要）
 {"questions":[
-  {"front":"問題文（選択肢や穴埋めなど本番に近い形式）","back":"答えと簡単な解説"}
+  {
+    "front": "問題文のみ（答えは絶対に含めない。選択肢がある場合は①②③④の形式で書く）",
+    "back": "答えのみ${isMath ? '。計算過程も書く（例：3÷4＝3/4＝0.75）' : ''}",
+    "explanation": "なぜそうなるかの解説（2〜3文。中学生向けに丁寧に）"
+  }
 ]}
 
-# 条件
-- 頻出単元から出題する（3年連続出題の単元を優先）
-- 本番試験に近い形式（選択肢・記述・抜き出し）
-- 1回のセッションで同じ単元を重複させない
+# 厳守事項
+- frontには答えを絶対に含めない
+- 全て日本語で出力する
+${isMath ? '- 数学は必ず検算してから出力する（計算ミス厳禁）' : ''}
 - JSONのみ出力` :
-    `中学生（中1）の${item.subject || '英語'}のテスト対策問題を${item.dailyCount}問作ってください。
+    `中学1年生向けの${item.subject || '英語'}のテスト対策問題を${item.dailyCount}問作ってください。
 
 テスト範囲：「${item.rangeText}」
 テストまで：${daysLeft}日
 
 # 出力形式（JSONのみ・コードブロック不要）
 {"questions":[
-  {"front":"英語または問題","back":"日本語または答え"}
+  {
+    "front": "問題文のみ（答えは絶対に含めない）",
+    "back": "答えのみ${isMath ? '。計算過程も書く' : ''}",
+    "explanation": "なぜそうなるかの解説（2〜3文。中学生向けに丁寧に）"
+  }
 ]}
 
-# 条件
-- 指定した範囲の単語・表現を網羅する
-- 毎回少しずつ変化をつける（同じ問題の繰り返しにならないよう）
+# 厳守事項
+- frontには答えを絶対に含めない
+- 全て日本語で出力する（英語の単語テストでない限り英語は使わない）
+${isMath ? '- 数学は必ず検算してから出力する（計算ミス厳禁）' : ''}
+- 毎回少しずつ変化をつける
 - JSONのみ出力`;
 
     try {
@@ -9644,30 +9662,23 @@ ${saitamaExtra}
   }
 }
 
-// テスト対策セッション描画
+// テスト対策セッション描画（1問ずつ表示）
 function renderTestPrepSession(item, questions) {
-  const content = document.getElementById('outputContent');
-  // bulkTestと同じUIを使い回す
-  // テスト対策は「日本語→英語を書く」が目的なので筆記テストから開始
-  bulkTest = {
-    cards: questions.map((q,i) => ({ id:`tp_q_${i}`, front:q.front, back:q.back })),
-    phase: 'writing',
-    results: {},
-    retryCards: [],
+  // 1問ずつ表示セッションを使う
+  window.qaSession = {
+    questions: questions.map((q,i) => ({
+      id: `tp_q_${i}`,
+      question: q.front,
+      answer: q.back,
+      explanation: q.explanation || '',
+      subject: item.subject
+    })),
     index: 0,
-    isTestPrep: true,
-    testPrepItem: item
+    results: {},
+    itemName: item.name,
+    itemDate: item.testDate
   };
-
-  const bar = `
-    <div style="margin-bottom:16px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:4px">🎯 ${item.name}</div>
-      <div style="font-size:11px;color:var(--ink3)">
-        テスト日：${item.testDate} · ${questions.length}問（日本語→英語）
-      </div>
-    </div>`;
-
-  renderBulkWriting(bar, content);
+  renderQAQuestion();
 }
 
 // ═══════════════════════════════════════
@@ -9879,19 +9890,26 @@ async function startWeakPointSession() {
   const allQuestions = [];
 
   for (const wp of duePoints) {
-    const prompt = `中学生（中1）の「${wp.subject}」「${wp.unit}」の問題を2問作ってください。
+    const isMath = wp.subject === '数学';
+    const prompt = `中学1年生向けの${wp.subject}の問題を2問作ってください。
 
+単元：${wp.unit}
 つまずきポイント：${wp.memo}
 
 # 出力形式（JSONのみ・コードブロック不要）
 {"questions":[
-  {"question":"問題文","answer":"答え（簡潔に）","explanation":"なぜそうなるかの解説（1〜2文）","weakPointId":"${wp.id}"}
+  {
+    "question": "問題文のみ（答えは絶対に含めない。選択肢がある場合は①②③④の形式で書く）",
+    "answer": "答えのみ（問題文を繰り返さない）${isMath ? '。数学は計算過程も書く（例：3÷4=3/4=0.75）' : ''}",
+    "explanation": "なぜそうなるかを中学生向けに丁寧に説明（2〜3文。「なぜなら」「つまり」を使って理由から説明する）",
+    "weakPointId": "${wp.id}"
+  }
 ]}
 
-# 条件
-- つまずきポイントに直接対応した問題を作る
-- 「なぜそうなるか」がわかる解説を付ける
-- 中1レベルの難易度
+# 厳守事項
+- questionには答えを絶対に含めない
+- 全て日本語で出力する（英語は使わない）
+- 数学は計算ミスのないよう必ず検算してから出力する
 - JSONのみ出力`;
 
     try {
@@ -9931,60 +9949,229 @@ async function startWeakPointSession() {
 }
 
 function renderWeakPointQuestions(questions, index) {
+  // 共通1問ずつUIを使う（初回のみセッション初期化）
+  if (index === 0) {
+    window.qaSession = {
+      questions: questions.map(q => ({
+        id: q.weakPointId + '_' + Math.random(),
+        question: q.question,
+        answer: q.answer,
+        explanation: q.explanation || '',
+        subject: (AppData.weakPoints||[]).find(w=>w.id===q.weakPointId)?.subject || '',
+        weakPointId: q.weakPointId
+      })),
+      index: 0,
+      results: {},
+      isWeakPoint: true,
+      originalQuestions: questions
+    };
+  } else {
+    window.qaSession.index = index;
+  }
+  renderQAQuestion();
+}
+
+// ═══════════════════════════════════════
+// 共通 1問ずつ QAセッション UI
+// ─ テスト対策・弱点問題・英検で共用 ─
+// ═══════════════════════════════════════
+
+function renderQAQuestion() {
   const content = document.getElementById('outputContent');
+  if (!window.qaSession) return;
+  const { questions, index, itemName, isWeakPoint } = window.qaSession;
+
   if (index >= questions.length) {
-    renderWeakPointComplete(questions);
+    renderQAComplete();
     return;
   }
 
   const q = questions[index];
-  const pct = Math.round((index / questions.length) * 100);
-  const wp  = (AppData.weakPoints || []).find(w => w.id === q.weakPointId);
+  const total = questions.length;
+  const pct = Math.round((index / total) * 100);
+  const accentColor = isWeakPoint ? 'var(--red)' : 'var(--teal)';
+  const icon = isWeakPoint ? '⚠️' : '🎯';
+
+  // スクロールをトップに戻さないよう、contentのスクロール位置を保持
+  content.scrollTop = 0;
 
   content.innerHTML = `
+    <!-- プログレスバー -->
     <div style="margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
-        <span>⚠️ 弱点練習</span><span>${index+1} / ${questions.length}</span>
+        <span>${icon} ${itemName || (isWeakPoint ? '弱点練習' : 'テスト対策')}</span>
+        <span>${index+1} / ${total}</span>
       </div>
-      <div style="background:var(--bg2);border-radius:4px;height:5px">
-        <div style="background:var(--red);width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
+      <div style="background:var(--bg2);border-radius:4px;height:6px">
+        <div style="background:${accentColor};width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
       </div>
     </div>
 
-    ${wp ? `<div style="font-size:11px;color:var(--red);background:#FEF2F0;border-radius:6px;
-                         padding:6px 10px;margin-bottom:12px">
-      ⚠️ ${wp.subject}：${wp.unit}
-    </div>` : ''}
+    <!-- 科目タグ -->
+    ${q.subject ? `<div style="display:inline-block;font-size:11px;font-weight:700;color:${accentColor};
+                               background:${isWeakPoint?'#FEF2F0':'#EEF9F7'};border-radius:12px;
+                               padding:3px 10px;margin-bottom:12px">${q.subject}</div>` : ''}
 
-    <div style="background:linear-gradient(135deg,#FEF2F0,#fff);border:1.5px solid var(--red);
-                border-radius:12px;padding:20px;margin-bottom:16px">
-      <div style="font-size:15px;font-weight:700;line-height:1.8">${q.question}</div>
+    <!-- 問題文 -->
+    <div style="background:#fff;border:2px solid ${accentColor};border-radius:12px;
+                padding:20px;margin-bottom:20px;min-height:80px">
+      <div style="font-size:11px;color:${accentColor};font-weight:700;margin-bottom:8px">問題</div>
+      <div style="font-size:16px;font-weight:600;line-height:1.9;white-space:pre-wrap">${q.question}</div>
     </div>
 
-    <button id="wpAnswerBtn" onclick="showWeakAnswer(${JSON.stringify(questions).replace(/"/g,'&quot;')},${index})"
-            class="btn btn-secondary" style="width:100%;padding:12px;margin-bottom:12px">
-      答えを見る
+    <!-- ステップ1：自分で考えてから答えを見る -->
+    <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:10px">
+      ノートで解いてから「答えを確認する」を押してね
+    </div>
+    <button id="qaAnswerBtn" onclick="showQAAnswer()"
+            class="btn btn-secondary"
+            style="width:100%;padding:12px;font-size:14px;margin-bottom:8px">
+      答えを確認する
     </button>
-    <div id="wpAnswerArea" style="display:none">
-      <div style="background:var(--bg2);border-radius:10px;padding:16px;margin-bottom:12px">
-        <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">答え</div>
-        <div style="font-size:18px;font-weight:700;margin-bottom:10px">${q.answer}</div>
-        <div style="font-size:12px;color:var(--teal);line-height:1.7">
-          💡 ${q.explanation}
+
+    <!-- 答えエリア（最初は非表示） -->
+    <div id="qaAnswerArea" style="display:none">
+      <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">答え</div>
+        <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:12px;
+                    white-space:pre-wrap;line-height:1.7">${q.answer}</div>
+        <div style="border-top:1px solid var(--border);padding-top:10px">
+          <div style="font-size:11px;color:var(--teal);font-weight:700;margin-bottom:4px">💡 解説</div>
+          <div style="font-size:13px;color:var(--ink2);line-height:1.8">${q.explanation || '解説なし'}</div>
         </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <button onclick="saveWeakResult(${JSON.stringify(questions).replace(/"/g,'&quot;')},${index},'ok')"
-                class="btn" style="padding:14px;background:#4A9B5F;color:#fff;font-size:14px;font-weight:700">
-          ◎ わかった！
+        <!-- ポメに詳しく解説してもらうボタン -->
+        <button onclick="askPomeQAExplanation(${JSON.stringify(q.question).replace(/"/g,'&quot;')}, ${JSON.stringify(q.answer).replace(/"/g,'&quot;')}, '${q.subject||''}')"
+                style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid var(--teal);
+                       background:#fff;color:var(--teal);font-family:var(--font);font-size:12px;
+                       font-weight:700;cursor:pointer">
+          🐾 ポメにもっと詳しく解説してもらう
         </button>
-        <button onclick="saveWeakResult(${JSON.stringify(questions).replace(/"/g,'&quot;')},${index},'ng')"
-                class="btn" style="padding:14px;background:#D94F3D;color:#fff;font-size:14px;font-weight:700">
-          × まだわからない
+      </div>
+
+      <!-- ステップ2：自己評価（3段階） -->
+      <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:4px">自分はどうだった？</div>
+      <div style="font-size:11px;color:var(--ink3);text-align:center;margin-bottom:12px">
+        「答えを見ずに解けた」かどうかで選んでね
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="saveQAResult('perfect')"
+                class="btn" style="padding:13px;background:#4A9B5F;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
+          ✅ 答えを見ずに解けた
+        </button>
+        <button onclick="saveQAResult('hint')"
+                class="btn" style="padding:13px;background:#C8922A;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
+          💡 答えを見てわかった（もう一度やれば解ける）
+        </button>
+        <button onclick="saveQAResult('wrong')"
+                class="btn" style="padding:13px;background:#D94F3D;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
+          ❌ 答えを見てもよくわからない
         </button>
       </div>
     </div>
   `;
+}
+
+function showQAAnswer() {
+  document.getElementById('qaAnswerArea').style.display = 'block';
+  document.getElementById('qaAnswerBtn').style.display = 'none';
+  // 答えエリアにスクロール
+  document.getElementById('qaAnswerArea').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function saveQAResult(result) {
+  const { questions, index, isWeakPoint, originalQuestions } = window.qaSession;
+  const q = questions[index];
+
+  // 結果を記録
+  window.qaSession.results[q.id] = result;
+
+  // 弱点問題の場合：忘却曲線を更新
+  if (isWeakPoint && q.weakPointId) {
+    const wp = (AppData.weakPoints || []).find(w => w.id === q.weakPointId);
+    if (wp) {
+      if (result === 'perfect') {
+        wp.correctStreak = (wp.correctStreak || 0) + 1;
+        const intervals = [1, 3, 7, 14, 30];
+        const days = intervals[Math.min(wp.correctStreak, intervals.length - 1)];
+        const next = new Date(); next.setDate(next.getDate() + days);
+        wp.nextDate = next.toISOString().split('T')[0];
+        wp.lastResult = '◎';
+        if (wp.correctStreak >= 5) {
+          wp.active = false;
+          showToast(`🎉 「${wp.unit}」を完全定着！`);
+        }
+      } else if (result === 'hint') {
+        wp.correctStreak = Math.max((wp.correctStreak || 0) - 1, 0);
+        const next = new Date(); next.setDate(next.getDate() + 2);
+        wp.nextDate = next.toISOString().split('T')[0];
+        wp.lastResult = '△';
+      } else {
+        wp.correctStreak = 0;
+        const next = new Date(); next.setDate(next.getDate() + 1);
+        wp.nextDate = next.toISOString().split('T')[0];
+        wp.lastResult = '×';
+      }
+      saveData();
+    }
+  }
+
+  // 次の問題へ
+  window.qaSession.index++;
+  renderQAQuestion();
+}
+
+function renderQAComplete() {
+  const content = document.getElementById('outputContent');
+  const { questions, results, isWeakPoint, itemName } = window.qaSession;
+  const total = questions.length;
+  const perfect = Object.values(results).filter(r => r === 'perfect').length;
+  const hint    = Object.values(results).filter(r => r === 'hint').length;
+  const wrong   = Object.values(results).filter(r => r === 'wrong').length;
+
+  if (isWeakPoint) {
+    markAppTaskDone('weak_point');
+    updateWeakPointDailyItem();
+    saveData();
+  }
+
+  const emoji = wrong === 0 && hint === 0 ? '🎉' : wrong === 0 ? '😊' : '💪';
+
+  content.innerHTML = `
+    <div style="text-align:center;padding:32px 16px">
+      <div style="font-size:48px;margin-bottom:12px">${emoji}</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:16px">完了！</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:20px;max-width:300px;margin-left:auto;margin-right:auto">
+        <div style="background:#E8F5E9;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#4A9B5F">${perfect}</div>
+          <div style="font-size:10px;color:var(--ink3)">完璧</div>
+        </div>
+        <div style="background:#FFF8E1;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#C8922A">${hint}</div>
+          <div style="font-size:10px;color:var(--ink3)">ヒント必要</div>
+        </div>
+        <div style="background:#FEF2F0;border-radius:8px;padding:10px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:#D94F3D">${wrong}</div>
+          <div style="font-size:10px;color:var(--ink3)">要復習</div>
+        </div>
+      </div>
+      ${wrong > 0 ? `<div style="font-size:13px;color:var(--ink3);margin-bottom:20px">❌の問題は明日また出てくるよ</div>` : ''}
+      <button onclick="closeOutputModal()" class="btn btn-secondary" style="padding:14px 32px;font-size:14px">
+        閉じる
+      </button>
+    </div>`;
+}
+
+// ポメに解説してもらう（QAセッションから）
+function askPomeQAExplanation(question, answer, subject) {
+  closeOutputModal();
+  const msg = `「${subject}」の問題について詳しく解説してください。\n\n問題：${question}\n答え：${answer}\n\nなぜそうなるのか、中学1年生にわかるように丁寧に教えてください。${subject==='数学'?'計算の手順を1ステップずつ説明してください。':''}`;
+  setTimeout(() => {
+    const input = document.getElementById('aiChatInput');
+    if (input) {
+      input.value = msg;
+      sendAIMessage();
+    }
+  }, 300);
 }
 
 function showWeakAnswer(questions, index) {
@@ -10815,27 +11002,27 @@ function renderSelfCheckUI(record, question) {
       </div>`}
 
     <div style="font-size:14px;font-weight:700;text-align:center;margin-bottom:6px">
-      解いてみてどうだった？
+      答えを見る前に解けた？
     </div>
     <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:12px">
-      正直に選んでね！間違えても大丈夫😊
+      正直に選んでね！
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px">
       <button onclick="saveCheckResult('${record.id}','◎')" class="btn"
-              style="padding:14px;background:#4A9B5F;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-        ◎ バッチリ解けた！
+              style="padding:12px;background:#4A9B5F;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
+        ✅ 答えを見ずに解けた
       </button>
       <button onclick="saveCheckResult('${record.id}','○')" class="btn"
-              style="padding:14px;background:#3A9B8C;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-        ○ だいたいわかった
+              style="padding:12px;background:#3A9B8C;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
+        💡 答えを見てわかった
       </button>
       <button onclick="saveCheckResult('${record.id}','△')" class="btn"
-              style="padding:14px;background:#C8922A;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-        △ ちょっと自信ない
+              style="padding:12px;background:#C8922A;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
+        🤔 答えを見てもあいまい
       </button>
       <button onclick="saveCheckResult('${record.id}','×')" class="btn"
-              style="padding:14px;background:#D94F3D;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-        × ぜんぜんわからない
+              style="padding:12px;background:#D94F3D;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
+        ❌ 答えを見てもわからない
       </button>
     </div>
   `;
@@ -11272,10 +11459,13 @@ function setBulkResult(phase, id, ok) {
   if (ok) {
     bulkTest.retryCards = bulkTest.retryCards.filter(c => c.id !== id);
   }
-  // 再描画（同じフェーズ）
-  const bar = document.querySelector('#outputContent > div:first-child')?.outerHTML || '';
-  if (phase === 'meaning') renderBulkMeaning(bar, document.getElementById('outputContent'));
-  else renderBulkWriting(bar, document.getElementById('outputContent'));
+  // スクロール位置を保持して再描画
+  const container = document.getElementById('outputContent');
+  const scrollPos = container?.scrollTop || 0;
+  const bar = container?.querySelector('div:first-child')?.outerHTML || '';
+  if (phase === 'meaning') renderBulkMeaning(bar, container);
+  else renderBulkWriting(bar, container);
+  if (container) container.scrollTop = scrollPos;
 }
 
 function finishBulkWriting() {
