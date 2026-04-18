@@ -1133,6 +1133,25 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
             console.anthropic.com で取得できます
           </div>
         </div>
+        <div class="input-group" style="margin-top:16px">
+          <label class="input-label">☁ GitHub同期トークン</label>
+          <input type="password" class="input-field" id="githubToken" placeholder="ghp_..."
+                 value="">
+          <div style="font-size:10px;color:var(--ink3);margin-top:6px">
+            PC・スマホ間でデータを同期します。設定後はどの端末でも同じデータが使えます。
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+            <button onclick="saveGithubToken()" class="btn btn-primary"
+                    style="padding:8px 16px;font-size:12px">
+              ✓ トークンを保存
+            </button>
+            <button onclick="manualSync()" class="btn btn-secondary"
+                    style="padding:8px 16px;font-size:12px">
+              🔄 今すぐ同期
+            </button>
+            <span id="syncStatus" style="font-size:12px;color:var(--teal)"></span>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -1629,21 +1648,163 @@ function init() {
   
   loadSettings();
   renderHome();
+
+  // GitHub同期（非同期・バックグラウンド）
+  syncFromGitHub();
+}
+
+// ═══════════════════════════════════════
+// GitHub同期設定
+// ═══════════════════════════════════════
+const GITHUB_REPO  = 'nachi-jazzmusic/manabiba';
+const GITHUB_BRANCH = 'main';
+const GITHUB_DATA_FILE = 'manabiba_data.json';
+const GITHUB_API = 'https://api.github.com';
+
+function saveGithubToken() {
+  const token = document.getElementById('githubToken')?.value.trim();
+  if (!token) { alert('トークンを入力してください'); return; }
+  localStorage.setItem('manabiba_github_token', token);
+  showSyncStatus('✓ トークンを保存しました');
+  showToast('✓ GitHubトークンを保存しました');
+  // 初回同期
+  manualSync();
+}
+
+async function manualSync() {
+  const token = getGithubToken();
+  if (!token) {
+    alert('設定画面でGitHubトークンを入力してください');
+    return;
+  }
+  showSyncStatus('☁ 同期中...');
+  const remote = await loadFromGitHub();
+  if (remote) {
+    const localTime  = AppData.updatedAt || 0;
+    const remoteTime = remote.updatedAt  || 0;
+    if (remoteTime > localTime) {
+      AppData = remote;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(AppData));
+      showSyncStatus('☁ リモートのデータを取得しました');
+      showToast('☁ GitHubから最新データを取得しました');
+      loadSettings();
+      renderHome();
+    } else {
+      // ローカルの方が新しい→GitHubに送る
+      await saveToGitHub(AppData);
+      showSyncStatus('☁ ローカルのデータを送信しました');
+      showToast('☁ GitHubにデータを保存しました');
+    }
+  } else {
+    // GitHub上にファイルがない→初回アップロード
+    await saveToGitHub(AppData);
+    showSyncStatus('☁ 初回アップロード完了');
+    showToast('☁ GitHubにデータを保存しました');
+  }
+}
+
+function getGithubToken() {
+  return localStorage.getItem('manabiba_github_token') || '';
+}
+
+// GitHub APIでdata.jsonを読み込む
+async function loadFromGitHub() {
+  const token = getGithubToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}?ref=${GITHUB_BRANCH}`, {
+      headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+    });
+    if (res.status === 404) return null; // ファイルがまだない
+    if (!res.ok) throw new Error('GitHub読み込みエラー: ' + res.status);
+    const json = await res.json();
+    const content = JSON.parse(atob(json.content.replace(/\n/g, '')));
+    // SHAを保存（次回の更新に必要）
+    localStorage.setItem('manabiba_github_sha', json.sha);
+    return content;
+  } catch(e) {
+    console.warn('GitHub読み込み失敗:', e.message);
+    return null;
+  }
+}
+
+// GitHub APIでdata.jsonを保存
+async function saveToGitHub(data) {
+  const token = getGithubToken();
+  if (!token) return;
+  try {
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+    const sha = localStorage.getItem('manabiba_github_sha') || undefined;
+    const body = {
+      message: 'まなびば データ更新 ' + new Date().toLocaleString('ja-JP'),
+      content,
+      branch: GITHUB_BRANCH
+    };
+    if (sha) body.sha = sha;
+    const res = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.message);
+    }
+    const result = await res.json();
+    localStorage.setItem('manabiba_github_sha', result.content.sha);
+  } catch(e) {
+    console.warn('GitHub保存失敗:', e.message);
+  }
+}
+
+// 同期状態表示
+function showSyncStatus(msg, color) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = color || 'var(--teal)';
+  setTimeout(() => { if (el) el.textContent = ''; }, 3000);
 }
 
 function loadData() {
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored) {
-    try {
-      AppData = JSON.parse(stored);
-    } catch (e) {
-      console.error('データ読み込みエラー:', e);
-    }
+    try { AppData = JSON.parse(stored); } catch(e) { console.error('データ読み込みエラー:', e); }
   }
 }
 
 function saveData() {
+  AppData.updatedAt = Date.now();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(AppData));
+  // GitHubにも非同期保存
+  if (getGithubToken()) {
+    saveToGitHub(AppData).then(() => showSyncStatus('☁ 同期完了')).catch(() => showSyncStatus('⚠ 同期失敗', 'var(--red)'));
+  }
+}
+
+// 起動時にGitHubから最新データを取得してマージ
+async function syncFromGitHub() {
+  const token = getGithubToken();
+  if (!token) return;
+  showSyncStatus('☁ 同期中...');
+  const remote = await loadFromGitHub();
+  if (!remote) { showSyncStatus(''); return; }
+  // リモートの方が新しければ上書き（updatedAtで比較）
+  const localTime  = AppData.updatedAt || 0;
+  const remoteTime = remote.updatedAt  || 0;
+  if (remoteTime > localTime) {
+    AppData = remote;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(AppData));
+    showSyncStatus('☁ 最新データを取得しました');
+    loadSettings();
+    renderHome();
+  } else {
+    showSyncStatus('☁ 同期済み');
+  }
 }
 
 // ═══════════════════════════════════════
@@ -1715,6 +1876,9 @@ function loadSettings() {
   document.getElementById('jukuSettings').style.display = juku.enabled ? 'block' : 'none';
   
   document.getElementById('apiKey').value = s.apiKey || '';
+  // GitHubトークンはlocalStorageから直接読む
+  const ghToken = document.getElementById('githubToken');
+  if (ghToken) ghToken.value = getGithubToken();
 
   // 目安時間の読み込み
   const te = s.timeEstimates || {};
