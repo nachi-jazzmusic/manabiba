@@ -1,0 +1,107 @@
+{
+  "settings": {
+    "name": "",
+    "grade": "中1",
+    "textbooks": {
+      "japanese": "",
+      "math": "",
+      "science": "",
+      "social": "",
+      "english": ""
+    },
+    "eiken": {
+      "targetGrade": "4級",
+      "examDate": "",
+      "materials": {
+        "mochitan": {
+          "dailyMinutes": 10
+        },
+        "workbook": {
+          "publisher": "旺文社",
+          "totalPages": 128,
+          "currentPage": 0
+        },
+        "seiha": {
+          "material": "",
+          "totalPages": 80,
+          "currentPage": 0
+        }
+      }
+    },
+    "juku": {
+      "enabled": false,
+      "schedule": {
+        "mon": {
+          "enabled": true,
+          "start": "18:15",
+          "end": "22:00"
+        },
+        "thu": {
+          "enabled": true,
+          "start": "18:15",
+          "end": "22:00"
+        }
+      },
+      "longBreak": {
+        "time": {
+          "start": "14:00",
+          "end": "17:30"
+        },
+        "spring": {
+          "start": "04-01",
+          "end": "04-07"
+        },
+        "summer": {
+          "start": "07-21",
+          "end": "08-31"
+        },
+        "winter": {
+          "start": "12-25",
+          "end": "01-07"
+        }
+      }
+    },
+    "apiKey": "https://nachi-jazzmusic.github.io/manabiba/manabiba_v2.1.html",
+    "dailyItems": []
+  },
+  "dailyPlans": {
+    "2026-04-04": {
+      "date": "2026-04-04",
+      "dayOfWeek": "土",
+      "morningBriefing": {
+        "completed": true,
+        "timestamp": "2026-04-04T12:15:32.684Z",
+        "studySlots": [
+          {
+            "startTime": "18:30",
+            "endTime": ""
+          },
+          {
+            "startTime": "",
+            "endTime": ""
+          }
+        ],
+        "memorizationTasks": [],
+        "schoolHomework": [],
+        "jukuHomework": [],
+        "todayHomework": []
+      },
+      "schedule": []
+    }
+  },
+  "weeklyReviews": {},
+  "weekendQuizzes": {},
+  "jukuHomework": {},
+  "learningHistory": [],
+  "quizResults": {},
+  "masteryLevels": {},
+  "rewards": {
+    "totalPoints": 0,
+    "pointHistory": [],
+    "redemptions": [],
+    "pomeChan": {
+      "level": 1,
+      "exp": 0
+    }
+  }
+}
