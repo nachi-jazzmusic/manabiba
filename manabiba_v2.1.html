@@ -757,12 +757,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 <!-- モバイルヘッダー（シンプル版：タイトル＋今日ボタンのみ） -->
 <div class="mobile-header">
   <div class="mobile-header-content">
+    <button onclick="showPanel('settings')"
+            style="padding:8px;border-radius:10px;border:none;background:none;
+                   font-size:22px;cursor:pointer;line-height:1">⚙️</button>
     <div class="mobile-title">✦ まなびば</div>
     <button onclick="openScheduleModal()"
             style="padding:8px 16px;border-radius:20px;border:none;
                    background:var(--accent);color:#fff;font-family:var(--font);
                    font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">
-      📅 今日やること
+      📅 今日
     </button>
   </div>
 </div>
