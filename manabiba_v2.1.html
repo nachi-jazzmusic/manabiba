@@ -2086,7 +2086,7 @@ function renderTodayHub() {
             </div>
             ${day.tasks.map(t => `
               <div style="font-size:11px;color:var(--ink2);display:flex;justify-content:space-between">
-                <span>${t.subject}：${t.quantity}${getUnitShort(t.unit)}</span>
+                <span>${t.subject}：${t.content}（${t.quantity}${getUnitShort(t.unit)}）</span>
                 <span style="color:var(--ink3)">${t.estimatedMin}分</span>
               </div>`).join('')}
             ${day.totalMin > 0 ? `<div style="font-size:10px;color:var(--ink3);text-align:right;margin-top:2px">計${day.totalMin}分</div>` : ''}
@@ -2128,7 +2128,7 @@ function getThreeDaySchedule() {
       const qty = Math.min(perDay, actualRemaining);
       const min = getEstimatedTime(card.subject, card.unit, qty);
 
-      tasks.push({ subject: card.subject, quantity: qty, unit: card.unit, estimatedMin: min });
+      tasks.push({ cardId: card.id, subject: card.subject, content: card.content, quantity: qty, unit: card.unit, estimatedMin: min });
       totalMin += min;
     });
 
@@ -2233,14 +2233,14 @@ function showThreeDayConfirm() {
 
     const taskRows = day.tasks.map(t => {
       const isSkipped = day.isToday && skippedSubjects.has(t.subject);
-      const cardId = AppData.homeworkCards?.find(c => c.subject === t.subject)?.id;
+      const cardId = t.cardId;
 
       return `
         <div style="display:flex;align-items:center;justify-content:space-between;
                     padding:6px 0;border-bottom:1px solid var(--bg2);
                     opacity:${isSkipped ? 0.5 : 1}">
           <div style="font-size:12px;${isSkipped ? 'text-decoration:line-through;color:var(--ink3)' : ''}">
-            ${t.subject}：${t.quantity}${getUnitShort(t.unit)}（${t.estimatedMin}分）
+            ${t.subject}：${t.content}（${t.quantity}${getUnitShort(t.unit)}・${t.estimatedMin}分）
             ${isSkipped ? '<span style="font-size:10px;color:var(--ink3);margin-left:4px">スキップ済み</span>' : ''}
           </div>
           ${day.isToday && !isSkipped ? `
@@ -2286,16 +2286,23 @@ function showThreeDayConfirm() {
   }).join('');
 
   overlay.innerHTML = `
-    <div style="background:var(--bg);border-radius:14px;padding:20px;width:100%;max-width:440px;
-                max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
-      <div style="font-size:16px;font-weight:700;margin-bottom:16px">📆 3日間の予定確認</div>
-      ${days.length === 0
-        ? '<div style="text-align:center;color:var(--ink3);padding:20px">登録済みの宿題がありません</div>'
-        : daysRows}
-      <button onclick="document.getElementById('threeDayOverlay').remove();renderHome()"
-              class="btn btn-primary" style="width:100%;padding:12px;font-size:14px;margin-top:8px">
-        ✓ この予定でOK
-      </button>
+    <div style="background:var(--bg);border-radius:14px;width:100%;max-width:440px;
+                max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-size:16px;font-weight:700">📆 3日間の予定確認</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 20px">
+        ${days.length === 0
+          ? '<div style="text-align:center;color:var(--ink3);padding:20px">登録済みの宿題がありません</div>'
+          : daysRows}
+      </div>
+      <!-- 確定ボタンは常に下部に固定 -->
+      <div style="padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg)">
+        <button onclick="document.getElementById('threeDayOverlay').remove();renderHome()"
+                class="btn btn-primary" style="width:100%;padding:14px;font-size:14px">
+          ✓ この予定でOK
+        </button>
+      </div>
     </div>`;
 
   document.body.appendChild(overlay);
@@ -9455,9 +9462,11 @@ R6: ${data.R6?.join('、') || ''}
 R5: ${data.R5?.join('、') || ''}
 
 ## 問題作成の方針
+- この調査は「小学6年生までの学習内容」を問うテストである（中学の内容は出ない）
+- 方程式（2x+3=7など）・負の数・文字式の計算など中学内容は絶対に出題しない
+- 分数・小数・比・比例・図形・データなど小学校の内容のみで出題する
 - 上記の頻出単元を優先して出題する
 - 選択肢形式と記述形式を混ぜる（本番に合わせる）
-- 難易度は中学1年生レベルで、本番試験に近い形式にする
 - 3年連続で出ている単元は特に重点的に出題する
 `;
 }
@@ -10159,7 +10168,6 @@ function renderQAQuestion() {
   const accentColor = isWeakPoint ? 'var(--red)' : 'var(--teal)';
   const icon = isWeakPoint ? '⚠️' : '🎯';
 
-  // スクロールをトップに戻さないよう、contentのスクロール位置を保持
   content.scrollTop = 0;
 
   content.innerHTML = `
@@ -10186,14 +10194,14 @@ function renderQAQuestion() {
       <div style="font-size:16px;font-weight:600;line-height:1.9;white-space:pre-wrap">${q.question}</div>
     </div>
 
-    <!-- ステップ1：自分で考えてから答えを見る -->
+    <!-- ステップ1：ノートで解いてから確認 -->
     <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:10px">
       ノートで解いてから「答えを確認する」を押してね
     </div>
     <button id="qaAnswerBtn" onclick="showQAAnswer()"
             class="btn btn-secondary"
             style="width:100%;padding:12px;font-size:14px;margin-bottom:8px">
-      答えを確認する
+      📋 答えを確認する
     </button>
 
     <!-- 答えエリア（最初は非表示） -->
@@ -10206,8 +10214,8 @@ function renderQAQuestion() {
           <div style="font-size:11px;color:var(--teal);font-weight:700;margin-bottom:4px">💡 解説</div>
           <div style="font-size:13px;color:var(--ink2);line-height:1.8">${q.explanation || '解説なし'}</div>
         </div>
-        <!-- ポメに詳しく解説してもらうボタン -->
-        <button onclick="askPomeQAExplanation(${JSON.stringify(q.question).replace(/"/g,'&quot;')}, ${JSON.stringify(q.answer).replace(/"/g,'&quot;')}, '${q.subject||''}')"
+        <!-- ポメ解説ボタン（問題に戻れる） -->
+        <button onclick="askPomeQAExplanationKeepSession(${JSON.stringify(q.question).replace(/"/g,'&quot;')}, ${JSON.stringify(q.answer).replace(/"/g,'&quot;')}, '${(q.subject||'').replace(/'/g,'')}')"
                 style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid var(--teal);
                        background:#fff;color:var(--teal);font-family:var(--font);font-size:12px;
                        font-weight:700;cursor:pointer">
@@ -10215,10 +10223,10 @@ function renderQAQuestion() {
         </button>
       </div>
 
-      <!-- ステップ2：自己評価（3段階） -->
+      <!-- ステップ2：自己評価（4段階） -->
       <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:4px">自分はどうだった？</div>
       <div style="font-size:11px;color:var(--ink3);text-align:center;margin-bottom:12px">
-        「答えを見ずに解けた」かどうかで選んでね
+        正直に選んでね
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button onclick="saveQAResult('perfect')"
@@ -10227,11 +10235,15 @@ function renderQAQuestion() {
         </button>
         <button onclick="saveQAResult('hint')"
                 class="btn" style="padding:13px;background:#C8922A;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-          💡 答えを見てわかった（もう一度やれば解ける）
+          💡 答えを見てわかった
         </button>
         <button onclick="saveQAResult('wrong')"
                 class="btn" style="padding:13px;background:#D94F3D;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-          ❌ 答えを見てもよくわからない
+          ❌ 答えを見てもわからない
+        </button>
+        <button onclick="saveQAResult('notlearned')"
+                class="btn" style="padding:13px;background:#888;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
+          📚 まだ習っていない
         </button>
       </div>
     </div>
@@ -10246,7 +10258,7 @@ function showQAAnswer() {
 }
 
 function saveQAResult(result) {
-  const { questions, index, isWeakPoint, originalQuestions } = window.qaSession;
+  const { questions, index, isWeakPoint } = window.qaSession;
   const q = questions[index];
 
   // 結果を記録
@@ -10256,7 +10268,13 @@ function saveQAResult(result) {
   if (isWeakPoint && q.weakPointId) {
     const wp = (AppData.weakPoints || []).find(w => w.id === q.weakPointId);
     if (wp) {
-      if (result === 'perfect') {
+      if (result === 'notlearned') {
+        // まだ習っていない → スキップ（streakは変えない、出題を少し先送り）
+        const next = new Date(); next.setDate(next.getDate() + 7);
+        wp.nextDate = next.toISOString().split('T')[0];
+        wp.lastResult = '未';
+        showToast('📚 習ったら再挑戦しよう！');
+      } else if (result === 'perfect') {
         wp.correctStreak = (wp.correctStreak || 0) + 1;
         const intervals = [1, 3, 7, 14, 30];
         const days = intervals[Math.min(wp.correctStreak, intervals.length - 1)];
@@ -10329,16 +10347,56 @@ function renderQAComplete() {
 }
 
 // ポメに解説してもらう（QAセッションから）
-function askPomeQAExplanation(question, answer, subject) {
-  closeOutputModal();
+// ポメに解説してもらう（セッションを保持したまま）
+function askPomeQAExplanationKeepSession(question, answer, subject) {
+  // モーダルを閉じずにチャットに送信→問題に戻るボタンを表示
   const msg = `「${subject}」の問題について詳しく解説してください。\n\n問題：${question}\n答え：${answer}\n\nなぜそうなるのか、中学1年生にわかるように丁寧に教えてください。${subject==='数学'?'計算の手順を1ステップずつ説明してください。':''}`;
+
+  // モーダルを閉じる
+  const modal = document.getElementById('outputModal');
+  if (modal) modal.classList.remove('show');
+
+  // チャットに質問を送る
   setTimeout(() => {
     const input = document.getElementById('aiChatInput');
     if (input) {
       input.value = msg;
       sendAIMessage();
     }
+    // 「問題に戻る」ボタンをチャット下部に表示
+    setTimeout(() => {
+      showReturnToSessionButton();
+    }, 500);
   }, 300);
+}
+
+function showReturnToSessionButton() {
+  // 既存のボタンがあれば削除
+  document.getElementById('returnToSessionBtn')?.remove();
+  const btn = document.createElement('div');
+  btn.id = 'returnToSessionBtn';
+  btn.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:5000;';
+  btn.innerHTML = `
+    <button onclick="returnToQASession()"
+            style="padding:12px 24px;border-radius:24px;border:none;
+                   background:var(--accent);color:#fff;font-family:var(--font);
+                   font-size:14px;font-weight:700;cursor:pointer;
+                   box-shadow:0 4px 16px rgba(0,0,0,0.25)">
+      ← 問題に戻る
+    </button>`;
+  document.body.appendChild(btn);
+}
+
+function returnToQASession() {
+  document.getElementById('returnToSessionBtn')?.remove();
+  if (!window.qaSession) return;
+  // モーダルを再表示して現在の問題を表示
+  document.getElementById('outputModal')?.classList.add('show');
+  renderQAQuestion();
+}
+
+function askPomeQAExplanation(question, answer, subject) {
+  askPomeQAExplanationKeepSession(question, answer, subject);
 }
 
 function showWeakAnswer(questions, index) {
