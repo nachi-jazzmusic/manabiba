@@ -3420,8 +3420,8 @@ function renderAIChatInline() {
         <!-- サジェスト -->
         <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:360px">
           ${[
-            '数学の問題を解いてほしい',
-            '英単語の覚え方を教えて',
+            '中間テストの攻略を一緒に考えて',
+            '苦手な問題を解説してほしい',
             '今日の勉強を手伝って'
           ].map(s => `
             <button onclick="pomeQuickSend('${s}')"
@@ -10067,7 +10067,7 @@ async function startWeakPointSession() {
 
   for (const wp of duePoints) {
     const isMath = wp.subject === '数学';
-    const prompt = `中学1年生向けの${wp.subject}の問題を2問作ってください。
+    const prompt = `中学1年生（4〜5月時点）向けの${wp.subject}の問題を2問作ってください。
 
 単元：${wp.unit}
 つまずきポイント：${wp.memo}
@@ -10076,16 +10076,20 @@ async function startWeakPointSession() {
 {"questions":[
   {
     "question": "問題文のみ（答えは絶対に含めない。選択肢がある場合は①②③④の形式で書く）",
-    "answer": "答えのみ（問題文を繰り返さない）${isMath ? '。数学は計算過程も書く（例：3÷4=3/4=0.75）' : ''}",
-    "explanation": "なぜそうなるかを中学生向けに丁寧に説明（2〜3文。「なぜなら」「つまり」を使って理由から説明する）",
+    "answer": "答えのみ${isMath ? '。必ず計算過程を全ステップ書く（例：80÷60＝4/3＝1と1/3分 → 答え：1と1/3分）' : ''}",
+    "explanation": "なぜそうなるかを中学生向けに丁寧に説明（2〜3文）",
     "weakPointId": "${wp.id}"
   }
 ]}
 
 # 厳守事項
 - questionには答えを絶対に含めない
-- 全て日本語で出力する（英語は使わない）
-- 数学は計算ミスのないよう必ず検算してから出力する
+- 全て日本語で出力する
+- 出題範囲：小学校〜中学1年生前半（正の数・負の数の基本、文字式の基本まで）
+- 方程式（2x+3=7など）・連立方程式など未習内容は出題しない
+${isMath ? `- 数学は必ず2回検算し、2回とも同じ答えになったことを確認してから出力する
+- answer欄の計算過程と最終答えが矛盾していないか必ず確認する
+- 計算ミスが1つでもあれば問題ごと作り直すこと` : ''}
 - JSONのみ出力`;
 
     try {
@@ -11297,8 +11301,7 @@ async function saveCheckResult(id, result) {
   }
 
   saveData();
-
-  // 結果に応じたメッセージ
+  renderHome(); // 右パネルの週末チェックカードを即時更新
   const content = document.getElementById('unitTrackerContent');
 
   // 全チェック完了かどうか確認
@@ -11330,7 +11333,7 @@ async function saveCheckResult(id, result) {
                 class="btn btn-primary" style="padding:14px 24px;font-size:14px;margin-bottom:12px;width:100%">
           🐾 ポメに解説してもらう
         </button>` : ''}
-      <button onclick="renderUnitTrackerTop()" class="btn btn-secondary" 
+      <button onclick="renderUnitTrackerTop();renderHome()" class="btn btn-secondary" 
               style="padding:12px 24px;font-size:13px;width:100%">
         一覧に戻る
       </button>
@@ -12050,8 +12053,22 @@ async function sendAIMessage() {
 絵文字を適度に使って親しみやすく回答してください。
 回答は簡潔に、長くても300文字程度にしてください。
 
+【生徒情報】
+名前：かりん（中学1年生・4〜5月時点）
+得意：社会（歴史）
+苦手：数学（概念理解が弱い）、地理
+
+【テスト攻略相談への対応】
+「中間テスト」「テスト攻略」「勉強計画」などの相談が来たら：
+1. まず「テストはいつ？」「どの科目が心配？」と聞く
+2. 科目ごとに「何が出そうか」「どこが苦手か」を整理する
+3. 残り日数から「今日〜前日まで」の大まかな計画を提案する
+4. 計画はアプリの「テスト対策」や「宿題登録」に入れるよう案内する
+例：「数学のワークを期限付きで宿題登録すると1日分が自動計算されるよ！」
+
 【厳密なルール・ハルシネーション対策】
-あなたは決して嘘や不確実な情報を教えないでください。事実(FACT)を厳密に確認し、もし少しでも分からないことや推測が含まれる場合は、正直に「わからない」または「推測ですが」と明確に伝えてください。誤った知識を教えることは厳禁です。`
+決して嘘や不確実な情報を教えないでください。事実を厳密に確認し、少しでも分からないことがあれば「わからない」と正直に伝えてください。
+数学の計算をする場合は必ず2回検算してから答えを伝えてください。`
       })
     });
     
