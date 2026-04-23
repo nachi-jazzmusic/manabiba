@@ -2143,50 +2143,71 @@ function renderDeskTaskCardCompact(t) {
   const today = new Date(); today.setHours(0,0,0,0);
   const daysLeft = dueDate ? Math.ceil((dueDate - today) / (1000*60*60*24)) : null;
   const urgentColor = daysLeft === 0 ? 'var(--red)' : daysLeft === 1 ? '#C8922A' : 'var(--teal)';
+  const typeLabel = t.hwType === 'juku' ? '塾' : '学校';
+  const typeBg    = t.hwType === 'juku' ? '#EEF2FF' : '#F0FFF4';
+  const typeColor = t.hwType === 'juku' ? '#5B6EE8' : '#4A9B5F';
 
   return `
-    <div style="background:#fff;border-radius:8px;border:1px solid var(--border);
+    <div style="background:#fff;border-radius:7px;border:1px solid var(--border);
                 border-left:3px solid ${t.done?'var(--bg3)':urgentColor};
-                padding:8px 10px;margin-bottom:5px;display:flex;align-items:center;gap:8px;
+                padding:6px 10px;margin-bottom:4px;display:flex;align-items:center;gap:8px;
                 cursor:pointer;opacity:${t.done?0.6:1}"
          onclick="toggleDeskTask('${t.cardId}','${getTodayString()}')">
-      <div style="font-size:16px">${t.done?'✅':'☐'}</div>
+      <div style="font-size:15px">${t.done?'✅':'☐'}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-                    ${t.done?'text-decoration:line-through;color:var(--ink3)':''}">${t.subject}：${t.content}</div>
-        <div style="font-size:10px;color:var(--ink3)">${t.quantity}${getUnitShort(t.unit)} · ${t.estimatedMin}分 · <span style="color:${urgentColor}">${daysLeft===0?'今日まで':daysLeft===1?'明日まで':`あと${daysLeft}日`}</span></div>
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:1px">
+          <span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;
+                       background:${typeBg};color:${typeColor};flex-shrink:0">${typeLabel}</span>
+          <span style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                       ${t.done?'text-decoration:line-through;color:var(--ink3)':''}">${t.subject}：${t.content}</span>
+        </div>
+        <div style="font-size:10px;color:var(--ink3)">
+          ${t.quantity}${getUnitShort(t.unit)} · ${t.estimatedMin}分 · <span style="color:${urgentColor}">${daysLeft===0?'今日まで':daysLeft===1?'明日まで':`あと${daysLeft}日`}</span>
+          ${t.memo ? `<span style="color:var(--ink2);font-weight:600"> · ${t.memo}</span>` : ''}
+        </div>
       </div>
     </div>`;
 }
 
 function renderAppTaskCardCompact(t) {
   const actionMap = {
-    'word_session': { fn:"startOutputSession('word')", color:'var(--teal)',   icon:'🔤' },
-    'sentence_session': { fn:"startOutputSession('word')", color:'var(--teal)', icon:'🔤' },
-    'eiken':        { fn:'startTodayEiken()',           color:'#C8922A',      icon:'🌟' },
-    'bulk_test':    { fn:'showBulkTestSetup()',         color:'var(--purple)', icon:'📋' },
-    'kanji':        { fn:'startKanjiPractice()',        color:'var(--ink)',   icon:'🖊️' },
-    'test_prep':    { fn:`startTestPrepSession('${t.testPrepId}')`, color:'var(--red)', icon:'🎯' },
-    'weak_point':   { fn:'startWeakPointSession()',     color:'#8B4513',      icon:'⚠️' },
+    'word_session':    { fn:"startOutputSession('word')", color:'var(--teal)',    icon:'🔤' },
+    'sentence_session':{ fn:"startOutputSession('word')", color:'var(--teal)',    icon:'🔤' },
+    'eiken':           { fn:'startTodayEiken()',          color:'#C8922A',        icon:'🌟' },
+    'bulk_test':       { fn:'showBulkTestSetup()',        color:'var(--purple)',  icon:'📋' },
+    'kanji':           { fn:'startKanjiPractice()',       color:'var(--ink)',     icon:'🖊️' },
+    'test_prep':       { fn:`startTestPrepSession('${t.testPrepId}')`, color:'var(--red)', icon:'🎯' },
+    'weak_point':      { fn:'startWeakPointSession()',   color:'#8B4513',        icon:'⚠️' },
   };
   const act = actionMap[t.action] || { fn:'', color:'var(--accent)', icon:'📚' };
 
+  // labelに既に絵文字が含まれている場合はiconを表示しない
+  const labelHasEmoji = /[\u{1F300}-\u{1FFFF}⚠️📒📋🔤🌟🖊️]/u.test(t.label.charAt(0));
+  const showIcon = !labelHasEmoji;
+
+  // labelから先頭の絵文字+スペースを除去してテキストだけ取り出す
+  const cleanLabel = t.label.replace(/^[\u{1F300}-\u{1FFFF}⚠️📒📋🔤🌟🖊️🎯]\s*/u, '');
+
   return `
-    <div style="background:#fff;border-radius:8px;border:1px solid var(--border);
+    <div style="background:#fff;border-radius:7px;border:1px solid var(--border);
                 border-left:3px solid ${t.done?'var(--bg3)':act.color};
-                padding:7px 10px;margin-bottom:5px;display:flex;align-items:center;gap:8px;
+                padding:6px 10px;margin-bottom:4px;display:flex;align-items:center;gap:8px;
                 opacity:${t.done?0.6:1}">
-      <div style="font-size:15px">${t.done?'✅':act.icon}</div>
-      <div style="flex:1;font-size:12px;font-weight:700;${t.done?'text-decoration:line-through;color:var(--ink3)':''}">${t.label}</div>
+      <div style="font-size:14px;flex-shrink:0">${t.done?'✅':act.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:700;${t.done?'text-decoration:line-through;color:var(--ink3)':''}
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cleanLabel}</div>
+        ${t.detail ? `<div style="font-size:10px;color:var(--ink3);margin-top:1px">${t.detail}</div>` : ''}
+      </div>
       ${!t.done ? `
         <button onclick="${act.fn};markAppTaskDone('${t.id}')"
                 style="padding:4px 10px;border-radius:6px;border:none;background:${act.color};
-                       color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
+                       color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
           やる→
         </button>` : `
         <button onclick="unmarkAppTaskDone('${t.id}')"
                 style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);
-                       background:var(--bg2);color:var(--ink3);font-size:10px;cursor:pointer">
+                       background:var(--bg2);color:var(--ink3);font-size:10px;cursor:pointer;flex-shrink:0">
           取消
         </button>`}
     </div>`;
@@ -2222,17 +2243,16 @@ function showThreeDayConfirm() {
   const skipLog = AppData.homeworkSkipLog?.[today] || {};
 
   const daysRows = days.map((day) => {
-    // スキップ済みカードを識別
-    const skippedSubjects = new Set();
+    // スキップ済みカードをcardIdで識別（subjectだと同一科目が複数ある場合に誤動作）
+    const skippedCardIds = new Set();
     if (day.isToday) {
       Object.keys(skipLog).forEach(cardId => {
-        const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
-        if (card) skippedSubjects.add(card.subject);
+        skippedCardIds.add(cardId);
       });
     }
 
     const taskRows = day.tasks.map(t => {
-      const isSkipped = day.isToday && skippedSubjects.has(t.subject);
+      const isSkipped = day.isToday && skippedCardIds.has(t.cardId);
       const cardId = t.cardId;
 
       return `
@@ -2261,9 +2281,9 @@ function showThreeDayConfirm() {
     }).join('');
 
     const activeMin = day.tasks
-      .filter(t => !skippedSubjects.has(t.subject))
+      .filter(t => !skippedCardIds.has(t.cardId))
       .reduce((s,t) => s + t.estimatedMin, 0);
-    const skippedCount = [...skippedSubjects].filter(s => day.tasks.some(t => t.subject === s)).length;
+    const skippedCount = day.tasks.filter(t => skippedCardIds.has(t.cardId)).length;
 
     return `
       <div style="background:${day.isToday?'linear-gradient(135deg,#FFF5EF,#fff)':'#fff'};
@@ -2376,6 +2396,8 @@ function getDeskTasksForToday() {
       todayDone,
       remaining,
       dueDate: card.dueDate,
+      hwType: card.hwType || 'school',
+      memo: card.memo || '',
       estimatedMin: getEstimatedTime(card.subject, card.unit, todayQty)
     });
   });
@@ -2933,13 +2955,22 @@ function renderProgressInParent() {
       ? `<div style="font-size:11px;color:var(--red);font-weight:700;margin-top:4px">⚠️ ${daysLeft===0?'今日が期限！':'明日が期限！'}</div>`
       : '';
 
+    const typeLabel = card.hwType === 'juku' ? '塾' : '学校';
+    const typeBg    = card.hwType === 'juku' ? '#EEF2FF' : '#F0FFF4';
+    const typeColor = card.hwType === 'juku' ? '#5B6EE8' : '#4A9B5F';
+
     return `
       <div style="background:#fff;border-radius:9px;padding:12px;margin-bottom:8px;border:1px solid var(--border)">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <div>
-            <div style="font-size:13px;font-weight:700">${card.subject}：${card.content}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+              <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;
+                           background:${typeBg};color:${typeColor}">${typeLabel}</span>
+              <span style="font-size:13px;font-weight:700">${card.subject}：${card.content}</span>
+            </div>
             <div style="font-size:11px;color:var(--ink3)">
               残り${remaining}${getUnitShort(card.unit)} · ${daysLeft!==null?`あと${daysLeft}日`:''}
+              ${card.memo ? `<span style="color:var(--ink2);font-weight:600"> · ${card.memo}</span>` : ''}
             </div>
             ${urgency}
           </div>
@@ -9167,6 +9198,23 @@ function showParentHomework() {
   content.innerHTML = `
     <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
 
+    <!-- 学校 / 塾の区分 -->
+    <div class="input-group">
+      <label class="input-label">区分</label>
+      <div style="display:flex;gap:8px">
+        <button id="phw_type_school" onclick="selectHwType('school')"
+                class="btn btn-primary"
+                style="flex:1;padding:10px;font-size:13px;font-weight:700">
+          🏫 学校
+        </button>
+        <button id="phw_type_juku" onclick="selectHwType('juku')"
+                class="btn btn-secondary"
+                style="flex:1;padding:10px;font-size:13px;font-weight:700">
+          📚 塾
+        </button>
+      </div>
+    </div>
+
     <div class="input-group">
       <label class="input-label">科目</label>
       <select class="select-field" id="phw_subject" onchange="updatePhwUnits()">
@@ -9180,6 +9228,17 @@ function showParentHomework() {
         <option value="">科目を先に選んでください</option>
       </select>
     </div>
+
+    <!-- メモ欄（10文字程度） -->
+    <div class="input-group">
+      <label class="input-label">メモ（任意・細かい指示など）</label>
+      <input type="text" class="input-field" id="phw_memo"
+             placeholder="例：まる付けも・Keyだけ・奇数のみ"
+             maxlength="20"
+             style="font-size:14px">
+      <div style="font-size:10px;color:var(--ink3);margin-top:4px">20文字まで</div>
+    </div>
+
     <div style="display:flex;gap:12px">
       <div class="input-group" style="flex:1">
         <label class="input-label">総量</label>
@@ -9207,6 +9266,9 @@ function showParentHomework() {
       ${renderProgressInParent()}
     </div>
   `;
+
+  // 初期状態：学校を選択済みに
+  window._phwType = 'school';
 }
 
 function updatePhwUnits() {
@@ -9245,11 +9307,27 @@ function updatePhwPreview() {
   `;
 }
 
+function selectHwType(type) {
+  window._phwType = type;
+  const school = document.getElementById('phw_type_school');
+  const juku   = document.getElementById('phw_type_juku');
+  if (!school || !juku) return;
+  if (type === 'school') {
+    school.className = 'btn btn-primary';
+    juku.className   = 'btn btn-secondary';
+  } else {
+    school.className = 'btn btn-secondary';
+    juku.className   = 'btn btn-primary';
+  }
+}
+
 function saveParentHomework() {
   const subject = document.getElementById('phw_subject')?.value;
   const unit    = document.getElementById('phw_unit')?.value;
   const qty     = parseInt(document.getElementById('phw_qty')?.value) || 0;
   const due     = document.getElementById('phw_due')?.value;
+  const memo    = document.getElementById('phw_memo')?.value.trim() || '';
+  const hwType  = window._phwType || 'school';
 
   if (!subject || !unit || !qty || !due) { alert('全て入力してください'); return; }
 
@@ -9260,20 +9338,20 @@ function saveParentHomework() {
   const daysLeft = Math.max(Math.ceil((dueDate - today) / (1000*60*60*24)), 1);
   const perDay   = Math.ceil(qty / daysLeft);
 
-  // 日付スロットは固定しない：総量・期限・1日あたりの目安だけ持つ
-  // doneLog[date][cardId] で完了管理する
   AppData.homeworkCards.push({
     id: `hw_${Date.now()}`,
     subject, content: unit, unit,
+    hwType,   // 'school' | 'juku'
+    memo,     // 細かい指示メモ
     totalQty: qty,
-    remainingQty: qty,   // 残り量
-    perDay,              // 1日あたりの目安
+    remainingQty: qty,
+    perDay,
     dueDate: due,
     createdDate: getTodayString(),
   });
 
   saveData();
-  showToast(`✓ ${subject}の宿題を登録しました`);
+  showToast(`✓ ${hwType === 'juku' ? '塾' : '学校'}の${subject}の宿題を登録しました`);
   showParentHomework();
   renderHome();
 }
@@ -10518,17 +10596,6 @@ function showParentMenu(section) {
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
 
-      <!-- 進捗・宿題管理 -->
-      <button onclick="showParentProgress()" class="btn btn-secondary"
-              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
-        <span style="font-size:26px">📊</span>
-        <div>
-          <div style="font-weight:700;font-size:14px">進捗・宿題カード管理</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">宿題の進み具合・達成率を確認・削除</div>
-        </div>
-        <span style="margin-left:auto;color:var(--ink3)">›</span>
-      </button>
-
       <!-- 仕切り線 -->
       <div style="border-top:1.5px solid var(--border);margin:4px 0"></div>
 
@@ -10553,12 +10620,6 @@ function showParentMenu(section) {
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
-    </div>
-
-    <!-- 今週の状況サマリー -->
-    <div style="margin-top:20px;background:var(--bg2);border-radius:12px;padding:16px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:12px">📊 今週の状況</div>
-      ${renderParentSummary()}
     </div>
   `;
 
