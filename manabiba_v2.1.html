@@ -1769,7 +1769,11 @@ async function loadFromGitHub() {
     if (res.status === 404) return null; // ファイルがまだない
     if (!res.ok) throw new Error('GitHub読み込みエラー: ' + res.status);
     const json = await res.json();
-    const content = JSON.parse(atob(json.content.replace(/\n/g, '')));
+    // TextDecoderで正しくbase64→UTF-8変換
+    const binStr = atob(json.content.replace(/\n/g, ''));
+    const bytes = Uint8Array.from(binStr, c => c.charCodeAt(0));
+    const jsonStr = new TextDecoder().decode(bytes);
+    const content = JSON.parse(jsonStr);
     // SHAを保存（次回の更新に必要）
     localStorage.setItem('manabiba_github_sha', json.sha);
     return content;
@@ -1783,7 +1787,11 @@ async function saveToGitHub(data) {
   const token = getGithubToken();
   if (!token) return;
   try {
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+    // TextEncoderで正しくUTF-8→base64変換
+    const jsonStr = JSON.stringify(data, null, 2);
+    const bytes = new TextEncoder().encode(jsonStr);
+    const binStr = Array.from(bytes).map(b => String.fromCharCode(b)).join('');
+    const content = btoa(binStr);
     const sha = localStorage.getItem('manabiba_github_sha') || null;
     const body = {
       message: 'まなびば データ更新 ' + new Date().toLocaleString('ja-JP'),
