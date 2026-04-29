@@ -1671,9 +1671,9 @@ function init() {
 // ═══════════════════════════════════════
 // GitHub同期設定
 // ═══════════════════════════════════════
-const GITHUB_REPO  = 'nachi-jazzmusic/manabiba';
+const GITHUB_REPO  = 'nachi-jazzmusic/manabiba-data';
 const GITHUB_BRANCH = 'main';
-const GITHUB_DATA_FILE = 'manabiba_data.json';
+const GITHUB_DATA_FILE = 'data.json';
 const GITHUB_API = 'https://api.github.com';
 
 function saveGithubToken() {
@@ -1784,13 +1784,13 @@ async function saveToGitHub(data) {
   if (!token) return;
   try {
     const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-    const sha = localStorage.getItem('manabiba_github_sha') || undefined;
+    const sha = localStorage.getItem('manabiba_github_sha') || null;
     const body = {
       message: 'まなびば データ更新 ' + new Date().toLocaleString('ja-JP'),
       content,
       branch: GITHUB_BRANCH
     };
-    if (sha) body.sha = sha;
+    if (sha) body.sha = sha;  // 初回はSHAなし→新規作成
     const res = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`, {
       method: 'PUT',
       headers: {
