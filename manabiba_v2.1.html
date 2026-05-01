@@ -508,7 +508,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
     overflow: hidden;
     flex: none;
   }
-  
+
+  /* サイドバーを非表示（スマホではチャット専用） */
+  .sidebar{
+    display:none !important;
+  }
+
   /* モバイルヘッダーを表示 */
   .mobile-header{
     display:block;
@@ -754,19 +759,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 
 <div class="layout">
 
-<!-- モバイルヘッダー（シンプル版：タイトル＋今日ボタンのみ） -->
+<!-- モバイルヘッダー（チャット専用） -->
 <div class="mobile-header">
   <div class="mobile-header-content">
     <button onclick="showPanel('settings')"
             style="padding:8px;border-radius:10px;border:none;background:none;
-                   font-size:22px;cursor:pointer;line-height:1">⚙️</button>
+                   font-size:20px;cursor:pointer;line-height:1">⚙️</button>
     <div class="mobile-title">✦ まなびば</div>
-    <button onclick="openScheduleModal()"
-            style="padding:8px 16px;border-radius:20px;border:none;
-                   background:var(--accent);color:#fff;font-family:var(--font);
-                   font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">
-      📅 今日
-    </button>
+    <div style="width:36px"></div>
   </div>
 </div>
 
@@ -2100,9 +2100,6 @@ function renderTodayHub() {
   const startTime = checkinData?.startTime || schedule.find(t=>t.startTime)?.startTime || '--:--';
   const endTime   = todayPlan?.endTime || '--:--';
 
-  // 3日分の宿題カード概要
-  const threeDays = getThreeDaySchedule();
-
   return `
     <!-- ヘッダー（コンパクト） -->
     <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:#fff;flex-shrink:0;
@@ -2133,19 +2130,14 @@ function renderTodayHub() {
         </button>
       </div>
 
-      <!-- 机でやるもの（コンパクト） -->
+      <!-- 机でやるもの -->
       <div>
         <div style="font-size:12px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
           <span>📚 机でやるもの</span>
           <button onclick="showParentMenu();setTimeout(()=>showParentHomework(),100)"
                   style="border:none;background:none;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer">＋</button>
         </div>
-        ${deskTasks.length === 0 ? `
-          <div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center;color:var(--ink3);font-size:11px">
-            宿題を追加してね
-          </div>` :
-          deskTasks.map(t => renderDeskTaskCardCompact(t)).join('')
-        }
+        ${renderDeskTaskSection(deskTasks)}
       </div>
 
       <!-- アプリでやるもの（コンパクト） -->
@@ -2160,27 +2152,7 @@ function renderTodayHub() {
         ${hasWeekendChecks() ? renderWeekendCheckCardCompact() : ''}
       </div>
 
-      <!-- 3日分スケジュール -->
-      ${threeDays.length > 0 ? `
-      <div>
-        <div style="font-size:12px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
-          <span>📆 3日間の予定</span>
-          <button onclick="showThreeDayConfirm()" style="border:none;background:none;color:var(--teal);font-size:11px;font-weight:700;cursor:pointer">確認・調整</button>
-        </div>
-        ${threeDays.map(day => `
-          <div style="background:#fff;border-radius:8px;border:1px solid var(--border);
-                      padding:7px 10px;margin-bottom:5px">
-            <div style="font-size:10px;font-weight:700;color:${day.isToday?'var(--accent)':'var(--ink3)'};margin-bottom:3px">
-              ${day.label}${day.isToday?' ← 今日':''}
-            </div>
-            ${day.tasks.map(t => `
-              <div style="font-size:11px;color:var(--ink2);display:flex;justify-content:space-between">
-                <span>${t.subject}：${t.content}（${t.quantity}${getUnitShort(t.unit)}）</span>
-                <span style="color:var(--ink3)">${t.estimatedMin}分</span>
-              </div>`).join('')}
-            ${day.totalMin > 0 ? `<div style="font-size:10px;color:var(--ink3);text-align:right;margin-top:2px">計${day.totalMin}分</div>` : ''}
-          </div>`).join('')}
-      </div>` : ''}
+
 
     </div>
   `;
@@ -2227,34 +2199,41 @@ function getThreeDaySchedule() {
 }
 
 // ── コンパクト版カード描画 ──
-function renderDeskTaskCardCompact(t) {
-  const dueDate = t.dueDate ? new Date(t.dueDate) : null;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const daysLeft = dueDate ? Math.ceil((dueDate - today) / (1000*60*60*24)) : null;
-  const urgentColor = daysLeft === 0 ? 'var(--red)' : daysLeft === 1 ? '#C8922A' : 'var(--teal)';
+function renderDeskTaskCardCompact(t, showUp, isLast) {
   const typeLabel = t.hwType === 'juku' ? '塾' : '学校';
   const typeBg    = t.hwType === 'juku' ? '#EEF2FF' : '#F0FFF4';
   const typeColor = t.hwType === 'juku' ? '#5B6EE8' : '#4A9B5F';
+  const urgentColor = t.daysLeft <= 0 ? 'var(--red)' : t.daysLeft === 1 ? '#C8922A' : 'var(--teal)';
+  const dayLabel = t.daysLeft <= 0 ? '期限切れ' : t.daysLeft === 1 ? '明日まで' : `あと${t.daysLeft}日`;
 
   return `
     <div style="background:#fff;border-radius:7px;border:1px solid var(--border);
-                border-left:3px solid ${t.done?'var(--bg3)':urgentColor};
-                padding:6px 10px;margin-bottom:4px;display:flex;align-items:center;gap:8px;
-                cursor:pointer;opacity:${t.done?0.6:1}"
-         onclick="toggleDeskTask('${t.cardId}','${getTodayString()}')">
-      <div style="font-size:15px">${t.done?'✅':'☐'}</div>
-      <div style="flex:1;min-width:0">
+                border-left:3px solid ${t.done ? 'var(--bg3)' : urgentColor};
+                padding:7px 10px;margin-bottom:4px;display:flex;align-items:center;gap:8px;
+                opacity:${t.done ? 0.6 : 1}">
+      <!-- チェック -->
+      <div onclick="toggleDeskTask('${t.cardId}')"
+           style="font-size:18px;cursor:pointer;flex-shrink:0">${t.done ? '✅' : '☐'}</div>
+      <!-- 内容 -->
+      <div style="flex:1;min-width:0" onclick="toggleDeskTask('${t.cardId}')" style="cursor:pointer">
         <div style="display:flex;align-items:center;gap:4px;margin-bottom:1px">
-          <span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;
+          <span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:6px;
                        background:${typeBg};color:${typeColor};flex-shrink:0">${typeLabel}</span>
-          <span style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-                       ${t.done?'text-decoration:line-through;color:var(--ink3)':''}">${t.subject}：${t.content}</span>
+          <span style="font-size:12px;font-weight:700;
+                       ${t.done ? 'text-decoration:line-through;color:var(--ink3)' : ''}
+                       white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${t.subject}　${t.content}
+          </span>
         </div>
-        <div style="font-size:10px;color:var(--ink3)">
-          ${t.quantity}${getUnitShort(t.unit)} · ${t.estimatedMin}分 · <span style="color:${urgentColor}">${daysLeft===0?'今日まで':daysLeft===1?'明日まで':`あと${daysLeft}日`}</span>
-          ${t.memo ? `<span style="color:var(--ink2);font-weight:600"> · ${t.memo}</span>` : ''}
+        <div style="font-size:10px;color:${t.done ? 'var(--ink3)' : urgentColor}">
+          ${dayLabel}${t.memo ? `　<span style="color:var(--ink3)">${t.memo}</span>` : ''}
         </div>
       </div>
+      <!-- ↑ボタン（未完了のみ） -->
+      ${!t.done && showUp ? `
+        <button onclick="moveTaskUp('${t.cardId}')"
+                style="border:none;background:var(--bg2);border-radius:5px;padding:3px 7px;
+                       font-size:12px;cursor:pointer;flex-shrink:0;color:var(--ink2)">↑</button>` : ''}
     </div>`;
 }
 
@@ -2295,8 +2274,8 @@ function renderAppTaskCardCompact(t) {
           やる→
         </button>` : `
         <button onclick="unmarkAppTaskDone('${t.id}')"
-                style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);
-                       background:var(--bg2);color:var(--ink3);font-size:10px;cursor:pointer;flex-shrink:0">
+                style="padding:4px 10px;border-radius:6px;border:1px solid var(--ink3);
+                       background:#fff;color:var(--ink3);font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">
           取消
         </button>`}
     </div>`;
@@ -2455,40 +2434,45 @@ function adjustTodayTask(cardId, action) {
 
 // ── 机でやるタスク（宿題カード）を取得 ──
 function getDeskTasksForToday() {
+  const now = new Date();
   const today = getTodayString();
-  const doneLog = AppData.homeworkDoneLog || {};
-  const skipLog = AppData.homeworkSkipLog?.[today] || {};
   const tasks = [];
 
   (AppData.homeworkCards || []).forEach(card => {
-    // 残り量が0以下なら完了済み → 表示しない
-    const remaining = card.remainingQty ?? card.totalQty ?? 0;
-    if (remaining <= 0) return;
+    if (!card.dueDate) return;
 
-    // 今日スキップされた → 表示しない
-    if (skipLog[card.id]) return;
+    // 期限日の18時以降は表示しない
+    const dueDate = new Date(card.dueDate);
+    dueDate.setHours(18, 0, 0, 0);
+    if (now >= dueDate && card.done) return; // 完了済みで期限切れは非表示
+    if (now >= dueDate && !card.done) {
+      // 未完了で期限切れは残す（忘れてる可能性）
+    }
 
-    // 今日の完了済み量
-    const todayDone = doneLog[today]?.[card.id] || 0;
-    // 今日やる予定量（1日あたりの目安、ただし残り量を超えない）
-    const perDay = card.perDay || Math.ceil(remaining / Math.max(daysUntilDue(card.dueDate), 1));
-    const todayQty = Math.min(perDay, remaining);
+    const todayD   = new Date(); todayD.setHours(0,0,0,0);
+    const daysLeft = Math.ceil((new Date(card.dueDate) - todayD) / (1000*60*60*24));
+    const urgentColor = daysLeft <= 0 ? 'var(--red)' : daysLeft === 1 ? '#C8922A' : 'var(--teal)';
 
     tasks.push({
       id: card.id,
       cardId: card.id,
       subject: card.subject,
       content: card.content,
-      quantity: todayQty,
-      unit: card.unit,
-      done: todayDone >= todayQty,
-      todayDone,
-      remaining,
-      dueDate: card.dueDate,
-      hwType: card.hwType || 'school',
       memo: card.memo || '',
-      estimatedMin: getEstimatedTime(card.subject, card.unit, todayQty)
+      hwType: card.hwType || 'school',
+      done: card.done || false,
+      dueDate: card.dueDate,
+      daysLeft,
+      urgentColor,
+      sortOrder: card.sortOrder ?? 999,
+      estimatedMin: 15
     });
+  });
+
+  // 未完了を上・完了を下、それぞれsortOrder順
+  tasks.sort((a, b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return a.sortOrder - b.sortOrder;
   });
 
   return tasks;
@@ -2640,33 +2624,55 @@ function getUnitShort(unit) {
   return '';
 }
 
-// ── 机タスクの完了トグル ──
-function toggleDeskTask(cardId, slotDate) {
-  const today = getTodayString();
-  if (!AppData.homeworkDoneLog) AppData.homeworkDoneLog = {};
-  if (!AppData.homeworkDoneLog[today]) AppData.homeworkDoneLog[today] = {};
-
+function toggleDeskTask(cardId) {
   const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
   if (!card) return;
+  card.done = !card.done;
+  saveData();
+  renderHome();
+  if (card.done) showToast('✓ 完了！お疲れ様！');
+}
 
-  const remaining = card.remainingQty ?? card.totalQty ?? 0;
-  const perDay = card.perDay || Math.ceil(remaining / Math.max(daysUntilDue(card.dueDate), 1));
-  const todayQty = Math.min(perDay, remaining);
-  const alreadyDone = AppData.homeworkDoneLog[today][cardId] || 0;
+function renderDeskTaskSection(deskTasks) {
+  if (deskTasks.length === 0) return `
+    <div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center;color:var(--ink3);font-size:11px">
+      宿題を追加してね
+    </div>`;
+  const undone = deskTasks.filter(t => !t.done);
+  const done   = deskTasks.filter(t => t.done);
+  return `
+    ${undone.map((t,i) => renderDeskTaskCardCompact(t, i > 0)).join('')}
+    ${done.length > 0 ? `
+      <div id="doneToggleBtn" onclick="toggleDoneSection()"
+           style="font-size:11px;color:var(--ink3);cursor:pointer;padding:4px 0;text-align:center;
+                  border-top:1px solid var(--border);margin-top:4px">
+        ✅ 完了 ${done.length}件 ▼
+      </div>
+      <div id="doneSectionWrap" style="display:none">
+        ${done.map(t => renderDeskTaskCardCompact(t, false)).join('')}
+      </div>` : ''}`;
+}
 
-  if (alreadyDone >= todayQty) {
-    // 完了→未完了に戻す
-    AppData.homeworkDoneLog[today][cardId] = 0;
-    // remainingQtyを戻す
-    card.remainingQty = Math.min((card.remainingQty || 0) + todayQty, card.totalQty);
-  } else {
-    // 完了にする
-    AppData.homeworkDoneLog[today][cardId] = todayQty;
-    // remainingQtyを減らす
-    card.remainingQty = Math.max((card.remainingQty ?? card.totalQty) - todayQty, 0);
-    showToast('✓ 完了！');
-  }
+function toggleDoneSection() {
+  const wrap = document.getElementById('doneSectionWrap');
+  const btn  = document.getElementById('doneToggleBtn');
+  if (!wrap) return;
+  const isOpen = wrap.style.display !== 'none';
+  wrap.style.display = isOpen ? 'none' : 'block';
+  if (btn) btn.textContent = isOpen ? `✅ 完了 ▼` : `✅ 完了 ▲`;
+}
 
+function moveTaskUp(cardId) {
+  const cards = AppData.homeworkCards || [];
+  // 未完了のみ対象
+  const undone = cards.filter(c => !c.done).sort((a,b) => (a.sortOrder??999)-(b.sortOrder??999));
+  const idx = undone.findIndex(c => c.id === cardId);
+  if (idx <= 0) return;
+  // sortOrderを入れ替え
+  const a = undone[idx], b = undone[idx-1];
+  const tmp = a.sortOrder ?? idx;
+  a.sortOrder = b.sortOrder ?? idx-1;
+  b.sortOrder = tmp;
   saveData();
   renderHome();
 }
@@ -2997,94 +3003,6 @@ function saveAddDeskTask() {
 }
 
 // ── 進捗を保護者メニューに表示 ──
-function renderProgressInParent() {
-  const cards = AppData.homeworkCards || [];
-  const doneLog = AppData.homeworkDoneLog || {};
-  const today = getTodayString();
-  const todayDate = new Date(); todayDate.setHours(0,0,0,0);
-
-  if (cards.length === 0) return '<div style="color:var(--ink3);font-size:13px;text-align:center;padding:20px">宿題カードがまだありません</div>';
-
-  return cards.map(card => {
-    const totalQty = card.totalQty || 0;
-
-    // 全日付の完了量を合計
-    const doneSoFar = Object.values(doneLog).reduce((sum, dayLog) => sum + (dayLog[card.id] || 0), 0);
-    const remaining = Math.max(totalQty - doneSoFar, 0);
-    const pct = totalQty > 0 ? Math.round((doneSoFar / totalQty) * 100) : 0;
-
-    // 遅れ判定
-    const dueDate = card.dueDate ? new Date(card.dueDate) : null;
-    const daysLeft = dueDate ? Math.ceil((dueDate - todayDate) / (1000*60*60*24)) : null;
-    const perDay = card.perDay || 1;
-
-    // 今日時点で何ページ終わっていれば予定通りか
-    const elapsedDays = card.createdDate
-      ? Math.ceil((todayDate - new Date(card.createdDate)) / (1000*60*60*24)) + 1
-      : 1;
-    const expectedDone = Math.min(perDay * elapsedDays, totalQty);
-    const diff = doneSoFar - expectedDone;
-
-    let statusLabel, statusColor;
-    if (remaining === 0) {
-      statusLabel = '✅ 完了';
-      statusColor = 'var(--green)';
-    } else if (diff >= 0) {
-      statusLabel = '● 予定通り';
-      statusColor = 'var(--teal)';
-    } else if (diff >= -perDay) {
-      statusLabel = '⚠️ 少し遅れ';
-      statusColor = '#C8922A';
-    } else {
-      statusLabel = `🔴 ${Math.abs(Math.round(diff/perDay))}日遅れ`;
-      statusColor = 'var(--red)';
-    }
-
-    const urgency = daysLeft !== null && daysLeft <= 1 && remaining > 0
-      ? `<div style="font-size:11px;color:var(--red);font-weight:700;margin-top:4px">⚠️ ${daysLeft===0?'今日が期限！':'明日が期限！'}</div>`
-      : '';
-
-    const typeLabel = card.hwType === 'juku' ? '塾' : '学校';
-    const typeBg    = card.hwType === 'juku' ? '#EEF2FF' : '#F0FFF4';
-    const typeColor = card.hwType === 'juku' ? '#5B6EE8' : '#4A9B5F';
-
-    return `
-      <div style="background:#fff;border-radius:9px;padding:12px;margin-bottom:8px;border:1px solid var(--border)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
-              <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;
-                           background:${typeBg};color:${typeColor}">${typeLabel}</span>
-              <span style="font-size:13px;font-weight:700">${card.subject}：${card.content}</span>
-            </div>
-            <div style="font-size:11px;color:var(--ink3)">
-              残り${remaining}${getUnitShort(card.unit)} · ${daysLeft!==null?`あと${daysLeft}日`:''}
-              ${card.memo ? `<span style="color:var(--ink2);font-weight:600"> · ${card.memo}</span>` : ''}
-            </div>
-            ${urgency}
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:14px;font-weight:700;color:${statusColor}">${statusLabel}</div>
-            <div style="font-size:11px;color:var(--ink3)">${doneSoFar}/${totalQty} 完了</div>
-          </div>
-        </div>
-        <div style="background:var(--bg2);border-radius:4px;height:5px">
-          <div style="background:${statusColor};width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
-        </div>
-        <div style="display:flex;gap:12px;margin-top:6px">
-          <button onclick="editHomeworkCard('${card.id}')"
-                  style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">
-            編集
-          </button>
-          <button onclick="deleteHomeworkCard('${card.id}')"
-                  style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">
-            削除
-          </button>
-        </div>
-      </div>`;
-  }).join('');
-}
-
 function editHomeworkCard(id) {
   const card = (AppData.homeworkCards || []).find(c => c.id === id);
   if (!card) return;
@@ -3534,15 +3452,54 @@ function renderAIChatInline() {
                 padding:24px;text-align:center">
         <div style="font-size:48px;margin-bottom:16px">🐾</div>
         <div style="font-size:18px;font-weight:700;margin-bottom:8px">こんにちは、${name}！</div>
-        <div style="font-size:13px;color:var(--ink3);line-height:1.8;margin-bottom:24px">
-          勉強で分からないことがあったら<br>なんでも聞いてね😊
-        </div>
+
+        ${(() => {
+          // テスト期間判定（登録済み試験で2週間以内のもの）
+          const today = getTodayString();
+          const todayD = new Date(); todayD.setHours(0,0,0,0);
+          const nearExam = (AppData.examRanges||[])
+            .filter(e => {
+              const d = new Date(e.testDate);
+              const days = Math.ceil((d - todayD)/(1000*60*60*24));
+              return days >= 0 && days <= 14;
+            })
+            .sort((a,b) => a.testDate.localeCompare(b.testDate))[0];
+
+          if (nearExam) {
+            const daysLeft = Math.ceil((new Date(nearExam.testDate) - todayD)/(1000*60*60*24));
+            const urgency = daysLeft <= 3 ? 'var(--red)' : daysLeft <= 7 ? '#C8922A' : 'var(--teal)';
+            const msg = daysLeft === 0 ? '今日がテスト当日！' :
+                        daysLeft === 1 ? '明日がテスト！' :
+                        `テストまであと${daysLeft}日！`;
+            return `
+              <div style="background:linear-gradient(135deg,#FFF5EF,#fff);border:1.5px solid ${urgency};
+                          border-radius:12px;padding:14px 18px;margin-bottom:20px;width:100%;max-width:360px">
+                <div style="font-size:13px;font-weight:700;color:${urgency};margin-bottom:4px">
+                  📅 ${nearExam.name}　${msg}
+                </div>
+                <div style="font-size:12px;color:var(--ink3);margin-bottom:10px">
+                  今日何をやるかポメに聞いてみよう
+                </div>
+                <button onclick="pomeQuickSend('今日何をやればいい？')"
+                        style="width:100%;padding:10px;border-radius:20px;border:none;
+                               background:${urgency};color:#fff;font-family:var(--font);
+                               font-size:14px;font-weight:700;cursor:pointer">
+                  💬 今日何をやればいい？
+                </button>
+              </div>`;
+          } else {
+            return `<div style="font-size:13px;color:var(--ink3);line-height:1.8;margin-bottom:24px">
+              勉強で分からないことがあったら<br>なんでも聞いてね😊
+            </div>`;
+          }
+        })()}
+
         <!-- サジェスト -->
         <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:360px">
           ${[
             '中間テストの攻略を一緒に考えて',
-            '苦手な問題を解説してほしい',
-            '今日の勉強を手伝って'
+            'ポメに単元を説明してみる',
+            '苦手な問題を解説してほしい'
           ].map(s => `
             <button onclick="pomeQuickSend('${s}')"
                     style="padding:10px 16px;border-radius:20px;border:1px solid var(--border);
@@ -3600,11 +3557,100 @@ function renderAIChatInline() {
 
 // サジェストボタンから送信
 function pomeQuickSend(text) {
+  if (text === 'ポメに単元を説明してみる') {
+    showExplainModeSelector();
+    return;
+  }
   const input = document.getElementById('aiChatInput');
   if (input) {
     input.value = text;
     sendAIMessage();
   }
+}
+
+// 説明モード：単元選択UI
+function showExplainModeSelector() {
+  const overlay = document.createElement('div');
+  overlay.id = 'explainOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:16px';
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:16px 16px 0 0;padding:24px;width:100%;max-width:500px;
+                max-height:70vh;overflow-y:auto">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">🐾 ポメに説明してみる</div>
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:20px">
+        どの単元をポメに説明する？<br>
+        正解は言わないから、思ったまま話してみてね！
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${SUBJECTS.map(s => `
+          <button onclick="startExplainMode('${s}')"
+                  style="padding:12px 16px;border-radius:10px;border:1px solid var(--border);
+                         background:#fff;text-align:left;font-family:var(--font);font-size:14px;
+                         cursor:pointer;font-weight:700;color:var(--ink)">
+            ${s}
+          </button>`).join('')}
+        <button onclick="startExplainMode('')"
+                style="padding:12px 16px;border-radius:10px;border:1px solid var(--border);
+                       background:#fff;text-align:left;font-family:var(--font);font-size:13px;
+                       cursor:pointer;color:var(--ink2)">
+          📝 科目・単元を直接入力する
+        </button>
+      </div>
+      <button onclick="document.getElementById('explainOverlay').remove()"
+              style="margin-top:16px;width:100%;padding:12px;border-radius:10px;border:none;
+                     background:var(--bg2);font-family:var(--font);font-size:13px;cursor:pointer;color:var(--ink3)">
+        キャンセル
+      </button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+}
+
+function startExplainMode(subject) {
+  document.getElementById('explainOverlay')?.remove();
+  const input = document.getElementById('aiChatInput');
+  if (!input) return;
+
+  if (!subject) {
+    input.value = '';
+    input.placeholder = '例：数学の正負の数をポメに説明してみる';
+    input.focus();
+    return;
+  }
+
+  // 単元入力用のミニUIを表示
+  const overlay = document.createElement('div');
+  overlay.id = 'unitInputOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:14px;padding:24px;width:100%;max-width:400px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">📖 ${subject}のどの単元？</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">例：正負の数、比例と反比例、漢字の熟語</div>
+      <input type="text" id="unitInputField"
+             class="input-field"
+             placeholder="単元名を入力..."
+             style="font-size:15px;margin-bottom:14px"
+             onkeydown="if(event.key==='Enter')confirmExplainUnit('${subject}')">
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('unitInputOverlay').remove()"
+                class="btn btn-secondary" style="flex:1;padding:12px">キャンセル</button>
+        <button onclick="confirmExplainUnit('${subject}')"
+                class="btn btn-primary" style="flex:1;padding:12px">決定</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => document.getElementById('unitInputField')?.focus(), 100);
+}
+
+function confirmExplainUnit(subject) {
+  const unit = document.getElementById('unitInputField')?.value.trim();
+  document.getElementById('unitInputOverlay')?.remove();
+  if (!unit) return;
+  const input = document.getElementById('aiChatInput');
+  if (!input) return;
+  input.value = `${subject}の「${unit}」をポメに説明してみる。正解は言わないで、先生役で聞いてね。`;
+  sendAIMessage();
 }
 
 function startMorningBriefing() {
@@ -9306,94 +9352,70 @@ function showParentHomework() {
 
     <div class="input-group">
       <label class="input-label">科目</label>
-      <select class="select-field" id="phw_subject" onchange="updatePhwUnits()">
+      <select class="select-field" id="phw_subject">
         <option value="">選択してください</option>
         ${SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('')}
       </select>
     </div>
+
     <div class="input-group">
-      <label class="input-label">内容</label>
-      <select class="select-field" id="phw_unit" onchange="updatePhwPreview()">
-        <option value="">科目を先に選んでください</option>
-      </select>
+      <label class="input-label">内容・メモ（自由記入）</label>
+      <input type="text" class="input-field" id="phw_content"
+             placeholder="例：問題集P12-15・教科書暗記・まる付けも"
+             maxlength="30" style="font-size:14px">
     </div>
 
-    <!-- メモ欄（10文字程度） -->
     <div class="input-group">
-      <label class="input-label">メモ（任意・細かい指示など）</label>
-      <input type="text" class="input-field" id="phw_memo"
-             placeholder="例：まる付けも・Keyだけ・奇数のみ"
-             maxlength="20"
-             style="font-size:14px">
-      <div style="font-size:10px;color:var(--ink3);margin-top:4px">20文字まで</div>
+      <label class="input-label">期限日</label>
+      <input type="date" class="input-field" id="phw_due" value="${tomorrowStr}">
     </div>
-
-    <div style="display:flex;gap:12px">
-      <div class="input-group" style="flex:1">
-        <label class="input-label">総量</label>
-        <div style="display:flex;align-items:center;gap:6px">
-          <input type="number" class="input-field" id="phw_qty" value="3" min="1" max="200"
-                 oninput="updatePhwPreview()">
-          <span id="phw_unit_label" style="font-size:12px;color:var(--ink3);white-space:nowrap">ページ</span>
-        </div>
-      </div>
-      <div class="input-group" style="flex:1">
-        <label class="input-label">期限</label>
-        <input type="date" class="input-field" id="phw_due" value="${tomorrowStr}"
-               onchange="updatePhwPreview()">
-      </div>
-    </div>
-
-    <div id="phw_preview" style="background:var(--bg2);border-radius:10px;padding:14px;
-                                   margin-bottom:20px;min-height:50px"></div>
 
     <button onclick="saveParentHomework()" class="btn btn-primary"
-            style="width:100%;padding:14px;font-size:14px">✓ 登録する</button>
+            style="width:100%;padding:14px;font-size:14px;margin-top:4px">✓ 登録する</button>
 
     <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:16px">
       <div style="font-size:13px;font-weight:700;margin-bottom:10px">登録済みの宿題</div>
-      ${renderProgressInParent()}
+      ${renderHomeworkList()}
     </div>
   `;
 
-  // 初期状態：学校を選択済みに
   window._phwType = 'school';
 }
 
-function updatePhwUnits() {
-  const subject = document.getElementById('phw_subject').value;
-  const units = Object.keys(getTimeEstimates()[subject] || {});
-  const sel = document.getElementById('phw_unit');
-  sel.innerHTML = units.map(u=>`<option value="${u}">${u}</option>`).join('');
-  const label = document.getElementById('phw_unit_label');
-  if (label) label.textContent = getUnitShort(units[0]) || 'ページ';
-  updatePhwPreview();
-}
+function renderHomeworkList() {
+  const cards = AppData.homeworkCards || [];
+  if (cards.length === 0) return '<div style="color:var(--ink3);font-size:12px;text-align:center;padding:16px">登録済みの宿題はありません</div>';
 
-function updatePhwPreview() {
-  const subject = document.getElementById('phw_subject')?.value;
-  const unit    = document.getElementById('phw_unit')?.value;
-  const qty     = parseInt(document.getElementById('phw_qty')?.value) || 0;
-  const due     = document.getElementById('phw_due')?.value;
-  const preview = document.getElementById('phw_preview');
-  if (!preview) return;
+  const today = getTodayString();
+  return cards.map(card => {
+    const dueDate  = card.dueDate ? new Date(card.dueDate) : null;
+    const todayD   = new Date(); todayD.setHours(0,0,0,0);
+    const daysLeft = dueDate ? Math.ceil((dueDate - todayD)/(1000*60*60*24)) : null;
+    const typeLabel = card.hwType === 'juku' ? '塾' : '学校';
+    const typeBg    = card.hwType === 'juku' ? '#EEF2FF' : '#F0FFF4';
+    const typeColor = card.hwType === 'juku' ? '#5B6EE8' : '#4A9B5F';
+    const isDone    = card.done || false;
+    const urgentColor = daysLeft === 0 ? 'var(--red)' : daysLeft <= 2 ? '#C8922A' : 'var(--teal)';
 
-  if (!subject || !unit || !qty || !due) {
-    preview.innerHTML = '<span style="color:var(--ink3);font-size:12px">科目・内容・量・期限を入力してください</span>';
-    return;
-  }
-
-  const dueDate  = new Date(due);
-  const today    = new Date(); today.setHours(0,0,0,0);
-  const daysLeft = Math.ceil((dueDate - today) / (1000*60*60*24));
-  const perDay   = daysLeft > 0 ? Math.ceil(qty / daysLeft) : qty;
-  const minPerDay= getEstimatedTime(subject, unit, perDay);
-  const unitShort= getUnitShort(unit) || 'ページ';
-
-  preview.innerHTML = `
-    <div style="font-size:13px;font-weight:700;margin-bottom:6px">${subject}：${unit} ${qty}${unitShort}　期限まで${daysLeft}日</div>
-    <div style="font-size:12px;color:var(--ink2)">→ 1日あたり <strong>${perDay}${unitShort}</strong>（約<strong>${minPerDay}分</strong>）</div>
-  `;
+    return `
+      <div style="background:#fff;border-radius:9px;padding:11px 12px;margin-bottom:8px;
+                  border:1px solid var(--border);opacity:${isDone?0.6:1}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;
+                       background:${typeBg};color:${typeColor}">${typeLabel}</span>
+          <span style="font-size:13px;font-weight:700;${isDone?'text-decoration:line-through;color:var(--ink3)':''}">${card.subject}　${card.content}</span>
+        </div>
+        <div style="font-size:11px;color:${urgentColor};font-weight:700">
+          期限：${card.dueDate}（${daysLeft===0?'今日まで':daysLeft===1?'明日まで':`あと${daysLeft}日`}）
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button onclick="deleteHomeworkCard('${card.id}')"
+                  style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
+          <button onclick="editHomeworkCard('${card.id}')"
+                  style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">編集</button>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 function selectHwType(type) {
@@ -9402,48 +9424,47 @@ function selectHwType(type) {
   const juku   = document.getElementById('phw_type_juku');
   if (!school || !juku) return;
   if (type === 'school') {
-    school.className = 'btn btn-primary';
-    juku.className   = 'btn btn-secondary';
+    school.className = 'btn btn-primary'; school.style.flex='1'; school.style.padding='10px'; school.style.fontSize='13px'; school.style.fontWeight='700';
+    juku.className   = 'btn btn-secondary'; juku.style.flex='1'; juku.style.padding='10px'; juku.style.fontSize='13px'; juku.style.fontWeight='700';
   } else {
-    school.className = 'btn btn-secondary';
-    juku.className   = 'btn btn-primary';
+    school.className = 'btn btn-secondary'; school.style.flex='1'; school.style.padding='10px'; school.style.fontSize='13px'; school.style.fontWeight='700';
+    juku.className   = 'btn btn-primary'; juku.style.flex='1'; juku.style.padding='10px'; juku.style.fontSize='13px'; juku.style.fontWeight='700';
   }
 }
 
 function saveParentHomework() {
   const subject = document.getElementById('phw_subject')?.value;
-  const unit    = document.getElementById('phw_unit')?.value;
-  const qty     = parseInt(document.getElementById('phw_qty')?.value) || 0;
+  const content = document.getElementById('phw_content')?.value.trim();
   const due     = document.getElementById('phw_due')?.value;
-  const memo    = document.getElementById('phw_memo')?.value.trim() || '';
   const hwType  = window._phwType || 'school';
 
-  if (!subject || !unit || !qty || !due) { alert('全て入力してください'); return; }
+  if (!subject) { alert('科目を選んでください'); return; }
+  if (!content) { alert('内容を入力してください'); return; }
+  if (!due)     { alert('期限日を入力してください'); return; }
 
   if (!AppData.homeworkCards) AppData.homeworkCards = [];
 
-  const dueDate  = new Date(due);
-  const today    = new Date(); today.setHours(0,0,0,0);
-  const daysLeft = Math.max(Math.ceil((dueDate - today) / (1000*60*60*24)), 1);
-  const perDay   = Math.ceil(qty / daysLeft);
-
   AppData.homeworkCards.push({
     id: `hw_${Date.now()}`,
-    subject, content: unit, unit,
-    hwType,   // 'school' | 'juku'
-    memo,     // 細かい指示メモ
-    totalQty: qty,
-    remainingQty: qty,
-    perDay,
+    subject,
+    content,
+    unit: content,
+    hwType,
     dueDate: due,
+    done: false,
+    sortOrder: AppData.homeworkCards.length,
     createdDate: getTodayString(),
   });
 
   saveData();
-  showToast(`✓ ${hwType === 'juku' ? '塾' : '学校'}の${subject}の宿題を登録しました`);
+  showToast(`✓ ${hwType==='juku'?'塾':'学校'}の${subject}の宿題を登録しました`);
   showParentHomework();
   renderHome();
 }
+
+function updatePhwUnits() {}
+function updatePhwPreview() {}
+function renderProgressInParent() { return renderHomeworkList(); }
 
 // ── 保護者：進捗・宿題カード管理 ──
 
@@ -9749,40 +9770,281 @@ function showAddTestPrep(prefill) {
   `;
 }
 
-// 埼玉県学力調査クイック登録
-function quickSaitama(subject) {
-  // テスト日を来年の4月（例年4月実施）に設定
-  const nextApril = new Date();
-  nextApril.setMonth(3); // 4月
-  nextApril.setDate(15);
-  if (nextApril < new Date()) nextApril.setFullYear(nextApril.getFullYear() + 1);
-  const testDate = nextApril.toISOString().split('T')[0];
+// ═══════════════════════════════════════
+// テスト範囲登録機能
+// AppData.examRanges = [{
+//   id, name, testDate,
+//   subjects: [{subject, range, advice}]
+// }]
+// ═══════════════════════════════════════
 
-  if (!AppData.testPrepItems) AppData.testPrepItems = [];
+function showExamRangeList() {
+  document.getElementById('parentModalTitle').textContent = '📋 テスト範囲';
+  const content = document.getElementById('parentContent');
+  const today = getTodayString();
+  const exams = AppData.examRanges || [];
 
-  // 既存チェック
-  const exists = AppData.testPrepItems.find(i => i.name.includes('埼玉県学力') && i.subject === subject);
-  if (exists) {
-    if (!confirm(`「埼玉県学力調査（${subject}）」はすでに登録されています。上書きしますか？`)) return;
-    AppData.testPrepItems = AppData.testPrepItems.filter(i => i.id !== exists.id);
-  }
+  const rows = exams.map(exam => {
+    const dueDate  = new Date(exam.testDate);
+    const todayD   = new Date(); todayD.setHours(0,0,0,0);
+    const daysLeft = Math.ceil((dueDate - todayD) / (1000*60*60*24));
+    const color    = daysLeft < 0 ? 'var(--ink3)' : daysLeft <= 3 ? 'var(--red)' : 'var(--teal)';
+    const expired  = daysLeft < 0;
 
-  AppData.testPrepItems.push({
-    id: `tp_saitama_${subject}_${Date.now()}`,
-    name: `埼玉県学力調査（${subject}）`,
-    subject,
-    testDate,
-    dailyCount: 5,
-    rangeType: 'saitama', // 特殊モード
-    rangeText: `埼玉県学力・学習状況調査 ${subject}`,
-    words: [],
-    active: true
+    return `
+      <div style="background:#fff;border-radius:10px;padding:14px;margin-bottom:8px;
+                  border:1px solid var(--border);border-left:4px solid ${color};
+                  opacity:${expired?0.6:1}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div>
+            <div style="font-size:14px;font-weight:700">${exam.name}</div>
+            <div style="font-size:11px;color:${color};font-weight:700">
+              ${exam.testDate}（${daysLeft<0?'終了':daysLeft===0?'今日！':daysLeft===1?'明日！':`あと${daysLeft}日`}）
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="editExamRange('${exam.id}')"
+                    style="border:none;background:none;color:var(--teal);font-size:12px;cursor:pointer;font-weight:700">編集</button>
+            <button onclick="deleteExamRange('${exam.id}')"
+                    style="border:none;background:none;color:var(--ink3);font-size:12px;cursor:pointer">削除</button>
+          </div>
+        </div>
+        ${(exam.subjects||[]).map(s => `
+          <div style="background:var(--bg2);border-radius:7px;padding:8px 10px;margin-bottom:5px;font-size:12px">
+            <div style="font-weight:700;margin-bottom:2px">${s.subject}</div>
+            <div style="color:var(--ink2)">📖 ${s.range}</div>
+            ${s.advice ? `<div style="color:var(--teal);margin-top:2px">💡 ${s.advice}</div>` : ''}
+          </div>`).join('')}
+        <button onclick="registerExamHomework('${exam.id}')"
+                style="margin-top:8px;width:100%;padding:8px;border-radius:8px;
+                       border:1px solid var(--accent);background:#fff;
+                       color:var(--accent);font-family:var(--font);font-size:12px;
+                       font-weight:700;cursor:pointer">
+          📝 ワーク・プリントを宿題に登録する
+        </button>
+      </div>`;
+  }).join('');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+    <button onclick="showAddExamRange()" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px;margin-bottom:20px">
+      ＋ テスト範囲を登録する
+    </button>
+    ${exams.length === 0 ? `
+      <div style="text-align:center;padding:32px;color:var(--ink3)">
+        <div style="font-size:32px;margin-bottom:8px">📋</div>
+        <div style="font-size:13px">テスト範囲プリントの内容を登録しよう<br>ポメがテスト範囲を把握して問題を出せるよ</div>
+      </div>` : rows}
+  `;
+}
+
+function showAddExamRange(prefill) {
+  document.getElementById('parentModalTitle').textContent = prefill ? '📋 テスト範囲を編集' : '＋ テスト範囲を登録';
+  const content = document.getElementById('parentContent');
+  const p = prefill || {};
+  const nextWeek = new Date(); nextWeek.setDate(nextWeek.getDate()+14);
+  const defaultDate = p.testDate || nextWeek.toISOString().split('T')[0];
+  const subjects = p.subjects || [];
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showExamRangeList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div class="input-group">
+      <label class="input-label">テスト名</label>
+      <input type="text" class="input-field" id="er_name"
+             placeholder="例：中間テスト、期末テスト、単元テスト"
+             value="${p.name||''}">
+    </div>
+    <div class="input-group">
+      <label class="input-label">テスト日</label>
+      <input type="date" class="input-field" id="er_date" value="${defaultDate}">
+    </div>
+
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px;margin-top:4px">科目ごとの範囲</div>
+    <div id="er_subjects">
+      ${subjects.length > 0
+        ? subjects.map((s,i) => renderExamSubjectRow(s, i)).join('')
+        : SUBJECTS.map((s,i) => renderExamSubjectRow({subject:s,range:'',advice:''}, i)).join('')}
+    </div>
+
+    <button onclick="saveExamRange('${p.id||''}')" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px;margin-top:8px">
+      ✓ 登録する
+    </button>
+  `;
+}
+
+function renderExamSubjectRow(s, i) {
+  return `
+    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);
+                padding:12px;margin-bottom:8px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--ink2)">${s.subject}</div>
+      <input type="text" class="input-field er-range" data-subject="${s.subject}"
+             placeholder="範囲（例：教科書P40-65、ワークP20-30）"
+             value="${s.range||''}"
+             style="margin-bottom:6px;font-size:13px">
+      <input type="text" class="input-field er-advice" data-subject="${s.subject}"
+             placeholder="先生のアドバイス（例：計算問題が多い）"
+             value="${s.advice||''}"
+             style="font-size:12px">
+    </div>`;
+}
+
+function saveExamRange(existingId) {
+  const name    = document.getElementById('er_name')?.value.trim();
+  const testDate = document.getElementById('er_date')?.value;
+  if (!name)     { alert('テスト名を入力してください'); return; }
+  if (!testDate) { alert('テスト日を入力してください'); return; }
+
+  const subjects = [];
+  document.querySelectorAll('.er-range').forEach(input => {
+    const subject = input.dataset.subject;
+    const range   = input.value.trim();
+    const advice  = document.querySelector(`.er-advice[data-subject="${subject}"]`)?.value.trim() || '';
+    if (range) subjects.push({ subject, range, advice });
   });
 
-  updateTestPrepDailyItems();
+  if (subjects.length === 0) { alert('少なくとも1科目の範囲を入力してください'); return; }
+
+  if (!AppData.examRanges) AppData.examRanges = [];
+
+  if (existingId) {
+    const idx = AppData.examRanges.findIndex(e => e.id === existingId);
+    if (idx >= 0) AppData.examRanges[idx] = { ...AppData.examRanges[idx], name, testDate, subjects };
+  } else {
+    AppData.examRanges.push({ id: `er_${Date.now()}`, name, testDate, subjects });
+  }
+
   saveData();
-  showToast(`✓ 埼玉県学力調査（${subject}）を登録しました`);
-  showTestPrepList();
+  showToast(`✓ 「${name}」の範囲を登録しました`);
+  showExamRangeList();
+}
+
+function editExamRange(id) {
+  const exam = (AppData.examRanges||[]).find(e => e.id === id);
+  if (exam) showAddExamRange(exam);
+}
+
+function deleteExamRange(id) {
+  if (!confirm('このテスト範囲を削除しますか？')) return;
+  AppData.examRanges = (AppData.examRanges||[]).filter(e => e.id !== id);
+  saveData();
+  showToast('削除しました');
+  showExamRangeList();
+}
+
+// テスト範囲からワークを宿題に一括登録
+function registerExamHomework(examId) {
+  const exam = (AppData.examRanges||[]).find(e => e.id === examId);
+  if (!exam) return;
+
+  // 各科目の範囲を宿題として登録するUI
+  document.getElementById('parentModalTitle').textContent = '📝 ワークを宿題に登録';
+  const content = document.getElementById('parentContent');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showExamRangeList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px">${exam.name}（${exam.testDate}）</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:16px">登録したい科目の内容を入力してください</div>
+
+    ${exam.subjects.map(s => `
+      <div style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:12px;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px">${s.subject}</div>
+        <div style="font-size:11px;color:var(--teal);margin-bottom:8px">📖 ${s.range}</div>
+        <input type="text" class="input-field reh-content" data-subject="${s.subject}"
+               placeholder="宿題の内容（例：ワークP20-30）"
+               value="${s.range}"
+               style="font-size:13px;margin-bottom:6px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <label style="font-size:12px;color:var(--ink3)">期限：</label>
+          <input type="date" class="input-field reh-due" data-subject="${s.subject}"
+                 value="${exam.testDate}"
+                 style="flex:1;font-size:13px">
+          <label style="font-size:12px;color:var(--ink3)">区分：</label>
+          <select class="select-field reh-type" data-subject="${s.subject}" style="font-size:12px;padding:6px">
+            <option value="school">学校</option>
+            <option value="juku">塾</option>
+          </select>
+        </div>
+      </div>`).join('')}
+
+    <button onclick="bulkRegisterExamHomework('${examId}')" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px;margin-top:8px">
+      ✓ 一括で宿題登録する
+    </button>
+  `;
+}
+
+function bulkRegisterExamHomework(examId) {
+  const exam = (AppData.examRanges||[]).find(e => e.id === examId);
+  if (!exam) return;
+  if (!AppData.homeworkCards) AppData.homeworkCards = [];
+
+  let count = 0;
+  document.querySelectorAll('.reh-content').forEach(input => {
+    const content = input.value.trim();
+    if (!content) return;
+    const subject = input.dataset.subject;
+    const due     = document.querySelector(`.reh-due[data-subject="${subject}"]`)?.value;
+    const hwType  = document.querySelector(`.reh-type[data-subject="${subject}"]`)?.value || 'school';
+    if (!due) return;
+
+    AppData.homeworkCards.push({
+      id: `hw_${Date.now()}_${count}`,
+      subject, content, unit: content, hwType,
+      memo: exam.name,
+      dueDate: due,
+      done: false,
+      sortOrder: AppData.homeworkCards.length,
+      createdDate: getTodayString(),
+    });
+    count++;
+  });
+
+  saveData();
+  showToast(`✓ ${count}件の宿題を登録しました`);
+  showExamRangeList();
+  renderHome();
+}
+
+function toggleSaitama(subject) {
+  if (!AppData.testPrepItems) AppData.testPrepItems = [];
+
+  const existing = AppData.testPrepItems.find(i => i.rangeType === 'saitama' && i.subject === subject);
+
+  if (existing) {
+    // OFFにする
+    AppData.testPrepItems = AppData.testPrepItems.filter(i => !(i.rangeType === 'saitama' && i.subject === subject));
+    updateTestPrepDailyItems();
+    saveData();
+    showToast(`埼玉県学力調査（${subject}）をOFFにしました`);
+  } else {
+    // ONにする（来年4月を期限に設定）
+    const nextApril = new Date();
+    nextApril.setMonth(3);
+    nextApril.setDate(20);
+    if (nextApril < new Date()) nextApril.setFullYear(nextApril.getFullYear() + 1);
+    const testDate = nextApril.toISOString().split('T')[0];
+
+    AppData.testPrepItems.push({
+      id: `tp_saitama_${subject}_${Date.now()}`,
+      name: `埼玉県学力調査（${subject}）`,
+      subject,
+      testDate,
+      dailyCount: 5,
+      rangeType: 'saitama',
+      rangeText: `埼玉県学力・学習状況調査 ${subject}`,
+      words: [],
+      active: true
+    });
+    updateTestPrepDailyItems();
+    saveData();
+    showToast(`埼玉県学力調査（${subject}）をONにしました`);
+  }
+
+  // 保護者メニューを再描画
+  showParentMenu();
   renderHome();
 }
 
@@ -10638,8 +10900,85 @@ function showParentMenu(section) {
   document.getElementById('parentModalTitle').textContent = '👨‍👩‍👧 保護者メニュー';
   const content = document.getElementById('parentContent');
 
+  // 今日の状況サマリー
+  const today = getTodayString();
+  const deskTasks = getDeskTasksForToday();
+  const appTasks  = getAppTasksForToday();
+  const deskDone  = deskTasks.filter(t=>t.done).length;
+  const appDone   = appTasks.filter(t=>t.done).length;
+  const totalDone = deskDone + appDone;
+  const total     = deskTasks.length + appTasks.length;
+  const pct       = total > 0 ? Math.round(totalDone/total*100) : 0;
+  const pctColor  = pct===100 ? 'var(--green)' : pct>=50 ? '#C8922A' : 'var(--red)';
+
+  // 登録済み宿題の件数
+  const hwCards   = (AppData.homeworkCards||[]);
+  const undoneHw  = hwCards.filter(c=>!c.done);
+  const doneHw    = hwCards.filter(c=>c.done);
+
+  // 登録済みテスト対策
+  const tpItems   = (AppData.testPrepItems||[]).filter(i=>i.testDate>=today);
+  // 弱点
+  const wpItems   = (AppData.weakPoints||[]).filter(w=>w.active);
+
+  const summaryHtml = `
+    <div style="background:linear-gradient(135deg,#FFF5EF,#fff);border-radius:12px;
+                padding:14px 16px;margin-bottom:16px;border:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:700;color:var(--ink3);margin-bottom:10px">📊 今日の状況（${formatDate(new Date())}）</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="font-size:28px;font-weight:700;color:${pctColor}">${pct}%</div>
+        <div>
+          <div style="font-size:12px;color:var(--ink2)">宿題 ${deskDone}/${deskTasks.length}完了　アプリ ${appDone}/${appTasks.length}完了</div>
+          <div style="background:var(--bg2);border-radius:4px;height:5px;width:160px;margin-top:4px">
+            <div style="background:${pctColor};width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span style="font-size:11px;background:var(--bg2);padding:3px 8px;border-radius:10px;color:var(--ink2)">
+          📚 宿題 ${undoneHw.length}件${doneHw.length>0?` (済${doneHw.length})`:''}
+        </span>
+        <span style="font-size:11px;background:var(--bg2);padding:3px 8px;border-radius:10px;color:var(--ink2)">
+          🎯 テスト対策 ${tpItems.length}件
+        </span>
+        <span style="font-size:11px;background:var(--bg2);padding:3px 8px;border-radius:10px;color:var(--ink2)">
+          ⚠️ 弱点 ${wpItems.length}件
+        </span>
+      </div>
+    </div>`;
+
   content.innerHTML = `
+    ${summaryHtml}
     <div style="display:flex;flex-direction:column;gap:10px">
+
+      <!-- 宿題を登録する -->
+      <button onclick="showParentHomework()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">📝</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">宿題を登録する</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            ${undoneHw.length > 0 ? `現在 ${undoneHw.length}件登録中` : '登録なし'}
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
+
+      <!-- テスト範囲を登録する -->
+      <button onclick="showExamRangeList()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">📋</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">テスト範囲を登録する</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            ${(() => {
+              const exams = (AppData.examRanges||[]).filter(e=>e.testDate>=today);
+              return exams.length > 0 ? exams.map(e=>e.name).join('・') : '登録なし';
+            })()}
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
 
       <!-- テスト対策を登録する -->
       <button onclick="showTestPrepList()" class="btn btn-secondary"
@@ -10647,7 +10986,9 @@ function showParentMenu(section) {
         <span style="font-size:26px">🎯</span>
         <div>
           <div style="font-weight:700;font-size:14px">テスト対策を登録する</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">単語テストなど期限付きの対策を毎日出題</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            ${tpItems.length > 0 ? tpItems.map(i=>`${i.name}`).join('・') : '登録なし'}
+          </div>
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
@@ -10658,18 +10999,9 @@ function showParentMenu(section) {
         <span style="font-size:26px">⚠️</span>
         <div>
           <div style="font-weight:700;font-size:14px">弱点問題を登録する</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">何度も間違える問題をAIが繰り返し出題</div>
-        </div>
-        <span style="margin-left:auto;color:var(--ink3)">›</span>
-      </button>
-
-      <!-- 宿題を登録する -->
-      <button onclick="showParentHomework()" class="btn btn-secondary"
-              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
-        <span style="font-size:26px">📝</span>
-        <div>
-          <div style="font-weight:700;font-size:14px">宿題を登録する</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">科目・量・期限を入力→1日分を自動計算</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            ${wpItems.length > 0 ? `${wpItems.length}件登録中` : '登録なし'}
+          </div>
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
@@ -10684,6 +11016,49 @@ function showParentMenu(section) {
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
+
+      <!-- 仕切り線 -->
+      <div style="border-top:1.5px solid var(--border);margin:4px 0"></div>
+
+      <!-- 埼玉県学力調査 ON/OFF -->
+      ${(() => {
+        const saitamaKokugo = (AppData.testPrepItems||[]).find(i=>i.rangeType==='saitama'&&i.subject==='国語');
+        const saitamaSuugaku = (AppData.testPrepItems||[]).find(i=>i.rangeType==='saitama'&&i.subject==='数学');
+        const onKokugo  = !!saitamaKokugo;
+        const onSuugaku = !!saitamaSuugaku;
+        return `
+        <div style="background:linear-gradient(135deg,#EEF9F7,#fff);border-radius:11px;
+                    border:1px solid var(--teal);padding:14px 16px">
+          <div style="font-size:13px;font-weight:700;color:var(--teal);margin-bottom:10px">
+            🏫 埼玉県学力・学習状況調査
+          </div>
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:12px">
+            ONにすると毎日「今日やること」に自動で出てくる
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:13px;font-weight:700">📖 国語</span>
+              <button onclick="toggleSaitama('国語')" 
+                      style="padding:6px 20px;border-radius:20px;border:none;cursor:pointer;
+                             font-family:var(--font);font-size:13px;font-weight:700;
+                             background:${onKokugo?'var(--teal)':'var(--bg2)'};
+                             color:${onKokugo?'#fff':'var(--ink3)'}">
+                ${onKokugo ? 'ON ✓' : 'OFF'}
+              </button>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:13px;font-weight:700">📐 数学</span>
+              <button onclick="toggleSaitama('数学')"
+                      style="padding:6px 20px;border-radius:20px;border:none;cursor:pointer;
+                             font-family:var(--font);font-size:13px;font-weight:700;
+                             background:${onSuugaku?'var(--teal)':'var(--bg2)'};
+                             color:${onSuugaku?'#fff':'var(--ink3)'}">
+                ${onSuugaku ? 'ON ✓' : 'OFF'}
+              </button>
+            </div>
+          </div>
+        </div>`;
+      })()}
 
       <!-- 仕切り線 -->
       <div style="border-top:1.5px solid var(--border);margin:4px 0"></div>
@@ -10705,7 +11080,7 @@ function showParentMenu(section) {
         <span style="font-size:26px">⚙️</span>
         <div>
           <div style="font-weight:700;font-size:14px">設定</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">名前・学年・教科書・目安時間・塾の設定</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">名前・学年・教科書・APIキー・GitHub同期</div>
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
@@ -10713,7 +11088,6 @@ function showParentMenu(section) {
   `;
 
   document.getElementById('parentModal').classList.add('show');
-
   if (section === 'units') setTimeout(() => showParentUnitList(), 100);
 }
 
@@ -12207,14 +12581,53 @@ async function sendAIMessage() {
 名前：かりん（中学1年生・4〜5月時点）
 得意：社会（歴史）
 苦手：数学（概念理解が弱い）、地理
+特徴：指示語が多い・日本語が多少あいまいなことがある
 
-【テスト攻略相談への対応】
+【日本語があいまいなときの対応】
+かりんの説明が「なんか」「こっちが」「それが」など曖昧な場合：
+- 間違いを指摘するのではなく「"こっち"ってどういう意味？」と優しく掘り下げる
+- 日本語のおかしさは気にせず、言いたいことを内容で判断する
+- 説明できていない部分を質問で引き出す
+
+【説明モード】
+「〇〇をポメに説明してみる」「説明してみる」などのメッセージが来たら：
+1. 「先生役」になって説明を聞く
+2. 正解は絶対に言わない（説明の穴を見つけるのが目的）
+3. 説明が正しい部分は「そうそう！」と肯定する
+4. 説明が曖昧・不完全な部分は「もう少し詳しく教えて」「例えば？」と質問で返す
+5. 最後に「ここはバッチリ、ここはもう少し」と整理してあげる
+例：
+  かりん「マイナスとマイナスを足すと、なんか、こっちがこうなって…」
+  ポメ「"こっち"ってどの数字のこと？もう少し具体的に教えて😊」
+
+【「今日何をやればいい？」への対応】
+このメッセージが来たら：
+1. 登録済みテスト範囲・残り日数・登録済み宿題を確認する
+2. 今日やることを「1〜2個だけ」に絞って提案する（多すぎない）
+3. 具体的に言う（「数学のワークP40-45」など）
+4. 短く・背中を押すトーンで（100文字以内）
+5. テスト範囲が未登録なら「保護者メニューでテスト範囲を登録してもらおう」と案内する
+
+良い例：「テストまで7日！今日は数学ワークP40-45をやってみよう💪 終わったら英単語10個も！」
+悪い例：「今日は数学・国語・英語・理科・社会をまんべんなく復習しましょう」
 「中間テスト」「テスト攻略」「勉強計画」などの相談が来たら：
-1. まず「テストはいつ？」「どの科目が心配？」と聞く
-2. 科目ごとに「何が出そうか」「どこが苦手か」を整理する
-3. 残り日数から「今日〜前日まで」の大まかな計画を提案する
-4. 計画はアプリの「テスト対策」や「宿題登録」に入れるよう案内する
-例：「数学のワークを期限付きで宿題登録すると1日分が自動計算されるよ！」
+1. 下記「登録済みテスト範囲」があればそれを参照して答える
+2. 科目ごとの範囲・アドバイスを踏まえて提案する
+3. ワークのページは「宿題登録」に入れるよう案内する
+
+【登録済みテスト範囲】
+${(() => {
+  const today = getTodayString();
+  const exams = (AppData.examRanges||[]).filter(e=>e.testDate>=today);
+  if (exams.length === 0) return 'なし';
+  return exams.map(exam => {
+    const daysLeft = Math.ceil((new Date(exam.testDate)-new Date().setHours(0,0,0,0))/(1000*60*60*24));
+    return exam.name + '（' + exam.testDate + '・あと' + daysLeft + '日）\n' +
+      (exam.subjects||[]).map(s =>
+        '  ' + s.subject + '：' + s.range + (s.advice ? '（アドバイス：' + s.advice + '）' : '')
+      ).join('\n');
+  }).join('\n\n');
+})()}
 
 【厳密なルール・ハルシネーション対策】
 決して嘘や不確実な情報を教えないでください。事実を厳密に確認し、少しでも分からないことがあれば「わからない」と正直に伝えてください。
@@ -12775,25 +13188,48 @@ function openScheduleModal() {
   if (deskTasks.length === 0) {
     deskHtml = '<div style="color:var(--ink3);font-size:13px;text-align:center;padding:16px">宿題なし</div>';
   } else {
-    deskHtml = deskTasks.map(function(t) {
-      var dueDate  = t.dueDate ? new Date(t.dueDate) : null;
-      var todayD   = new Date(); todayD.setHours(0,0,0,0);
-      var daysLeft = dueDate ? Math.ceil((dueDate - todayD)/(1000*60*60*24)) : null;
-      var uc = daysLeft === 0 ? 'var(--red)' : daysLeft === 1 ? '#C8922A' : 'var(--teal)';
-      var dl = daysLeft === 0 ? '今日まで' : daysLeft === 1 ? '明日まで' : ('あと' + daysLeft + '日');
-      var doneStyle = t.done ? 'text-decoration:line-through;color:var(--ink3)' : '';
-      var check = t.done ? '✅' : '☐';
-      return '<div onclick="toggleDeskTask(\'' + t.cardId + '\',\'' + today + '\');setTimeout(openScheduleModal,200)"'
-        + ' style="display:flex;align-items:center;gap:12px;padding:13px;background:#fff;border-radius:10px;margin-bottom:8px;cursor:pointer;'
-        + 'border-left:4px solid ' + (t.done ? 'var(--bg3)' : uc) + ';opacity:' + (t.done ? 0.55 : 1) + '">'
-        + '<div style="font-size:24px">' + check + '</div>'
-        + '<div style="flex:1">'
-        + '<div style="font-size:14px;font-weight:700;' + doneStyle + '">' + t.subject + '：' + t.content + '</div>'
-        + '<div style="font-size:11px;color:var(--ink3);margin-top:2px">'
-        + t.quantity + getUnitShort(t.unit) + ' · 約' + t.estimatedMin + '分 · '
-        + '<span style="color:' + uc + ';font-weight:700">' + dl + '</span>'
-        + '</div></div></div>';
+    // 未完了・完了を分離
+    var undone = deskTasks.filter(function(t){ return !t.done; });
+    var done   = deskTasks.filter(function(t){ return t.done; });
+
+    deskHtml = undone.map(function(t, i) {
+      var uc = t.daysLeft <= 0 ? 'var(--red)' : t.daysLeft === 1 ? '#C8922A' : 'var(--teal)';
+      var dl = t.daysLeft <= 0 ? '期限切れ' : t.daysLeft === 1 ? '明日まで' : ('あと' + t.daysLeft + '日');
+      var typeLabel = t.hwType === 'juku' ? '塾' : '学校';
+      var typeBg    = t.hwType === 'juku' ? '#EEF2FF' : '#F0FFF4';
+      var typeColor = t.hwType === 'juku' ? '#5B6EE8' : '#4A9B5F';
+      var upBtn = i > 0
+        ? '<button onclick="moveTaskUp(\'' + t.cardId + '\');setTimeout(openScheduleModal,200)"'
+          + ' style="padding:5px 10px;border-radius:6px;border:none;background:var(--bg2);'
+          + 'font-size:14px;cursor:pointer;flex-shrink:0">↑</button>'
+        : '';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:12px;background:#fff;'
+        + 'border-radius:10px;margin-bottom:6px;border-left:4px solid ' + uc + '">'
+        + '<div onclick="toggleDeskTask(\'' + t.cardId + '\');setTimeout(openScheduleModal,200)" style="font-size:22px;cursor:pointer">☐</div>'
+        + '<div style="flex:1;min-width:0" onclick="toggleDeskTask(\'' + t.cardId + '\');setTimeout(openScheduleModal,200)" >'
+        + '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">'
+        + '<span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:6px;background:' + typeBg + ';color:' + typeColor + '">' + typeLabel + '</span>'
+        + '<span style="font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + t.subject + '　' + t.content + '</span>'
+        + '</div>'
+        + '<div style="font-size:11px;color:' + uc + ';font-weight:700">' + dl + '</div>'
+        + '</div>'
+        + upBtn + '</div>';
     }).join('');
+
+    // 完了エリア
+    if (done.length > 0) {
+      deskHtml += '<div style="font-size:11px;color:var(--ink3);padding:6px 0;border-top:1px solid var(--border);'
+        + 'margin-top:4px;text-align:center">✅ 完了 ' + done.length + '件</div>';
+      deskHtml += done.map(function(t) {
+        return '<div onclick="toggleDeskTask(\'' + t.cardId + '\');setTimeout(openScheduleModal,200)"'
+          + ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;'
+          + 'border-radius:10px;margin-bottom:6px;opacity:0.55;cursor:pointer;border-left:4px solid var(--bg3)">'
+          + '<div style="font-size:22px">✅</div>'
+          + '<div style="flex:1;font-size:13px;font-weight:700;text-decoration:line-through;color:var(--ink3)">'
+          + t.subject + '　' + t.content + '</div>'
+          + '</div>';
+      }).join('');
+    }
   }
 
   // アプリでやるもの
