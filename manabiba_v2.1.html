@@ -9352,10 +9352,16 @@ function showParentHomework() {
 
     <div class="input-group">
       <label class="input-label">科目</label>
-      <select class="select-field" id="phw_subject">
-        <option value="">選択してください</option>
-        ${SUBJECTS.map(s=>`<option value="${s}">${s}</option>`).join('')}
-      </select>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="phw_subject_btns">
+        ${SUBJECTS.map(s => `
+          <button onclick="selectHwSubject('${s}', this)"
+                  style="padding:7px 12px;border-radius:16px;border:1px solid var(--border);
+                         background:#fff;color:var(--ink2);font-family:var(--font);
+                         font-size:13px;cursor:pointer;transition:all .15s">
+            ${s}
+          </button>`).join('')}
+      </div>
+      <input type="hidden" id="phw_subject" value="">
     </div>
 
     <div class="input-group">
@@ -9442,6 +9448,20 @@ function renderHomeworkList() {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+function selectHwSubject(subject, btn) {
+  document.getElementById('phw_subject').value = subject;
+  document.querySelectorAll('#phw_subject_btns button').forEach(b => {
+    b.style.background = '#fff';
+    b.style.color = 'var(--ink2)';
+    b.style.borderColor = 'var(--border)';
+    b.style.fontWeight = 'normal';
+  });
+  btn.style.background = 'var(--accent)';
+  btn.style.color = '#fff';
+  btn.style.borderColor = 'var(--accent)';
+  btn.style.fontWeight = '700';
 }
 
 function selectHwType(type) {
@@ -9899,7 +9919,7 @@ function showAddExamRange(prefill) {
     <div class="input-group">
       <label class="input-label">テスト名</label>
       <input type="text" class="input-field" id="er_name"
-             placeholder="例：中間テスト、期末テスト、単元テスト"
+             placeholder="例：中間テスト、期末テスト"
              value="${p.name||''}">
     </div>
     <div class="input-group">
@@ -9907,34 +9927,78 @@ function showAddExamRange(prefill) {
       <input type="date" class="input-field" id="er_date" value="${defaultDate}">
     </div>
 
-    <div style="font-size:13px;font-weight:700;margin-bottom:10px;margin-top:4px">科目ごとの範囲</div>
-    <div id="er_subjects">
-      ${subjects.length > 0
-        ? subjects.map((s,i) => renderExamSubjectRow(s, i)).join('')
-        : SUBJECTS.map((s,i) => renderExamSubjectRow({subject:s,range:'',advice:''}, i)).join('')}
+    <div style="font-size:13px;font-weight:700;margin-bottom:8px;margin-top:4px">科目ごとの範囲</div>
+    <div style="font-size:11px;color:var(--ink3);margin-bottom:10px">範囲がある科目だけ追加してください</div>
+
+    <div id="er_subjects_list">
+      ${subjects.map((s,i) => renderExamSubjectRow(s, i)).join('')}
+    </div>
+
+    <!-- 科目追加ボタン -->
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+      ${SUBJECTS.map(s => `
+        <button onclick="addExamSubjectRow('${s}')"
+                data-subject="${s}"
+                class="er-add-btn"
+                style="padding:6px 12px;border-radius:16px;border:1px solid var(--border);
+                       background:#fff;color:var(--ink2);font-family:var(--font);
+                       font-size:12px;cursor:pointer">
+          ＋ ${s}
+        </button>`).join('')}
     </div>
 
     <button onclick="saveExamRange('${p.id||''}')" class="btn btn-primary"
-            style="width:100%;padding:14px;font-size:14px;margin-top:8px">
+            style="width:100%;padding:14px;font-size:14px;margin-top:4px">
       ✓ 登録する
     </button>
   `;
+
+  // 既存科目のボタンをグレーアウト
+  subjects.forEach(s => {
+    const btn = content.querySelector(`.er-add-btn[data-subject="${s.subject}"]`);
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+  });
+}
+
+function addExamSubjectRow(subject) {
+  const list = document.getElementById('er_subjects_list');
+  if (!list) return;
+  const idx = list.children.length;
+  const div = document.createElement('div');
+  div.innerHTML = renderExamSubjectRow({subject, range:'', advice:''}, idx);
+  list.appendChild(div.firstElementChild);
+  // 追加ボタンをグレーアウト
+  const btn = document.querySelector(`.er-add-btn[data-subject="${subject}"]`);
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
+  // 追加した欄にフォーカス
+  div.querySelector('.er-range')?.focus();
 }
 
 function renderExamSubjectRow(s, i) {
   return `
-    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);
+    <div class="er-subject-row" style="background:#fff;border-radius:10px;border:1px solid var(--border);
                 padding:12px;margin-bottom:8px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--ink2)">${s.subject}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:13px;font-weight:700;color:var(--ink2)">${s.subject}</div>
+        <button onclick="removeExamSubjectRow(this, '${s.subject}')"
+                style="border:none;background:none;color:var(--ink3);font-size:18px;cursor:pointer;padding:0 4px">×</button>
+      </div>
       <input type="text" class="input-field er-range" data-subject="${s.subject}"
              placeholder="範囲（例：教科書P40-65、ワークP20-30）"
              value="${s.range||''}"
              style="margin-bottom:6px;font-size:13px">
       <input type="text" class="input-field er-advice" data-subject="${s.subject}"
-             placeholder="先生のアドバイス（例：計算問題が多い）"
+             placeholder="先生のアドバイス（任意）"
              value="${s.advice||''}"
              style="font-size:12px">
     </div>`;
+}
+
+function removeExamSubjectRow(btn, subject) {
+  btn.closest('.er-subject-row').remove();
+  // 追加ボタンを再活性化
+  const addBtn = document.querySelector(`.er-add-btn[data-subject="${subject}"]`);
+  if (addBtn) { addBtn.disabled = false; addBtn.style.opacity = '1'; }
 }
 
 function saveExamRange(existingId) {
@@ -9951,7 +10015,7 @@ function saveExamRange(existingId) {
     if (range) subjects.push({ subject, range, advice });
   });
 
-  if (subjects.length === 0) { alert('少なくとも1科目の範囲を入力してください'); return; }
+  if (subjects.length === 0) { showToast('少なくとも1科目の範囲を入力してください'); return; }
 
   if (!AppData.examRanges) AppData.examRanges = [];
 
@@ -9963,7 +10027,7 @@ function saveExamRange(existingId) {
   }
 
   saveData();
-  showToast(`✓ 「${name}」の範囲を登録しました`);
+  showToast(`✓ 「${name}」の範囲を登録しました。ポメが内容を把握しました🐾`);
   showExamRangeList();
 }
 
