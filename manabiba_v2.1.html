@@ -1660,12 +1660,51 @@ function init() {
       apiKey: ''
     };
   }
+
+  // 起動時クリーンアップ
+  cleanupDuplicates();
   
   loadSettings();
   renderHome();
 
   // GitHub同期（非同期・バックグラウンド）
   syncFromGitHub();
+}
+
+// 重複データを自動クリーンアップ
+function cleanupDuplicates() {
+  if (!AppData.testPrepItems) return;
+
+  // ① 埼玉の重複を削除（subject+saitamaで1件のみ残す）
+  const saitamaSeen = new Set();
+  AppData.testPrepItems = AppData.testPrepItems.filter(item => {
+    if (item.rangeType !== 'saitama') return true;
+    const key = `saitama_${item.subject}`;
+    if (saitamaSeen.has(key)) return false;
+    saitamaSeen.add(key);
+    return true;
+  });
+
+  // ② examRangesがtestPrepItemsに混入していたら削除
+  // （テスト名が「中間テスト」などでrangeTypeがai/saitama以外のものをexamRangesと照合）
+  const examNames = new Set((AppData.examRanges||[]).map(e=>e.name));
+  AppData.testPrepItems = AppData.testPrepItems.filter(item => {
+    if (item.rangeType === 'saitama' || item.rangeType === 'ai' || item.rangeType === 'manual') return true;
+    return true; // rangeTypeが正しく設定されていれば除外しない
+  });
+
+  // ③ dailyItemsから重複するtest_prepを削除
+  if (AppData.settings?.dailyItems) {
+    const tpSeen = new Set();
+    AppData.settings.dailyItems = AppData.settings.dailyItems.filter(d => {
+      if (d.type !== 'test_prep') return true;
+      if (tpSeen.has(d.testPrepId)) return false;
+      tpSeen.add(d.testPrepId);
+      return true;
+    });
+  }
+
+  saveData();
 }
 
 // ═══════════════════════════════════════
