@@ -2124,8 +2124,6 @@ function renderHome() {
 function renderTodayHub() {
   const today     = getTodayString();
   const dayOfWeek = DAYS_JP[new Date().getDay()];
-  const todayPlan = AppData.dailyPlans?.[today];
-  const isWeekend = [0,6].includes(new Date().getDay());
 
   const deskTasks = getDeskTasksForToday();
   const appTasks  = getAppTasksForToday();
@@ -2133,14 +2131,8 @@ function renderTodayHub() {
   const totalAll  = deskTasks.length + appTasks.length;
   const pct       = totalAll > 0 ? Math.round((doneAll/totalAll)*100) : 0;
 
-  const schedule  = todayPlan?.schedule || [];
-  const pending   = schedule.filter(t => t.status !== 'completed' && t.type !== 'break');
-  const totalMin  = pending.reduce((s,t) => s+(t.estimatedMin||0), 0);
-  const startTime = checkinData?.startTime || schedule.find(t=>t.startTime)?.startTime || '--:--';
-  const endTime   = todayPlan?.endTime || '--:--';
-
   return `
-    <!-- ヘッダー（コンパクト） -->
+    <!-- ヘッダー -->
     <div style="padding:10px 14px;border-bottom:1px solid var(--border);background:#fff;flex-shrink:0;
                 display:flex;align-items:center;justify-content:space-between">
       <div>
@@ -2148,40 +2140,27 @@ function renderTodayHub() {
         <div style="font-size:10px;color:var(--ink3)">${formatDate(new Date())} ${dayOfWeek}曜日</div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:18px;font-weight:700;color:${pct===100?'var(--green)':'var(--accent)'}">${pct}%</div>
+        <div style="font-size:18px;font-weight:700;color:${pct===100?'var(--green)':'var(--ink)'}">${pct}%</div>
         <div style="font-size:10px;color:var(--ink3)">${doneAll}/${totalAll}</div>
       </div>
     </div>
 
     <div style="padding:10px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
 
-      <!-- スケジュール（1行） -->
-      <div style="background:#fff;border-radius:9px;border:1px solid var(--border);
-                  padding:8px 12px;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:11px;color:var(--ink2)">
-          ${schedule.length > 0
-            ? `⏰ ${startTime}〜${endTime}　残り<strong style="color:var(--accent)">${totalMin}分</strong>`
-            : '⏰ 予定なし'}
-        </div>
-        <button onclick="startCheckin()" class="btn btn-primary"
-                style="padding:4px 10px;font-size:11px">
-          ${schedule.length > 0 ? '立て直す' : '予定を立てる'}
-        </button>
-      </div>
-
       <!-- 机でやるもの -->
       <div>
-        <div style="font-size:12px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:11px;font-weight:700;color:var(--ink3);margin-bottom:6px;
+                    display:flex;justify-content:space-between;align-items:center">
           <span>📚 机でやるもの</span>
           <button onclick="showParentMenu();setTimeout(()=>showParentHomework(),100)"
-                  style="border:none;background:none;color:var(--accent);font-size:11px;font-weight:700;cursor:pointer">＋</button>
+                  style="border:none;background:none;color:var(--ink3);font-size:13px;cursor:pointer">＋</button>
         </div>
         ${renderDeskTaskSection(deskTasks)}
       </div>
 
-      <!-- アプリでやるもの（コンパクト） -->
+      <!-- アプリでやるもの -->
       <div>
-        <div style="font-size:12px;font-weight:700;margin-bottom:6px">📱 アプリでやるもの</div>
+        <div style="font-size:11px;font-weight:700;color:var(--ink3);margin-bottom:6px">📱 アプリでやるもの</div>
         ${appTasks.length === 0 ? `
           <div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center;color:var(--ink3);font-size:11px">
             保護者メニューで設定してね
@@ -2190,9 +2169,6 @@ function renderTodayHub() {
         }
         ${hasWeekendChecks() ? renderWeekendCheckCardCompact() : ''}
       </div>
-
-      <!-- 👩 保護者へ -->
-      ${renderParentSummaryPanel()}
 
     </div>
   `;
@@ -2347,41 +2323,43 @@ function getThreeDaySchedule() {
 }
 
 // ── コンパクト版カード描画 ──
-function renderDeskTaskCardCompact(t, showUp, isLast) {
-  const typeLabel = t.hwType === 'juku' ? '塾' : '学校';
-  const typeBg    = t.hwType === 'juku' ? '#EEF2FF' : '#F0FFF4';
-  const typeColor = t.hwType === 'juku' ? '#5B6EE8' : '#4A9B5F';
-  const urgentColor = t.daysLeft <= 0 ? 'var(--red)' : t.daysLeft === 1 ? '#C8922A' : 'var(--teal)';
-  const dayLabel = t.daysLeft <= 0 ? '期限切れ' : t.daysLeft === 1 ? '明日まで' : `あと${t.daysLeft}日`;
+function renderDeskTaskCardCompact(t, showUp) {
+  const typeLabel   = t.hwType === 'juku' ? '塾' : '学校';
+  const typeBg      = t.hwType === 'juku' ? '#F0EEFF' : '#E8F5F2';
+  const typeColor   = t.hwType === 'juku' ? '#6B5FBB' : '#2E8B6E';
+  const isSoon      = t.daysLeft === 1;
+  const borderColor = t.done ? '#E8E8E8' : isOverdue ? 'var(--red)' : isSoon ? '#C8922A' : '#E8E8E8';
+  const dayLabel    = t.daysLeft <= 0 ? '期限切れ' : t.daysLeft === 1 ? '明日まで' : 'あと' + t.daysLeft + '日';
+  const dayColor    = isOverdue ? 'var(--red)' : isSoon ? '#C8922A' : 'var(--ink3)';
+  const dayWeight   = (isOverdue || isSoon) ? 'font-weight:700;' : '';
+  const cid = t.cardId;
 
   return `
-    <div style="background:#fff;border-radius:7px;border:1px solid var(--border);
-                border-left:3px solid ${t.done ? 'var(--bg3)' : urgentColor};
+    <div style="background:#fff;border-radius:7px;border:1px solid #EBEBEB;
+                border-left:3px solid ${borderColor};
                 padding:7px 10px;margin-bottom:4px;display:flex;align-items:center;gap:8px;
-                opacity:${t.done ? 0.6 : 1}">
-      <!-- チェック -->
-      <div onclick="toggleDeskTask('${t.cardId}')"
-           style="font-size:18px;cursor:pointer;flex-shrink:0">${t.done ? '✅' : '☐'}</div>
-      <!-- 内容 -->
-      <div style="flex:1;min-width:0" onclick="toggleDeskTask('${t.cardId}')" style="cursor:pointer">
+                opacity:${t.done ? 0.5 : 1}">
+      <div onclick="toggleDeskTask('${cid}')" style="font-size:16px;cursor:pointer;flex-shrink:0">
+        ${t.done ? '✅' : '☐'}
+      </div>
+      <div style="flex:1;min-width:0;cursor:pointer" onclick="toggleDeskTask('${cid}')">
         <div style="display:flex;align-items:center;gap:4px;margin-bottom:1px">
-          <span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:6px;
-                       background:${typeBg};color:${typeColor};flex-shrink:0">${typeLabel}</span>
-          <span style="font-size:12px;font-weight:700;
-                       ${t.done ? 'text-decoration:line-through;color:var(--ink3)' : ''}
+          <span style="font-size:10px;padding:1px 5px;border-radius:5px;
+                       background:${typeBg};color:${typeColor};flex-shrink:0;font-weight:600">${typeLabel}</span>
+          <span style="font-size:12px;font-weight:600;
+                       ${t.done ? 'text-decoration:line-through;color:#AAA;' : 'color:var(--ink);'}
                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
             ${t.subject}　${t.content}
           </span>
         </div>
-        <div style="font-size:10px;color:${t.done ? 'var(--ink3)' : urgentColor}">
-          ${dayLabel}${t.memo ? `　<span style="color:var(--ink3)">${t.memo}</span>` : ''}
+        <div style="font-size:10px;color:${dayColor};${dayWeight}">
+          ${dayLabel}${t.memo ? `　<span style="color:var(--ink3);font-weight:400">${t.memo}</span>` : ''}
         </div>
       </div>
-      <!-- ↑ボタン（未完了のみ） -->
       ${!t.done && showUp ? `
-        <button onclick="moveTaskUp('${t.cardId}')"
-                style="border:none;background:var(--bg2);border-radius:5px;padding:3px 7px;
-                       font-size:12px;cursor:pointer;flex-shrink:0;color:var(--ink2)">↑</button>` : ''}
+        <button onclick="moveTaskUp('${cid}')"
+                style="border:none;background:#F5F5F5;border-radius:5px;padding:3px 7px;
+                       font-size:12px;cursor:pointer;flex-shrink:0;color:#999">↑</button>` : ''}
     </div>`;
 }
 
@@ -2406,7 +2384,7 @@ function renderAppTaskCardCompact(t) {
 
   return `
     <div style="background:#fff;border-radius:7px;border:1px solid var(--border);
-                border-left:3px solid ${t.done?'var(--bg3)':act.color};
+                border-left:3px solid #EBEBEB;
                 padding:6px 10px;margin-bottom:4px;display:flex;align-items:center;gap:8px;
                 opacity:${t.done?0.6:1}">
       <div style="font-size:14px;flex-shrink:0">${t.done?'✅':act.icon}</div>
@@ -2417,7 +2395,7 @@ function renderAppTaskCardCompact(t) {
       </div>
       ${!t.done ? `
         <button onclick="${act.fn};markAppTaskDone('${t.id}')"
-                style="padding:4px 10px;border-radius:6px;border:none;background:${act.color};
+                style="padding:4px 10px;border-radius:6px;border:none;background:var(--accent);
                        color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
           やる→
         </button>` : `
@@ -2589,13 +2567,10 @@ function getDeskTasksForToday() {
   (AppData.homeworkCards || []).forEach(card => {
     if (!card.dueDate) return;
 
-    // 期限日の18時以降は表示しない
+    // 期限日の18時以降は表示しない（完了・未完了問わず）
     const dueDate = new Date(card.dueDate);
     dueDate.setHours(18, 0, 0, 0);
-    if (now >= dueDate && card.done) return; // 完了済みで期限切れは非表示
-    if (now >= dueDate && !card.done) {
-      // 未完了で期限切れは残す（忘れてる可能性）
-    }
+    if (now >= dueDate) return;
 
     const todayD   = new Date(); todayD.setHours(0,0,0,0);
     const daysLeft = Math.ceil((new Date(card.dueDate) - todayD) / (1000*60*60*24));
@@ -2740,7 +2715,7 @@ function renderAppTaskCard(t) {
         </div>
         ${!t.done ? `
           <button onclick="${act.fn};markAppTaskDone('${t.id}')"
-                  style="padding:8px 14px;border-radius:8px;border:none;background:${act.color};
+                  style="padding:8px 14px;border-radius:8px;border:none;background:var(--accent);
                          color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
             やる →
           </button>` : `
