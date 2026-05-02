@@ -2191,10 +2191,119 @@ function renderTodayHub() {
         ${hasWeekendChecks() ? renderWeekendCheckCardCompact() : ''}
       </div>
 
-
+      <!-- 👩 保護者へ -->
+      ${renderParentSummaryPanel()}
 
     </div>
   `;
+}
+
+function renderParentSummaryPanel() {
+  const today = getTodayString();
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+
+  // 弱点の3段階集計
+  const wps = AppData.weakPoints || [];
+  const wpPracticing = wps.filter(w => w.active && (!w.status || w.status === 'practicing'));
+  const wpWatching   = wps.filter(w => w.active && w.status === 'watching');
+  const wpMastered   = wps.filter(w => w.active && w.status === 'mastered');
+
+  // 期限切れ宿題
+  const overdueHw = (AppData.homeworkCards || []).filter(hw => {
+    if (hw.done) return false;
+    if (!hw.dueDate) return false;
+    const due = new Date(hw.dueDate); due.setHours(18,0,0,0);
+    return new Date() > due;
+  });
+
+  // 直近テスト
+  const nearExam = (AppData.examRanges || [])
+    .filter(e => e.testDate >= today)
+    .sort((a,b) => a.testDate.localeCompare(b.testDate))[0];
+
+  // 表示するものがなければ非表示
+  const hasItems = wpWatching.length > 0 || wpMastered.length > 0 || overdueHw.length > 0 || nearExam;
+  if (!hasItems) return '';
+
+  const items = [];
+
+  // テスト情報
+  if (nearExam) {
+    const daysLeft = Math.ceil((new Date(nearExam.testDate) - todayD)/(1000*60*60*24));
+    const color = daysLeft <= 3 ? 'var(--red)' : daysLeft <= 7 ? '#C8922A' : 'var(--teal)';
+    items.push(`
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:13px">📅</span>
+        <div style="flex:1;font-size:12px">
+          <span style="font-weight:700">${nearExam.name}</span>
+          <span style="color:${color};font-weight:700;margin-left:6px">あと${daysLeft}日</span>
+        </div>
+      </div>`);
+  }
+
+  // 期限切れ宿題
+  if (overdueHw.length > 0) {
+    overdueHw.forEach(hw => {
+      items.push(`
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:13px">⚠️</span>
+          <div style="flex:1;font-size:12px">
+            <span style="color:var(--red);font-weight:700">期限切れ</span>
+            <span style="margin-left:6px">${hw.subject}：${hw.content}</span>
+          </div>
+          <button onclick="deleteHomeworkCard('${hw.id}');renderHome()"
+                  style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
+        </div>`);
+    });
+  }
+
+  // 🟡様子見
+  if (wpWatching.length > 0) {
+    items.push(`
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:13px">🟡</span>
+        <div style="flex:1;font-size:12px">
+          <span style="font-weight:700">様子見</span>：${wpWatching.map(w=>w.unit).join('・')}
+        </div>
+      </div>`);
+  }
+
+  // 🟢克服候補
+  if (wpMastered.length > 0) {
+    items.push(`
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0">
+        <span style="font-size:13px">🟢</span>
+        <div style="flex:1;font-size:12px">
+          <span style="font-weight:700">克服候補</span>：${wpMastered.map(w=>`
+            <span>${w.unit}
+              <button onclick="graduateWeakPoint('${w.id}')"
+                      style="border:none;background:none;color:var(--teal);font-size:10px;cursor:pointer;font-weight:700">卒業</button>
+            </span>`).join('・')}
+        </div>
+      </div>`);
+  }
+
+  return `
+    <div style="margin-top:16px;border-top:1.5px solid var(--border);padding-top:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--ink3);margin-bottom:8px;
+                  display:flex;align-items:center;gap:6px">
+        <span>👩 保護者へ</span>
+        <button onclick="showParentMenu()"
+                style="border:none;background:none;color:var(--teal);font-size:10px;
+                       cursor:pointer;font-weight:700">メニュー →</button>
+      </div>
+      ${items.join('')}
+    </div>`;
+}
+
+function graduateWeakPoint(id) {
+  const wp = (AppData.weakPoints||[]).find(w=>w.id===id);
+  if (!wp) return;
+  wp.active = false;
+  wp.status = 'graduated';
+  saveData();
+  renderHome();
+  showToast(`🎉 「${wp.unit}」卒業！`);
 }
 
 // ── 3日分スケジュールデータを生成 ──
@@ -2562,10 +2671,24 @@ function getAppTasksForToday() {
 
 // ── 週末チェックがあるか ──
 function hasWeekendChecks() {
+  const now = new Date();
+  const dow = now.getDay(); // 0=日 6=土
+  if (dow !== 6 && dow !== 0) return false; // 土日以外は出さない
+
   const today = getTodayString();
-  return (AppData.unitRecords || []).some(r =>
+  const hasDue = (AppData.unitRecords || []).some(r =>
     r.checkSchedule?.some(c => !c.done && c.date <= today)
   );
+  if (!hasDue) return false;
+
+  if (dow === 6) return true; // 土曜は無条件で出す
+
+  // 日曜：土曜にやっていなければ出す
+  const sat = new Date(now);
+  sat.setDate(sat.getDate() - 1);
+  const satStr = sat.toISOString().split('T')[0];
+  const didSaturday = AppData.weekendCheckLog?.[satStr] === true;
+  return !didSaturday;
 }
 
 // ── 机でやるタスクカード描画 ──
@@ -10584,7 +10707,8 @@ function saveWeakPoint() {
     correctStreak: 0,
     nextDate: getTodayString(),
     lastResult: null,
-    active: true
+    active: true,
+    status: 'practicing'  // 'practicing'=🔴要練習 / 'watching'=🟡様子見 / 'mastered'=🟢克服候補
   });
 
   // 毎日やることに弱点練習を追加（まだなければ）
@@ -10869,7 +10993,6 @@ function saveQAResult(result) {
     const wp = (AppData.weakPoints || []).find(w => w.id === q.weakPointId);
     if (wp) {
       if (result === 'notlearned') {
-        // まだ習っていない → スキップ（streakは変えない、出題を少し先送り）
         const next = new Date(); next.setDate(next.getDate() + 7);
         wp.nextDate = next.toISOString().split('T')[0];
         wp.lastResult = '未';
@@ -10881,20 +11004,28 @@ function saveQAResult(result) {
         const next = new Date(); next.setDate(next.getDate() + days);
         wp.nextDate = next.toISOString().split('T')[0];
         wp.lastResult = '◎';
+        // status自動更新
         if (wp.correctStreak >= 5) {
           wp.active = false;
+          wp.status = 'mastered';
           showToast(`🎉 「${wp.unit}」を完全定着！`);
+        } else if (wp.correctStreak >= 3) {
+          wp.status = 'mastered'; // 🟢克服候補
+        } else if (wp.correctStreak >= 1) {
+          wp.status = 'watching'; // 🟡様子見
         }
       } else if (result === 'hint') {
         wp.correctStreak = Math.max((wp.correctStreak || 0) - 1, 0);
         const next = new Date(); next.setDate(next.getDate() + 2);
         wp.nextDate = next.toISOString().split('T')[0];
         wp.lastResult = '△';
+        wp.status = 'watching'; // 🟡様子見
       } else {
         wp.correctStreak = 0;
         const next = new Date(); next.setDate(next.getDate() + 1);
         wp.nextDate = next.toISOString().split('T')[0];
         wp.lastResult = '×';
+        wp.status = 'practicing'; // 🔴要練習に戻す
       }
       saveData();
     }
@@ -11974,6 +12105,13 @@ async function saveCheckResult(id, result) {
 
   record.understanding = result;
   record.lastChecked = today;
+
+  // 土曜にやった記録を保存（日曜に重複表示しないため）
+  const dow = new Date().getDay();
+  if (dow === 6) {
+    if (!AppData.weekendCheckLog) AppData.weekendCheckLog = {};
+    AppData.weekendCheckLog[today] = true;
+  }
 
   // △×の場合：次回チェックを3日後に追加
   if (result === '△' || result === '×') {
