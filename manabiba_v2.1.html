@@ -2319,6 +2319,7 @@ function renderDeskTaskCardCompact(t, showUp) {
   const typeLabel   = t.hwType === 'juku' ? '塾' : '学校';
   const typeBg      = t.hwType === 'juku' ? '#F0EEFF' : '#E8F5F2';
   const typeColor   = t.hwType === 'juku' ? '#6B5FBB' : '#2E8B6E';
+  const isOverdue   = t.daysLeft <= 0;
   const isSoon      = t.daysLeft === 1;
   const borderColor = t.done ? '#E8E8E8' : isOverdue ? 'var(--red)' : isSoon ? '#C8922A' : '#E8E8E8';
   const dayLabel    = t.daysLeft <= 0 ? '期限切れ' : t.daysLeft === 1 ? '明日まで' : 'あと' + t.daysLeft + '日';
