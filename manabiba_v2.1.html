@@ -9386,36 +9386,62 @@ function renderHomeworkList() {
   const cards = AppData.homeworkCards || [];
   if (cards.length === 0) return '<div style="color:var(--ink3);font-size:12px;text-align:center;padding:16px">登録済みの宿題はありません</div>';
 
-  const today = getTodayString();
-  return cards.map(card => {
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+
+  const rows = cards.map(card => {
     const dueDate  = card.dueDate ? new Date(card.dueDate) : null;
-    const todayD   = new Date(); todayD.setHours(0,0,0,0);
     const daysLeft = dueDate ? Math.ceil((dueDate - todayD)/(1000*60*60*24)) : null;
+    const urgentColor = daysLeft === null ? 'var(--ink3)' : daysLeft <= 0 ? 'var(--red)' : daysLeft === 1 ? '#C8922A' : 'var(--teal)';
+    const dayLabel = daysLeft === null ? '-' : daysLeft <= 0 ? '期限切れ' : daysLeft === 1 ? '明日' : `あと${daysLeft}日`;
     const typeLabel = card.hwType === 'juku' ? '塾' : '学校';
     const typeBg    = card.hwType === 'juku' ? '#EEF2FF' : '#F0FFF4';
     const typeColor = card.hwType === 'juku' ? '#5B6EE8' : '#4A9B5F';
-    const isDone    = card.done || false;
-    const urgentColor = daysLeft === 0 ? 'var(--red)' : daysLeft <= 2 ? '#C8922A' : 'var(--teal)';
 
     return `
-      <div style="background:#fff;border-radius:9px;padding:11px 12px;margin-bottom:8px;
-                  border:1px solid var(--border);opacity:${isDone?0.6:1}">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;
+      <tr style="border-bottom:1px solid var(--border);opacity:${card.done?0.55:1}">
+        <td style="padding:10px 8px">
+          <span style="font-size:10px;font-weight:700;padding:1px 5px;border-radius:6px;
                        background:${typeBg};color:${typeColor}">${typeLabel}</span>
-          <span style="font-size:13px;font-weight:700;${isDone?'text-decoration:line-through;color:var(--ink3)':''}">${card.subject}　${card.content}</span>
-        </div>
-        <div style="font-size:11px;color:${urgentColor};font-weight:700">
-          期限：${card.dueDate}（${daysLeft===0?'今日まで':daysLeft===1?'明日まで':`あと${daysLeft}日`}）
-        </div>
-        <div style="display:flex;gap:8px;margin-top:6px">
-          <button onclick="deleteHomeworkCard('${card.id}')"
-                  style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
-          <button onclick="editHomeworkCard('${card.id}')"
-                  style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">編集</button>
-        </div>
-      </div>`;
+        </td>
+        <td style="padding:10px 8px;font-size:13px;font-weight:700;min-width:80px">
+          ${card.subject}
+        </td>
+        <td style="padding:10px 8px;font-size:12px;color:var(--ink2);min-width:120px">
+          <div style="${card.done?'text-decoration:line-through;color:var(--ink3)':''}">${card.content}</div>
+          ${card.memo ? `<div style="font-size:10px;color:var(--ink3)">${card.memo}</div>` : ''}
+        </td>
+        <td style="padding:10px 8px;font-size:12px;color:${urgentColor};font-weight:700;white-space:nowrap">
+          ${card.dueDate||'-'}<br>
+          <span style="font-size:10px">${dayLabel}</span>
+        </td>
+        <td style="padding:10px 8px">
+          <div style="display:flex;gap:4px">
+            <button onclick="editHomeworkCard('${card.id}')"
+                    style="padding:4px 8px;border-radius:6px;border:1px solid var(--teal);
+                           background:#fff;color:var(--teal);font-size:11px;cursor:pointer">編集</button>
+            <button onclick="deleteHomeworkCard('${card.id}')"
+                    style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);
+                           background:#fff;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
+          </div>
+        </td>
+      </tr>`;
   }).join('');
+
+  return `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+        <thead>
+          <tr style="background:var(--bg2);border-bottom:1.5px solid var(--border)">
+            <th style="padding:8px;text-align:left;font-size:11px;color:var(--ink3)">区分</th>
+            <th style="padding:8px;text-align:left;font-size:11px;color:var(--ink3)">科目</th>
+            <th style="padding:8px;text-align:left;font-size:11px;color:var(--ink3)">内容</th>
+            <th style="padding:8px;text-align:left;font-size:11px;color:var(--ink3)">期限</th>
+            <th style="padding:8px;text-align:left;font-size:11px;color:var(--ink3)">操作</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 function selectHwType(type) {
@@ -9543,53 +9569,73 @@ function saveDailyItems() {
 
 // ── 一覧画面 ──
 function showTestPrepList() {
-  document.getElementById('parentModalTitle').textContent = '🎯 テスト対策';
+  document.getElementById('parentModalTitle').textContent = '🎯 小テスト対策';
   const content = document.getElementById('parentContent');
   const items = AppData.testPrepItems || [];
   const today = getTodayString();
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
 
-  const rows = items.map(item => {
-    const dueDate = new Date(item.testDate);
-    const todayD  = new Date(); todayD.setHours(0,0,0,0);
-    const daysLeft = Math.ceil((dueDate - todayD) / (1000*60*60*24));
+  // 埼玉以外のみ表示（埼玉は保護者メニューのON/OFFで管理）
+  const testItems = items.filter(i => i.rangeType !== 'saitama');
+
+  const tableRows = testItems.map(item => {
+    const dueDate  = new Date(item.testDate);
+    const daysLeft = Math.ceil((dueDate - todayD)/(1000*60*60*24));
     const expired  = daysLeft < 0;
-    const color    = expired ? 'var(--ink3)' : daysLeft <= 3 ? 'var(--red)' : 'var(--teal)';
+    const color    = expired ? 'var(--ink3)' : daysLeft <= 3 ? 'var(--red)' : daysLeft <= 7 ? '#C8922A' : 'var(--teal)';
+    const typeLabel = item.rangeType === 'manual' ? '手打ち' : 'AI';
+
     return `
-      <div style="background:#fff;border-radius:9px;padding:12px;margin-bottom:8px;
-                  border:1px solid var(--border);border-left:4px solid ${color}">
-        <div style="display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <div style="font-size:13px;font-weight:700">${item.name}</div>
-            <div style="font-size:11px;color:var(--ink3);margin-top:2px">
-              ${item.subject} · テスト日：${item.testDate}
-              ${expired ? '（終了）' : ` · あと${daysLeft}日`}
-            </div>
-            <div style="font-size:11px;color:var(--ink3)">
-              ${item.rangeType === 'ai' ? `AIが「${item.rangeText}」から出題` : `登録単語：${item.words?.length || 0}個`}
-              · 1日${item.dailyCount}問
-            </div>
-          </div>
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:10px 8px;font-size:13px;font-weight:700;min-width:120px">
+          <div style="${expired?'text-decoration:line-through;color:var(--ink3)':''}">${item.name}</div>
+          <div style="font-size:10px;color:var(--ink3)">${item.subject}</div>
+        </td>
+        <td style="padding:10px 8px;font-size:12px;color:${color};font-weight:700;white-space:nowrap">
+          ${item.testDate}<br>
+          <span style="font-size:10px">${expired?'終了':daysLeft===0?'今日！':`あと${daysLeft}日`}</span>
+        </td>
+        <td style="padding:10px 8px;font-size:11px;color:var(--ink3);white-space:nowrap">
+          ${typeLabel}・${item.dailyCount}問/日
+        </td>
+        <td style="padding:10px 8px">
           <div style="display:flex;gap:6px">
             <button onclick="editTestPrepItem('${item.id}')"
-                    style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">編集</button>
+                    style="padding:4px 8px;border-radius:6px;border:1px solid var(--teal);
+                           background:#fff;color:var(--teal);font-size:11px;cursor:pointer">編集</button>
             <button onclick="deleteTestPrepItem('${item.id}')"
-                    style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
+                    style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);
+                           background:#fff;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
           </div>
-        </div>
-      </div>`;
+        </td>
+      </tr>`;
   }).join('');
 
   content.innerHTML = `
     <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div style="overflow-x:auto;margin-bottom:16px">
+      <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;border:1px solid var(--border)">
+        <thead>
+          <tr style="background:var(--bg2);border-bottom:1.5px solid var(--border)">
+            <th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--ink3)">テスト名</th>
+            <th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--ink3)">テスト日</th>
+            <th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--ink3)">設定</th>
+            <th style="padding:10px 8px;text-align:left;font-size:12px;color:var(--ink3)">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${testItems.length === 0
+            ? '<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--ink3);font-size:13px">登録なし</td></tr>'
+            : tableRows}
+        </tbody>
+      </table>
+    </div>
+
     <button onclick="showAddTestPrep()" class="btn btn-primary"
-            style="width:100%;padding:14px;font-size:14px;margin-bottom:20px">
-      ＋ テスト対策を追加
+            style="width:100%;padding:13px;font-size:14px">
+      ＋ 小テスト対策を追加
     </button>
-    ${items.length === 0 ? `
-      <div style="text-align:center;padding:32px;color:var(--ink3)">
-        <div style="font-size:32px;margin-bottom:8px">🎯</div>
-        <div style="font-size:13px">テスト対策がまだ登録されていません</div>
-      </div>` : rows}
   `;
 }
 
@@ -10131,12 +10177,20 @@ function deleteTestPrepItem(id) {
 // 毎日やることにテスト対策を反映
 function updateTestPrepDailyItems() {
   const today = getTodayString();
-  const activeItems = (AppData.testPrepItems || []).filter(item => item.testDate >= today);
+  // examRangesは除外・重複する埼玉を自動クリーンアップ
+  const seen = new Set();
+  const activeItems = (AppData.testPrepItems || []).filter(item => {
+    if (item.testDate < today) return false;
+    // 埼玉の重複排除（subject+saitamaで1件のみ）
+    const key = item.rangeType === 'saitama' ? `saitama_${item.subject}` : item.id;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   if (!AppData.settings) AppData.settings = {};
   if (!AppData.settings.dailyItems) AppData.settings.dailyItems = [];
 
-  // 既存のtestPrepタイプを削除して再追加
   AppData.settings.dailyItems = AppData.settings.dailyItems.filter(d => d.type !== 'test_prep');
   activeItems.forEach(item => {
     const dueDate = new Date(item.testDate);
@@ -10152,6 +10206,16 @@ function updateTestPrepDailyItems() {
       action: 'test_prep',
       testDate: item.testDate
     });
+  });
+
+  // 埼玉の重複データを実際に削除
+  const cleanSeen = new Set();
+  AppData.testPrepItems = (AppData.testPrepItems || []).filter(item => {
+    if (item.rangeType !== 'saitama') return true;
+    const key = `saitama_${item.subject}`;
+    if (cleanSeen.has(key)) return false;
+    cleanSeen.add(key);
+    return true;
   });
 }
 
