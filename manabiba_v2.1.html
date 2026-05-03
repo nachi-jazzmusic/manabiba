@@ -2850,128 +2850,596 @@ function unmarkAppTaskDone(itemId) {
 
 // 暗記練習：英単語か漢字かを選ぶ
 // ═══════════════════════════════════════
-// テスト前 理解度診断
+// テスト前 スクリーニング診断
 // ═══════════════════════════════════════
 
-function startExamDiagnosis(examId) {
+async function startExamDiagnosis(examId, mode) {
+  mode = mode || 'initial';
   const exam = (AppData.examRanges||[]).find(e => e.id === examId);
   if (!exam || !exam.subjects || exam.subjects.length === 0) {
-    showToast('テスト範囲が登録されていません。保護者メニューから登録してください。');
+    showToast('テスト範囲が登録されていません');
+    return;
+  }
+  if (!AppData.settings?.apiKey) {
+    showToast('設定画面でAPIキーを入力してください');
     return;
   }
 
-  // 診断モーダルを表示
+  const todayD   = new Date(); todayD.setHours(0,0,0,0);
+  const daysLeft = Math.ceil((new Date(exam.testDate) - todayD)/(1000*60*60*24));
+
+  // 前回の弱点を取得（中間・直前診断で使用）
+  const prevNgCategories = Object.values(AppData.examDiagnosis||{})
+    .filter(d => d.examId === examId)
+    .flatMap(d => (d.results||[]).filter(r => r.result === 'ng').map(r => r.category));
+  const weakCategories = [...new Set(prevNgCategories)];
+
+  // モード別の指示
+  const modeConfig = {
+    initial: {
+      label: '初回診断',
+      prompt: '全単元から2〜3問ずつ、合計10問程度',
+      filterWeak: false
+    },
+    mid: {
+      label: '中間診断',
+      prompt: weakCategories.length > 0
+        ? '前回❌だった単元（' + weakCategories.join('・') + '）を重点的に、全体から合計8問程度'
+        : '全単元から2〜3問ずつ、合計8問程度',
+      filterWeak: false
+    },
+    final: {
+      label: daysLeft <= 1 ? '前日の最終確認' : '直前診断',
+      prompt: weakCategories.length > 0
+        ? '前回❌だった単元（' + weakCategories.join('・') + '）から各1問、合計' + Math.min(weakCategories.length, 5) + '問のみ。短時間で終わるよう簡潔に'
+        : '最重要ポイントから各科目1問ずつ、合計5問以内',
+      filterWeak: true
+    }
+  };
+  const config = modeConfig[mode];
+
+  // ローディング表示
   const overlay = document.createElement('div');
   overlay.id = 'diagOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;text-align:center;max-width:400px;width:100%">
+      <div style="font-size:32px;margin-bottom:12px">🔍</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">${config.label}</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">テスト範囲から問題を作っています...</div>
+      <div style="background:#F0F0F0;border-radius:20px;height:6px;overflow:hidden">
+        <div style="background:var(--accent);height:100%;border-radius:20px;
+                    animation:diagProgress 12s linear forwards"
+             id="diagProgressBar"></div>
+      </div>
+      <div style="font-size:11px;color:var(--ink3);margin-top:8px">
+        ${daysLeft <= 1 ? '5問だけなのですぐ終わるよ' : '10問程度・15秒ほどお待ちください'}
+      </div>
+    </div>
+    <style>
+      @keyframes diagProgress { from{width:0%} to{width:90%} }
+    </style>`;
+  document.body.appendChild(overlay);
 
-  const ratings = {};
-  exam.subjects.forEach(s => { ratings[s.subject] = null; });
+  try {
+    const subjectList = exam.subjects.map(s =>
+      s.subject + '（範囲：' + s.range + '）'
+    ).join('\n');
 
-  function renderDiagContent() {
-    const allRated = exam.subjects.every(s => ratings[s.subject] !== null);
-    const ratingOptions = [
-      { val:'perfect', label:'◎ バッチリ', color:'#4A9B5F', bg:'#E8F5E9' },
-      { val:'ok',      label:'○ なんとなく', color:'#2E7BB4', bg:'#E3F2FD' },
-      { val:'weak',    label:'△ 不安',     color:'#C8922A', bg:'#FFF3E0' },
-      { val:'lost',    label:'× わからない', color:'#D94F3D', bg:'#FEF2F0' },
-    ];
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': AppData.settings.apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 2000,
+        system: `中学1年生向けの理解度スクリーニングテストを作成してください。
+${config.prompt}。
+問題は自己申告ではなく「実際に解ける」かどうかを確認する具体的な問題にする。
+JSONのみ出力（コードブロック不要）。
 
-    return `
-      <div style="background:var(--bg);border-radius:16px;width:100%;max-width:480px;
-                  max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
-        <div style="padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
-          <div style="font-size:16px;font-weight:700;margin-bottom:2px">🔍 理解度診断</div>
-          <div style="font-size:12px;color:var(--ink3)">${exam.name}　正直に選んでね</div>
+{"questions":[
+  {
+    "subject": "科目名",
+    "category": "単元名",
+    "question": "具体的な問題文",
+    "answer": "正解",
+    "type": "calc|memo|concept",
+    "timeLimit": 60
+  }
+]}`,
+        messages: [{
+          role: 'user',
+          content: 'テスト名：' + exam.name + '\n残り日数：' + daysLeft + '日\n\n' + subjectList
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+
+    overlay.remove();
+    runDiagnosisSession(examId, exam, parsed.questions || [], mode);
+
+  } catch(e) {
+    overlay.remove();
+    showToast('診断問題の生成に失敗しました');
+  }
+}
+
+function runDiagnosisSession(examId, exam, questions, mode) {
+  window.diagSession = {
+    examId, exam, questions, mode: mode||'initial',
+    index: 0,
+    results: []
+  };
+  renderDiagQuestion();
+}
+
+function renderDiagQuestion() {
+  const { questions, index } = window.diagSession;
+
+  if (index >= questions.length) {
+    showDiagResult();
+    return;
+  }
+
+  const q   = questions[index];
+  const pct = Math.round(index / questions.length * 100);
+  const typeLabel = q.type === 'calc' ? '計算' : q.type === 'memo' ? '暗記' : '概念';
+  const typeColor = q.type === 'calc' ? 'var(--teal)' : q.type === 'memo' ? '#C8922A' : '#6B5FBB';
+
+  const overlay = document.createElement('div');
+  overlay.id = 'diagOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;
+                max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+
+      <!-- ヘッダー -->
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:700">🔍 理解度診断　${index+1}/${questions.length}</div>
+          <span style="font-size:11px;padding:2px 8px;border-radius:10px;
+                       background:${typeColor}20;color:${typeColor};font-weight:700">${typeLabel}</span>
         </div>
-        <div style="flex:1;overflow-y:auto;padding:16px 20px">
-          ${exam.subjects.map(s => `
-            <div style="margin-bottom:16px">
-              <div style="font-size:14px;font-weight:700;margin-bottom:6px">${s.subject}</div>
-              <div style="font-size:11px;color:var(--ink3);margin-bottom:8px">${s.range}</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">
-                ${ratingOptions.map(r => `
-                  <button onclick="diagRate('${s.subject}','${r.val}')"
-                          id="diag_${s.subject}_${r.val}"
-                          style="flex:1;min-width:60px;padding:8px 4px;border-radius:8px;
-                                 border:2px solid ${ratings[s.subject]===r.val ? r.color : 'var(--border)'};
-                                 background:${ratings[s.subject]===r.val ? r.bg : '#fff'};
-                                 color:${ratings[s.subject]===r.val ? r.color : 'var(--ink3)'};
-                                 font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer">
-                    ${r.label}
-                  </button>`).join('')}
+        <div style="background:#F0F0F0;border-radius:4px;height:5px">
+          <div style="background:var(--accent);width:${pct}%;height:100%;border-radius:4px"></div>
+        </div>
+      </div>
+
+      <!-- 問題 -->
+      <div style="flex:1;overflow-y:auto;padding:18px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">${q.subject}　${q.category}</div>
+        <div style="background:#fff;border:2px solid var(--accent);border-radius:12px;
+                    padding:18px;margin-bottom:16px">
+          <div style="font-size:16px;font-weight:600;line-height:1.8;white-space:pre-wrap">${q.question}</div>
+        </div>
+
+        ${q.type === 'concept' ? `
+          <div style="background:#F8F0FF;border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:#6B5FBB">
+            💡 ノートに書くか、頭の中で考えてみてから答えを確認してね
+          </div>` : q.type === 'calc' ? `
+          <div style="background:#EEF9F7;border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--teal)">
+            ⏱ ノートで計算してから答えを確認してね
+          </div>` : `
+          <div style="background:#FFF8EE;border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:#C8922A">
+            ✏️ 実際に書いてから答えを確認してね
+          </div>`}
+
+        <button onclick="showDiagAnswer()" class="btn btn-secondary"
+                style="width:100%;padding:12px;font-size:14px;margin-bottom:8px">
+          📋 答えを確認する
+        </button>
+
+        <!-- 答えエリア（最初は非表示） -->
+        <div id="diag_answer_area" style="display:none">
+          <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:16px">
+            <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">答え</div>
+            <div style="font-size:18px;font-weight:700;white-space:pre-wrap">${q.answer}</div>
+          </div>
+
+          <div style="font-size:14px;font-weight:700;text-align:center;margin-bottom:12px">実際に解けた？</div>
+          <div style="display:flex;gap:10px">
+            <button onclick="saveDiagResult('ok')"
+                    style="flex:1;padding:16px;background:#4A9B5F;color:#fff;border:none;
+                           border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">
+              ✅ 解けた
+            </button>
+            <button onclick="saveDiagResult('ng')"
+                    style="flex:1;padding:16px;background:#D94F3D;color:#fff;border:none;
+                           border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">
+              ❌ 解けなかった
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('diagOverlay')?.remove();
+  document.body.appendChild(overlay);
+}
+
+// ひっかけ問題・よく間違えるポイントガイド
+async function showTrapGuide(examId) {
+  const exam = (AppData.examRanges||[]).find(e => e.id === examId);
+  if (!exam) return;
+  if (!AppData.settings?.apiKey) { showToast('設定画面でAPIキーを入力してください'); return; }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'trapOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:32px;text-align:center;max-width:400px;width:100%">
+      <div style="font-size:32px;margin-bottom:12px">⚠️</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:6px">ひっかけポイントを生成中...</div>
+      <div style="font-size:12px;color:var(--ink3)">15秒ほどお待ちください</div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  try {
+    const subjectList = exam.subjects.map(s => s.subject + '（' + s.range + '）').join('\n');
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 1500,
+        system: `中学1年生のテスト対策として、よくあるひっかけ問題のパターンと頻出ミスポイントを教えてください。
+JSONのみ出力（コードブロック不要）。
+
+{"traps":[
+  {
+    "subject": "科目",
+    "category": "単元",
+    "trap": "ひっかけのパターン（1文で簡潔に）",
+    "example": "具体例（問題文と間違いやすいポイント）",
+    "correct": "正しい考え方"
+  }
+]}
+
+各科目2〜3個、合計10個以内。中学1年生が実際によく間違える本質的なポイントに絞る。`,
+        messages: [{ role:'user', content: 'テスト名：' + exam.name + '\n\n' + subjectList }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    const traps = parsed.traps || [];
+
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;
+                  max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+        <div style="padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0">
+          <div style="font-size:16px;font-weight:700">⚠️ ひっかけ・よく間違えるポイント</div>
+          <div style="font-size:11px;color:var(--ink3)">${exam.name}　テスト直前チェック</div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:16px 18px">
+          ${traps.map(t => `
+            <div style="background:#FFF8EE;border-radius:10px;padding:12px;margin-bottom:10px;
+                        border-left:4px solid #C8922A">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;
+                             background:#C8922A;color:#fff">${t.subject}</span>
+                <span style="font-size:12px;font-weight:700;color:var(--ink)">${t.category}</span>
               </div>
+              <div style="font-size:13px;font-weight:700;color:#C8922A;margin-bottom:4px">⚠️ ${t.trap}</div>
+              <div style="font-size:12px;color:var(--ink3);margin-bottom:6px;background:#fff;
+                          border-radius:6px;padding:6px 8px">${t.example}</div>
+              <div style="font-size:12px;color:var(--teal);font-weight:700">✓ ${t.correct}</div>
             </div>`).join('')}
         </div>
-        <div style="padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0">
-          <button onclick="${allRated ? 'finishDiagnosis(\'' + examId + '\')' : 'showToast(\'全科目を選んでください\')'}"
-                  style="width:100%;padding:13px;border-radius:20px;border:none;
-                         background:${allRated ? 'var(--accent)' : 'var(--bg2)'};
-                         color:${allRated ? '#fff' : 'var(--ink3)'};
-                         font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">
-            ${allRated ? '✓ 診断完了→ポメに確認してもらう' : '全科目を選んでください'}
+        <div style="padding:12px 18px;border-top:1px solid var(--border);flex-shrink:0">
+          <button onclick="document.getElementById('trapOverlay').remove()"
+                  class="btn btn-primary" style="width:100%;padding:12px">
+            わかった！閉じる
           </button>
         </div>
       </div>`;
+
+  } catch(e) {
+    overlay.remove();
+    showToast('生成に失敗しました');
+  }
+}
+
+function showDiagAnswer() {
+  document.getElementById('diag_answer_area').style.display = 'block';
+  document.querySelector('#diagOverlay .btn-secondary')?.style.setProperty('display','none');
+}
+
+function saveDiagResult(result) {
+  const { questions, index } = window.diagSession;
+  const q = questions[index];
+  window.diagSession.results.push({ ...q, result });
+  window.diagSession.index++;
+  renderDiagQuestion();
+}
+
+function showDiagResult() {
+  const { examId, exam, results, mode } = window.diagSession;
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+  const daysLeft = Math.ceil((new Date(exam.testDate) - todayD)/(1000*60*60*24));
+
+  // 結果集計
+  const okList = results.filter(r => r.result === 'ok');
+  const ngList = results.filter(r => r.result === 'ng');
+
+  // 前回診断を取得（比較用）
+  const prevDiags = Object.values(AppData.examDiagnosis||{})
+    .filter(d => d.examId === examId)
+    .sort((a,b) => b.date.localeCompare(a.date));
+  const prevDiag = prevDiags[0]; // 直前の診断（保存前）
+  const prevNgCategories = new Set(prevDiag ? (prevDiag.results||[]).filter(r=>r.result==='ng').map(r=>r.category) : []);
+
+  // カテゴリ別集計
+  const categoryMap = {};
+  results.forEach(r => {
+    const key = r.subject + '：' + r.category;
+    if (!categoryMap[key]) categoryMap[key] = { subject:r.subject, category:r.category, ok:0, ng:0, type:r.type };
+    categoryMap[key][r.result]++;
+  });
+
+  // 弱点を自動登録
+  ngList.forEach(r => {
+    if (!AppData.weakPoints) AppData.weakPoints = [];
+    const already = AppData.weakPoints.some(w => w.unit === r.category && w.subject === r.subject && w.active);
+    if (!already) {
+      AppData.weakPoints.push({
+        id: 'wp_diag_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+        subject: r.subject, unit: r.category, memo: r.question,
+        correctStreak: 0, nextDate: getTodayString(),
+        lastResult: null, active: true, status: 'practicing'
+      });
+    }
+  });
+
+  // 診断結果を保存
+  const diagKey = 'diag_' + examId + '_' + getTodayString();
+  if (!AppData.examDiagnosis) AppData.examDiagnosis = {};
+  AppData.examDiagnosis[diagKey] = {
+    examId, date: getTodayString(), mode,
+    results, okCount: okList.length, ngCount: ngList.length
+  };
+  saveData();
+
+  // 成長の可視化
+  let growthMsg = '';
+  if (prevDiag && prevDiag.results) {
+    const improved = okList.filter(r => prevNgCategories.has(r.category));
+    const stillNg  = ngList.filter(r => prevNgCategories.has(r.category));
+    if (improved.length > 0) {
+      growthMsg = '<div style="background:#E8F5E9;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#4A9B5F;font-weight:700">'
+        + '🎉 前回❌→今回✅：' + improved.map(r=>r.category).join('・') + '　よくなってる！'
+        + '</div>';
+    }
   }
 
-  overlay.innerHTML = renderDiagContent();
+  // モード別の作戦文
+  const scoreColor = ngList.length === 0 ? 'var(--green)' : ngList.length <= 2 ? '#C8922A' : 'var(--red)';
+  let strategyText = '';
+  if (mode === 'final' || daysLeft <= 3) {
+    if (ngList.length === 0) {
+      strategyText = '全部OK！今夜は早めに寝て、明日に備えよう💪';
+    } else {
+      strategyText = '残り' + daysLeft + '日の集中プラン：\n'
+        + ngList.map((r,i) => (i+1) + '日目：' + r.subject + '（' + r.category + '）を集中').join('\n');
+    }
+  } else if (daysLeft <= 7) {
+    strategyText = ngList.length > 0
+      ? '今週中に❌を全部○にする目標で進めよう\n弱点練習に自動登録済み・毎日出てくる'
+      : '全体OKの仕上げ段階！各単元1問ずつ確認して確実にしよう';
+  } else {
+    strategyText = ngList.length > 0
+      ? '今週：❌を○に　来週：全体を仕上げる\n弱点練習から始めよう'
+      : '全単元OK！仕上げは直前診断で確認しよう';
+  }
+
+  const categoryRows = Object.values(categoryMap).map(c => {
+    const isWeak = c.ng > 0;
+    const wasWeak = prevNgCategories.has(c.category);
+    const improved = !isWeak && wasWeak;
+    const strategy = isWeak
+      ? (c.type === 'calc' ? '計算を1分以内で解けるまで繰り返す'
+       : c.type === 'memo' ? '3回連続正解するまで暗記練習'
+       : 'ポメに「説明してみて」と話しかける')
+      : '直前に1問だけ確認して確実にする';
+    return '<div style="background:' + (improved?'#F0FFF4':isWeak?'#FEF2F0':'#F0FFF4') + ';border-radius:10px;padding:11px;'
+      + 'margin-bottom:7px;border-left:4px solid ' + (isWeak?'var(--red)':'var(--green)') + '">'
+      + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+      + '<span style="font-size:15px">' + (improved?'⬆️':isWeak?'❌':'✅') + '</span>'
+      + '<span style="font-size:13px;font-weight:700">' + c.subject + '　' + c.category + '</span>'
+      + (improved ? '<span style="font-size:10px;color:#4A9B5F;font-weight:700;background:#C8E6C9;padding:1px 5px;border-radius:8px">改善！</span>' : '')
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--ink3)">→ ' + strategy + '</div>'
+      + '</div>';
+  }).join('');
+
+  const overlay = document.getElementById('diagOverlay') || document.createElement('div');
+  overlay.id = 'diagOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;
+                max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+      <div style="padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-size:16px;font-weight:700">📊 診断結果</div>
+        <div style="font-size:11px;color:var(--ink3)">${exam.name}　テストまで${daysLeft}日　${new Date().toLocaleDateString('ja-JP')}</div>
+      </div>
+      <div style="flex:1;overflow-y:auto;padding:16px 18px">
+
+        <!-- スコア -->
+        <div style="text-align:center;margin-bottom:16px">
+          <div style="font-size:42px;font-weight:700;color:${scoreColor}">${okList.length}<span style="font-size:20px;color:var(--ink3)">/${results.length}</span></div>
+          <div style="font-size:12px;color:var(--ink3)">問正解</div>
+          ${ngList.length > 0
+            ? '<div style="font-size:12px;color:var(--red);font-weight:700;margin-top:4px">❌ ' + ngList.length + '単元を弱点に自動登録しました</div>'
+            : '<div style="font-size:12px;color:var(--green);font-weight:700;margin-top:4px">✅ 全問正解！仕上げに入ろう💪</div>'}
+        </div>
+
+        <!-- 成長の可視化 -->
+        ${growthMsg}
+
+        <!-- 単元マップ -->
+        <div style="font-size:12px;font-weight:700;color:var(--ink3);margin-bottom:8px">📋 単元マップ</div>
+        ${categoryRows}
+
+        <!-- 作戦 -->
+        <div style="background:linear-gradient(135deg,#FFF5EF,#fff);border:1.5px solid var(--accent);
+                    border-radius:12px;padding:14px;margin-top:8px;white-space:pre-line">
+          <div style="font-size:12px;font-weight:700;margin-bottom:6px">🎯 ${daysLeft <= 1?'今日の':'残り'+daysLeft+'日の'}作戦</div>
+          <div style="font-size:12px;color:var(--ink2);line-height:1.8">${strategyText}</div>
+        </div>
+      </div>
+
+      <!-- ボタン -->
+      <div style="padding:12px 18px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:10px">
+        <button onclick="document.getElementById('diagOverlay').remove();renderHome()"
+                class="btn btn-secondary" style="flex:1;padding:12px;font-size:13px">閉じる</button>
+        ${ngList.length > 0 ? `
+          <button onclick="document.getElementById('diagOverlay').remove();startWeakPointSession()"
+                  class="btn btn-primary" style="flex:1;padding:12px;font-size:13px">
+            今すぐ弱点練習 →
+          </button>` : ''}
+      </div>
+    </div>`;
+
+  document.getElementById('diagOverlay')?.remove();
   document.body.appendChild(overlay);
-
-  // diagRate関数をグローバルに
-  window._diagRatings = ratings;
-  window._diagExamId  = examId;
-  window._diagExam    = exam;
-  window._rerenderDiag = () => {
-    overlay.innerHTML = renderDiagContent();
-  };
+  updateWeakPointDailyItem();
+  renderHome();
 }
 
-function diagRate(subject, val) {
-  if (!window._diagRatings) return;
-  window._diagRatings[subject] = val;
-  window._rerenderDiag();
-}
+  // 結果を集計
+  const okList = results.filter(r => r.result === 'ok');
+  const ngList = results.filter(r => r.result === 'ng');
 
-function finishDiagnosis(examId) {
-  const ratings = window._diagRatings;
-  const exam    = window._diagExam;
-  if (!ratings || !exam) return;
+  // 科目・カテゴリ別に集計
+  const categoryMap = {};
+  results.forEach(r => {
+    const key = r.subject + '：' + r.category;
+    if (!categoryMap[key]) categoryMap[key] = { subject: r.subject, category: r.category, ok:0, ng:0, type: r.type };
+    categoryMap[key][r.result]++;
+  });
+
+  // 弱点を自動登録
+  ngList.forEach(r => {
+    if (!AppData.weakPoints) AppData.weakPoints = [];
+    const already = AppData.weakPoints.some(w => w.unit === r.category && w.subject === r.subject);
+    if (!already) {
+      AppData.weakPoints.push({
+        id: 'wp_diag_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+        subject: r.subject,
+        unit: r.category,
+        memo: r.question,
+        correctStreak: 0,
+        nextDate: getTodayString(),
+        lastResult: null,
+        active: true,
+        status: 'practicing'
+      });
+    }
+  });
 
   // 診断結果を保存
   if (!AppData.examDiagnosis) AppData.examDiagnosis = {};
   AppData.examDiagnosis['diag_' + examId] = {
-    examId, date: getTodayString(), ratings: {...ratings}
+    examId, date: getTodayString(),
+    results, okCount: okList.length, ngCount: ngList.length
   };
   saveData();
 
-  // モーダルを閉じる
-  document.getElementById('diagOverlay')?.remove();
-  renderHome(); // バナーを再描画（「再診断」に変わる）
+  // 結果画面を表示
+  const scoreColor = ngList.length === 0 ? 'var(--green)' :
+                     ngList.length <= 2 ? '#C8922A' : 'var(--red)';
 
-  // 弱点・不安科目をリストアップ
-  const weakSubjects  = exam.subjects.filter(s => ratings[s.subject] === 'lost');
-  const warnSubjects  = exam.subjects.filter(s => ratings[s.subject] === 'weak');
-  const checkSubjects = [...weakSubjects, ...warnSubjects];
+  const categoryRows = Object.values(categoryMap).map(c => {
+    const isWeak = c.ng > 0;
+    const strategy = isWeak
+      ? (c.type === 'calc' ? '計算を1分以内で解けるまで繰り返す' :
+         c.type === 'memo' ? '3回連続正解するまで暗記練習' :
+         'ポメに「説明してみて」と話しかける')
+      : '直前に1問だけ確認して確実にする';
+    return `
+      <div style="background:${isWeak?'#FEF2F0':'#F0FFF4'};border-radius:10px;padding:12px;
+                  margin-bottom:8px;border-left:4px solid ${isWeak?'var(--red)':'var(--green)'}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="font-size:16px">${isWeak?'❌':'✅'}</span>
+          <span style="font-size:13px;font-weight:700">${c.subject}　${c.category}</span>
+        </div>
+        <div style="font-size:11px;color:${isWeak?'var(--red)':'var(--green)'};font-weight:700;margin-bottom:2px">
+          ${isWeak?'要復習':'OK'}
+        </div>
+        <div style="font-size:11px;color:var(--ink3)">→ ${strategy}</div>
+      </div>`;
+  }).join('');
 
-  if (checkSubjects.length === 0) {
-    // 全部◎か○ → ポメに伝える
-    pomeQuickSend(exam.name + 'の理解度診断をしたよ。全科目バッチリかなんとなくだった。残り' +
-      Math.ceil((new Date(exam.testDate)-new Date().setHours(0,0,0,0))/(1000*60*60*24)) +
-      '日でどう仕上げればいい？');
-    return;
-  }
+  const overlay = document.getElementById('diagOverlay') || document.createElement('div');
+  overlay.id = 'diagOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:480px;
+                max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
 
-  // △×の科目をポメに確認してもらう
-  const weakList  = weakSubjects.map(s => s.subject).join('・');
-  const warnList  = warnSubjects.map(s => s.subject).join('・');
-  let msg = exam.name + 'の理解度診断をしたよ。\n';
-  if (weakList) msg += '× わからない：' + weakList + '\n';
-  if (warnList) msg += '△ 不安：' + warnList + '\n';
-  msg += '\nこれらの単元を一つずつ確認してほしい。まず一番心配な科目から「説明してみて」って聞いて。正解は言わないで、どこまでわかっているか確認してほしい。';
+      <!-- ヘッダー -->
+      <div style="padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="font-size:16px;font-weight:700;margin-bottom:2px">📊 診断結果</div>
+        <div style="font-size:12px;color:var(--ink3)">${exam.name}　テストまで${daysLeft}日</div>
+      </div>
 
-  pomeQuickSend(msg);
-}
+      <!-- スコア -->
+      <div style="flex:1;overflow-y:auto;padding:18px">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:40px;font-weight:700;color:${scoreColor}">${okList.length}/${results.length}</div>
+          <div style="font-size:13px;color:var(--ink3)">問正解</div>
+          ${ngList.length > 0 ? `
+            <div style="font-size:13px;color:var(--red);font-weight:700;margin-top:4px">
+              ${ngList.length}単元を弱点に自動登録しました
+            </div>` : `
+            <div style="font-size:13px;color:var(--green);font-weight:700;margin-top:4px">
+              全問正解！仕上げに入ろう💪
+            </div>`}
+        </div>
+
+        <!-- カテゴリ別マップ -->
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px">📋 単元マップ</div>
+        ${categoryRows}
+
+        <!-- 作戦まとめ -->
+        <div style="background:linear-gradient(135deg,#FFF5EF,#fff);border:1.5px solid var(--accent);
+                    border-radius:12px;padding:14px;margin-top:8px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px">🎯 残り${daysLeft}日の作戦</div>
+          ${ngList.length > 0 ? `
+            <div style="font-size:12px;color:var(--ink2);line-height:1.8">
+              <strong>❌ 要復習（${ngList.length}単元）</strong>を優先<br>
+              → 弱点練習に自動登録済み・毎日出てくる<br>
+              → 1単元ずつ確実に潰す<br><br>
+              ${daysLeft <= 3 ? `<strong>⚠️ 残り${daysLeft}日！</strong>今日から全力で！` :
+                daysLeft <= 7 ? '今週中に❌を全部○にする' :
+                '今週：❌を○に　来週：全体を仕上げる'}
+            </div>` : `
+            <div style="font-size:12px;color:var(--ink2);line-height:1.8">
+              全単元OK！直前は各単元1問ずつ確認して<br>
+              確実にミスをゼロにしよう
+            </div>`}
+        </div>
+      </div>
+
+      <!-- ボタン -->
+      <div style="padding:12px 18px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:10px">
+        <button onclick="document.getElementById('diagOverlay').remove();renderHome()"
+                class="btn btn-secondary" style="flex:1;padding:12px">閉じる</button>
+        ${ngList.length > 0 ? `
+          <button onclick="document.getElementById('diagOverlay').remove();startWeakPointSession()"
+                  class="btn btn-primary" style="flex:1;padding:12px">
+            今すぐ弱点練習 →
+          </button>` : ''}
+      </div>
+    </div>`;
 
 function showAnkiChoice() {
   const overlay = document.createElement('div');
@@ -3733,24 +4201,70 @@ function renderTestBanner() {
 
   const daysLeft = Math.ceil((new Date(nearExam.testDate) - todayD)/(1000*60*60*24));
   const urgency  = daysLeft <= 3 ? 'var(--red)' : daysLeft <= 7 ? '#C8922A' : 'var(--teal)';
-  const msg      = daysLeft === 0 ? '今日がテスト当日！' : daysLeft === 1 ? '明日がテスト！' : 'テストまであと' + daysLeft + '日！';
+  const msg      = daysLeft === 0 ? '今日がテスト当日！' :
+                   daysLeft === 1 ? '明日がテスト！' :
+                   'テストまであと' + daysLeft + '日！';
 
-  // 診断済みかチェック
-  const diagKey  = 'diag_' + nearExam.id;
-  const diagDone = AppData.examDiagnosis?.[diagKey];
+  // 診断履歴を取得
+  const diagHistory = (AppData.examDiagnosis||{});
+  const diagRecords = Object.values(diagHistory).filter(d => d.examId === nearExam.id)
+    .sort((a,b) => b.date.localeCompare(a.date));
+  const lastDiag  = diagRecords[0];
+  const diagCount = diagRecords.length;
+
+  // タイムラインに応じた診断ボタンを決定
+  let diagBtn = '';
+  if (daysLeft === 0) {
+    // 当日：診断不要
+    diagBtn = '';
+  } else if (daysLeft === 1) {
+    // 前日：最終確認モード
+    diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'final\')"'
+      + ' style="width:100%;padding:9px;border-radius:20px;border:none;background:var(--red);'
+      + 'color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
+      + '✅ 前日の最終確認（5分）</button>';
+  } else if (daysLeft <= 3) {
+    // 3日前：直前診断＋ひっかけガイド
+    diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'final\')"'
+      + ' style="width:100%;padding:9px;border-radius:20px;border:none;background:var(--red);'
+      + 'color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
+      + '🎯 直前診断・作戦を立てる</button>'
+      + '<button onclick="showTrapGuide(\'' + nearExam.id + '\')"'
+      + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid var(--red);background:#fff;'
+      + 'color:var(--red);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:6px">'
+      + '⚠️ ひっかけ・よく間違えるポイント</button>';
+  } else if (daysLeft <= 7) {
+    // 1週間前：中間診断
+    const label = lastDiag ? '🔍 中間診断（前回比較）' : '🔍 理解度を診断する';
+    diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'mid\')"'
+      + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid ' + urgency + ';background:#fff;'
+      + 'color:' + urgency + ';font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
+      + label + '</button>';
+  } else {
+    // 2週間前：初回診断
+    const label = lastDiag ? '🔍 理解度を再診断する' : '🔍 理解度を診断する（初回）';
+    diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'initial\')"'
+      + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid ' + urgency + ';background:#fff;'
+      + 'color:' + urgency + ';font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
+      + label + '</button>';
+  }
+
+  // 前回診断からの経過日数
+  const lastDiagInfo = lastDiag
+    ? '<div style="font-size:10px;color:var(--ink3);margin-top:4px">前回診断：' + lastDiag.date +
+      '　' + lastDiag.okCount + '/' + (lastDiag.okCount + lastDiag.ngCount) + '問正解</div>'
+    : '';
 
   return '<div style="background:linear-gradient(135deg,#FFF5EF,#fff);border:1.5px solid ' + urgency + ';'
     + 'border-radius:12px;padding:14px 18px;margin-bottom:20px;width:100%;max-width:360px">'
-    + '<div style="font-size:13px;font-weight:700;color:' + urgency + ';margin-bottom:4px">📅 ' + nearExam.name + '　' + msg + '</div>'
-    + '<div style="font-size:12px;color:var(--ink3);margin-bottom:10px">今日何をやるかポメに聞いてみよう</div>'
+    + '<div style="font-size:13px;font-weight:700;color:' + urgency + ';margin-bottom:2px">📅 ' + nearExam.name + '　' + msg + '</div>'
+    + lastDiagInfo
+    + '<div style="font-size:12px;color:var(--ink3);margin:8px 0">今日何をやるかポメに聞いてみよう</div>'
     + '<button onclick="pomeQuickSend(\'今日何をやればいい？\')"'
     + ' style="width:100%;padding:10px;border-radius:20px;border:none;background:' + urgency + ';'
-    + 'color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">'
+    + 'color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">'
     + '💬 今日何をやればいい？</button>'
-    + '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\')"'
-    + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid ' + urgency + ';background:#fff;'
-    + 'color:' + urgency + ';font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">'
-    + (diagDone ? '🔍 理解度を再診断する' : '🔍 理解度を診断する') + '</button>'
+    + diagBtn
     + '</div>';
 }
 
