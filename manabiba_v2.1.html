@@ -2373,13 +2373,10 @@ function renderDeskTaskCardCompact(t, showUp) {
           </span>
         </div>
         <div style="font-size:10px;color:${dayColor};${dayWeight}">
-          ${dayLabel}${t.memo ? `　<span style="color:var(--ink3);font-weight:400">${t.memo}</span>` : ''}
+          ${dayLabel}${t.memo ? '　<span style="color:var(--ink3);font-weight:400">' + t.memo + '</span>' : ''}
         </div>
       </div>
-      ${!t.done && showUp ? `
-        <button onclick="moveTaskUp('${cid}')"
-                style="border:none;background:#F5F5F5;border-radius:5px;padding:3px 7px;
-                       font-size:12px;cursor:pointer;flex-shrink:0;color:#999">↑</button>` : ''}
+      ${!t.done && showUp ? '<button onclick="moveTaskUp(\'' + cid + '\')" style="border:none;background:#F5F5F5;border-radius:5px;padding:3px 7px;font-size:12px;cursor:pointer;flex-shrink:0;color:#999">↑</button>' : ''}
     </div>`;
 }
 
@@ -10994,14 +10991,7 @@ function showAddStudyCard(prefSubject, prefDeck) {
     <div class="input-group">
       <label class="input-label">科目</label>
       <div style="display:flex;flex-wrap:wrap;gap:6px" id="sc_subject_btns">
-        ${SUBJECTS.map(s => `
-          <button onclick="selectCardSubject('${s}',this)"
-                  style="padding:6px 12px;border-radius:16px;border:1px solid var(--border);
-                         background:${s===prefSubject?'var(--accent)':'#fff'};
-                         color:${s===prefSubject?'#fff':'var(--ink2)'};
-                         font-family:var(--font);font-size:12px;cursor:pointer">
-            ${s}
-          </button>`).join('')}
+        ${SUBJECTS.map(subj => '<button onclick="selectCardSubject(\'' + subj + '\',this)" style="padding:6px 12px;border-radius:16px;border:1px solid var(--border);background:' + (subj===prefSubject?'var(--accent)':'#fff') + ';color:' + (subj===prefSubject?'#fff':'var(--ink2)') + ';font-family:var(--font);font-size:12px;cursor:pointer">' + subj + '</button>').join('')}
       </div>
       <input type="hidden" id="sc_subject" value="${prefSubject||''}">
     </div>
@@ -11081,7 +11071,7 @@ function showAddStudyCard(prefSubject, prefDeck) {
   window._scType = 'memo';
   if (prefSubject) {
     setTimeout(() => {
-      const btn = document.querySelector(`#sc_subject_btns button[onclick*="${prefSubject}"]`);
+      const btn = document.querySelector('#sc_subject_btns button[onclick*="' + prefSubject + '"]');
       if (btn) selectCardSubject(prefSubject, btn);
     }, 50);
   }
@@ -11129,12 +11119,7 @@ function previewBulkCards() {
     <div style="background:var(--bg2);border-radius:10px;padding:12px;font-size:12px">
       <div style="font-weight:700;margin-bottom:8px;color:var(--teal)">✓ ${pairs.length}枚を認識しました</div>
       <div style="max-height:120px;overflow-y:auto">
-        ${pairs.map(p => `
-          <div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)">
-            <span style="flex:1;color:var(--ink)">${p.question}</span>
-            <span style="color:var(--ink3)">→</span>
-            <span style="flex:1;color:var(--ink2)">${p.answer}</span>
-          </div>`).join('')}
+        ${pairs.map(p => '<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)"><span style="flex:1;color:var(--ink)">' + p.question + '</span><span style="color:var(--ink3)">→</span><span style="flex:1;color:var(--ink2)">' + p.answer + '</span></div>').join('')}
       </div>
     </div>`;
 }
@@ -11163,22 +11148,6 @@ function saveBulkCards() {
   showToast('✓ ' + pairs.length + '枚のカードを登録しました');
   showStudyCardDeck(subject, deck);
 }
-
-  content.innerHTML = `
-    <button class="btn btn-secondary" onclick="showStudyCardList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
-
-    <!-- カード種類 -->
-    <div class="input-group">
-      <label class="input-label">カードの種類</label>
-      <div style="display:flex;gap:8px">
-        <button id="sc_type_memo" onclick="selectCardType('memo')"
-                class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">
-          🧠 暗記カード<br><span style="font-size:10px;font-weight:400">用語・単語・年号など</span>
-        </button>
-        <button id="sc_type_problem" onclick="selectCardType('problem')"
-                class="btn btn-secondary" style="flex:1;padding:10px;font-size:13px">
-          📐 問題カード<br><span style="font-size:10px;font-weight:400">計算・文章題など</span>
-
 function selectCardType(type) {
   window._scType = type;
   const memo    = document.getElementById('sc_type_memo');
