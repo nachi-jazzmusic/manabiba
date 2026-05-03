@@ -2931,7 +2931,8 @@ async function startExamDiagnosis(examId, mode) {
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': AppData.settings.apiKey,
-        'anthropic-version': '2023-06-01'
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
@@ -3085,7 +3086,7 @@ async function showTrapGuide(examId) {
     const subjectList = exam.subjects.map(s => s.subject + '（' + s.range + '）').join('\n');
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01' },
+      headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
         max_tokens: 1500,
@@ -11226,7 +11227,7 @@ async function showSimilarProblem(cardId) {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01' },
+      headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
         max_tokens: 500,
