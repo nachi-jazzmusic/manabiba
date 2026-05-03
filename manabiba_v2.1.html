@@ -1696,6 +1696,23 @@ function cleanupDuplicates() {
     });
   }
 
+  // ④ word_session・kanjiをankiに統合
+  if (AppData.settings?.dailyItems) {
+    const hasAnki  = AppData.settings.dailyItems.some(d => d.type === 'anki');
+    const hasWord  = AppData.settings.dailyItems.some(d => d.type === 'word_session');
+    const hasKanji = AppData.settings.dailyItems.some(d => d.type === 'kanji');
+    if ((hasWord || hasKanji) && !hasAnki) {
+      AppData.settings.dailyItems = AppData.settings.dailyItems.filter(
+        d => d.type !== 'word_session' && d.type !== 'kanji'
+      );
+      AppData.settings.dailyItems.push({
+        id: 'anki_' + Date.now(),
+        type: 'anki', label: '暗記練習', icon: '🧠',
+        estimatedMin: 10, action: 'anki', detail: '英単語・漢字をまとめて練習'
+      });
+    }
+  }
+
   saveData();
 }
 
@@ -2359,6 +2376,7 @@ function renderDeskTaskCardCompact(t, showUp) {
 function renderAppTaskCardCompact(t) {
   const actionMap = {
     'word_session':    { fn:"startOutputSession('word')", color:'var(--teal)',    icon:'🔤' },
+    'anki':            { fn:"showAnkiChoice()",            color:'var(--teal)',    icon:'🧠' },
     'sentence_session':{ fn:"startOutputSession('word')", color:'var(--teal)',    icon:'🔤' },
     'eiken':           { fn:'startTodayEiken()',          color:'#C8922A',        icon:'🌟' },
     'bulk_test':       { fn:'showBulkTestSetup()',        color:'var(--purple)',  icon:'📋' },
@@ -2687,6 +2705,7 @@ function renderDeskTaskCard(t) {
 function renderAppTaskCard(t) {
   const actionMap = {
     'word_session':     { fn: "startOutputSession('word')",  color: 'var(--teal)',   icon: '🔤' },
+    'anki':             { fn: "showAnkiChoice()",             color: 'var(--teal)',   icon: '🧠' },
     'sentence_session': { fn: "startOutputSession('word')",  color: 'var(--teal)',   icon: '🔤' }, // 統合
     'eiken':            { fn: 'startTodayEiken()',            color: '#C8922A',       icon: '🌟' },
     'bulk_test':        { fn: 'showBulkTestSetup()',          color: 'var(--purple)', icon: '📋' },
@@ -2828,6 +2847,158 @@ function unmarkAppTaskDone(itemId) {
 
 // ── 今日の英検（自動単元提案） ──
 // ── 漢字練習 ──
+
+// 暗記練習：英単語か漢字かを選ぶ
+// ═══════════════════════════════════════
+// テスト前 理解度診断
+// ═══════════════════════════════════════
+
+function startExamDiagnosis(examId) {
+  const exam = (AppData.examRanges||[]).find(e => e.id === examId);
+  if (!exam || !exam.subjects || exam.subjects.length === 0) {
+    showToast('テスト範囲が登録されていません。保護者メニューから登録してください。');
+    return;
+  }
+
+  // 診断モーダルを表示
+  const overlay = document.createElement('div');
+  overlay.id = 'diagOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+
+  const ratings = {};
+  exam.subjects.forEach(s => { ratings[s.subject] = null; });
+
+  function renderDiagContent() {
+    const allRated = exam.subjects.every(s => ratings[s.subject] !== null);
+    const ratingOptions = [
+      { val:'perfect', label:'◎ バッチリ', color:'#4A9B5F', bg:'#E8F5E9' },
+      { val:'ok',      label:'○ なんとなく', color:'#2E7BB4', bg:'#E3F2FD' },
+      { val:'weak',    label:'△ 不安',     color:'#C8922A', bg:'#FFF3E0' },
+      { val:'lost',    label:'× わからない', color:'#D94F3D', bg:'#FEF2F0' },
+    ];
+
+    return `
+      <div style="background:var(--bg);border-radius:16px;width:100%;max-width:480px;
+                  max-height:85vh;display:flex;flex-direction:column;overflow:hidden">
+        <div style="padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0">
+          <div style="font-size:16px;font-weight:700;margin-bottom:2px">🔍 理解度診断</div>
+          <div style="font-size:12px;color:var(--ink3)">${exam.name}　正直に選んでね</div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:16px 20px">
+          ${exam.subjects.map(s => `
+            <div style="margin-bottom:16px">
+              <div style="font-size:14px;font-weight:700;margin-bottom:6px">${s.subject}</div>
+              <div style="font-size:11px;color:var(--ink3);margin-bottom:8px">${s.range}</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                ${ratingOptions.map(r => `
+                  <button onclick="diagRate('${s.subject}','${r.val}')"
+                          id="diag_${s.subject}_${r.val}"
+                          style="flex:1;min-width:60px;padding:8px 4px;border-radius:8px;
+                                 border:2px solid ${ratings[s.subject]===r.val ? r.color : 'var(--border)'};
+                                 background:${ratings[s.subject]===r.val ? r.bg : '#fff'};
+                                 color:${ratings[s.subject]===r.val ? r.color : 'var(--ink3)'};
+                                 font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer">
+                    ${r.label}
+                  </button>`).join('')}
+              </div>
+            </div>`).join('')}
+        </div>
+        <div style="padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0">
+          <button onclick="${allRated ? 'finishDiagnosis(\'' + examId + '\')' : 'showToast(\'全科目を選んでください\')'}"
+                  style="width:100%;padding:13px;border-radius:20px;border:none;
+                         background:${allRated ? 'var(--accent)' : 'var(--bg2)'};
+                         color:${allRated ? '#fff' : 'var(--ink3)'};
+                         font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">
+            ${allRated ? '✓ 診断完了→ポメに確認してもらう' : '全科目を選んでください'}
+          </button>
+        </div>
+      </div>`;
+  }
+
+  overlay.innerHTML = renderDiagContent();
+  document.body.appendChild(overlay);
+
+  // diagRate関数をグローバルに
+  window._diagRatings = ratings;
+  window._diagExamId  = examId;
+  window._diagExam    = exam;
+  window._rerenderDiag = () => {
+    overlay.innerHTML = renderDiagContent();
+  };
+}
+
+function diagRate(subject, val) {
+  if (!window._diagRatings) return;
+  window._diagRatings[subject] = val;
+  window._rerenderDiag();
+}
+
+function finishDiagnosis(examId) {
+  const ratings = window._diagRatings;
+  const exam    = window._diagExam;
+  if (!ratings || !exam) return;
+
+  // 診断結果を保存
+  if (!AppData.examDiagnosis) AppData.examDiagnosis = {};
+  AppData.examDiagnosis['diag_' + examId] = {
+    examId, date: getTodayString(), ratings: {...ratings}
+  };
+  saveData();
+
+  // モーダルを閉じる
+  document.getElementById('diagOverlay')?.remove();
+  renderHome(); // バナーを再描画（「再診断」に変わる）
+
+  // 弱点・不安科目をリストアップ
+  const weakSubjects  = exam.subjects.filter(s => ratings[s.subject] === 'lost');
+  const warnSubjects  = exam.subjects.filter(s => ratings[s.subject] === 'weak');
+  const checkSubjects = [...weakSubjects, ...warnSubjects];
+
+  if (checkSubjects.length === 0) {
+    // 全部◎か○ → ポメに伝える
+    pomeQuickSend(exam.name + 'の理解度診断をしたよ。全科目バッチリかなんとなくだった。残り' +
+      Math.ceil((new Date(exam.testDate)-new Date().setHours(0,0,0,0))/(1000*60*60*24)) +
+      '日でどう仕上げればいい？');
+    return;
+  }
+
+  // △×の科目をポメに確認してもらう
+  const weakList  = weakSubjects.map(s => s.subject).join('・');
+  const warnList  = warnSubjects.map(s => s.subject).join('・');
+  let msg = exam.name + 'の理解度診断をしたよ。\n';
+  if (weakList) msg += '× わからない：' + weakList + '\n';
+  if (warnList) msg += '△ 不安：' + warnList + '\n';
+  msg += '\nこれらの単元を一つずつ確認してほしい。まず一番心配な科目から「説明してみて」って聞いて。正解は言わないで、どこまでわかっているか確認してほしい。';
+
+  pomeQuickSend(msg);
+}
+
+function showAnkiChoice() {
+  const overlay = document.createElement('div');
+  overlay.id = 'ankiChoiceOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:16px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:16px 16px 0 0;padding:24px;width:100%;max-width:500px">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">🧠 暗記練習</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:20px">どちらを練習する？</div>
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <button onclick="document.getElementById('ankiChoiceOverlay').remove();startOutputSession('word')"
+                class="btn btn-primary" style="flex:1;padding:16px;font-size:14px">
+          🔤 英単語・暗記カード
+        </button>
+        <button onclick="document.getElementById('ankiChoiceOverlay').remove();startKanjiPractice()"
+                class="btn btn-secondary" style="flex:1;padding:16px;font-size:14px">
+          🖊️ 漢字練習
+        </button>
+      </div>
+      <button onclick="document.getElementById('ankiChoiceOverlay').remove()"
+              style="width:100%;padding:12px;border-radius:10px;border:none;background:var(--bg2);
+                     font-family:var(--font);font-size:13px;cursor:pointer;color:var(--ink3)">
+        キャンセル
+      </button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
 
 async function startKanjiPractice() {
   if (!AppData.settings?.apiKey) {
@@ -3564,14 +3735,23 @@ function renderTestBanner() {
   const urgency  = daysLeft <= 3 ? 'var(--red)' : daysLeft <= 7 ? '#C8922A' : 'var(--teal)';
   const msg      = daysLeft === 0 ? '今日がテスト当日！' : daysLeft === 1 ? '明日がテスト！' : 'テストまであと' + daysLeft + '日！';
 
+  // 診断済みかチェック
+  const diagKey  = 'diag_' + nearExam.id;
+  const diagDone = AppData.examDiagnosis?.[diagKey];
+
   return '<div style="background:linear-gradient(135deg,#FFF5EF,#fff);border:1.5px solid ' + urgency + ';'
     + 'border-radius:12px;padding:14px 18px;margin-bottom:20px;width:100%;max-width:360px">'
     + '<div style="font-size:13px;font-weight:700;color:' + urgency + ';margin-bottom:4px">📅 ' + nearExam.name + '　' + msg + '</div>'
     + '<div style="font-size:12px;color:var(--ink3);margin-bottom:10px">今日何をやるかポメに聞いてみよう</div>'
     + '<button onclick="pomeQuickSend(\'今日何をやればいい？\')"'
     + ' style="width:100%;padding:10px;border-radius:20px;border:none;background:' + urgency + ';'
-    + 'color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">'
-    + '💬 今日何をやればいい？</button></div>';
+    + 'color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px">'
+    + '💬 今日何をやればいい？</button>'
+    + '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\')"'
+    + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid ' + urgency + ';background:#fff;'
+    + 'color:' + urgency + ';font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">'
+    + (diagDone ? '🔍 理解度を再診断する' : '🔍 理解度を診断する') + '</button>'
+    + '</div>';
 }
 
 function renderAIChatInline() {
@@ -9646,10 +9826,9 @@ function showParentProgress() {
 // ── 保護者：毎日やること設定 ──
 
 const DAILY_ITEM_PRESETS = [
-  { type:'eiken',        label:'英検練習',     icon:'🌟', estimatedMin:10, action:'eiken',        detail:'今日の単元をAIが提案' },
-  { type:'word_session', label:'暗記カード',    icon:'🔤', estimatedMin:10, action:'word_session', detail:'単語・例文を一緒にやる' },
-  { type:'kanji',        label:'漢字練習',      icon:'🖊️', estimatedMin:10, action:'kanji',        detail:'学年に合った漢字をAIが出題' },
-  { type:'bulk_test',    label:'単語小テスト',  icon:'📋', estimatedMin:15, action:'bulk_test',    detail:'登録済みカードでテスト' },
+  { type:'eiken',        label:'英検練習',   icon:'🌟', estimatedMin:10, action:'eiken',        detail:'今日の単元をAIが提案' },
+  { type:'anki',         label:'暗記練習',   icon:'🧠', estimatedMin:10, action:'anki',         detail:'英単語・漢字をまとめて練習' },
+  { type:'bulk_test',    label:'単語小テスト', icon:'📋', estimatedMin:15, action:'bulk_test',    detail:'登録済みカードでテスト' },
 ];
 
 function showDailyItemsSettings() {
@@ -9841,6 +10020,12 @@ R5: ${data.R5?.join('、') || ''}
 - 上記の頻出単元を優先して出題する
 - 選択肢形式と記述形式を混ぜる（本番に合わせる）
 - 3年連続で出ている単元は特に重点的に出題する
+
+## 品質チェック（必須）
+問題を作ったら出力前に以下を確認する：
+- 問題文の中に答えが推測できるヒントが入っていないか
+- 文脈から答えが明らかにならないか
+- 上記に該当する場合は問題を作り直す
 `;
 }
 
@@ -10064,6 +10249,13 @@ function showAddExamRange(prefill) {
                        font-size:12px;cursor:pointer">
           ＋ ${s}
         </button>`).join('')}
+      <!-- 自由入力 -->
+      <button onclick="addExamSubjectRowCustom()"
+              style="padding:6px 12px;border-radius:16px;border:1px dashed var(--accent);
+                     background:#fff;color:var(--accent);font-family:var(--font);
+                     font-size:12px;cursor:pointer;font-weight:700">
+        ＋ その他（自由入力）
+      </button>
     </div>
 
     <button onclick="saveExamRange('${p.id||''}')" class="btn btn-primary"
@@ -10077,6 +10269,34 @@ function showAddExamRange(prefill) {
     const btn = content.querySelector(`.er-add-btn[data-subject="${s.subject}"]`);
     if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; }
   });
+}
+
+function addExamSubjectRowCustom() {
+  // インラインで科目名を入力させる
+  const list = document.getElementById('er_subjects_list');
+  if (!list) return;
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="er-subject-row" style="background:#fff;border-radius:10px;border:1px dashed var(--accent);
+                padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="text" placeholder="科目名（例：語彙・リスニング・作文）"
+               class="input-field er-custom-subject"
+               style="flex:1;font-size:13px;font-weight:700">
+        <button onclick="this.closest('.er-subject-row').remove()"
+                style="border:none;background:none;color:var(--ink3);font-size:18px;cursor:pointer">×</button>
+      </div>
+      <input type="text" class="input-field er-range" data-subject=""
+             placeholder="範囲（例：準2級全範囲・語彙1000語）"
+             style="margin-bottom:6px;font-size:13px"
+             oninput="this.dataset.subject=this.closest('.er-subject-row').querySelector('.er-custom-subject').value">
+      <input type="text" class="input-field er-advice" data-subject=""
+             placeholder="先生のアドバイス（任意）"
+             style="font-size:12px"
+             oninput="this.dataset.subject=this.closest('.er-subject-row').querySelector('.er-custom-subject').value">
+    </div>`;
+  list.appendChild(div.firstElementChild);
+  list.lastElementChild.querySelector('.er-custom-subject')?.focus();
 }
 
 function addExamSubjectRow(subject) {
@@ -10127,11 +10347,24 @@ function saveExamRange(existingId) {
   if (!testDate) { alert('テスト日を入力してください'); return; }
 
   const subjects = [];
-  document.querySelectorAll('.er-range').forEach(input => {
-    const subject = input.dataset.subject;
-    const range   = input.value.trim();
-    const advice  = document.querySelector(`.er-advice[data-subject="${subject}"]`)?.value.trim() || '';
-    if (range) subjects.push({ subject, range, advice });
+  document.querySelectorAll('.er-subject-row').forEach(row => {
+    // 自由入力の場合は科目名をer-custom-subjectから取得
+    const customInput = row.querySelector('.er-custom-subject');
+    const rangeInput  = row.querySelector('.er-range');
+    const adviceInput = row.querySelector('.er-advice');
+    if (!rangeInput) return;
+
+    const subject = customInput ? customInput.value.trim() : rangeInput.dataset.subject;
+    const range   = rangeInput.value.trim();
+    const advice  = adviceInput?.value.trim() || '';
+
+    // 自由入力の場合はdata-subjectを更新
+    if (customInput) {
+      rangeInput.dataset.subject  = subject;
+      if (adviceInput) adviceInput.dataset.subject = subject;
+    }
+
+    if (subject && range) subjects.push({ subject, range, advice });
   });
 
   if (subjects.length === 0) { showToast('少なくとも1科目の範囲を入力してください'); return; }
@@ -10237,6 +10470,407 @@ function bulkRegisterExamHomework(examId) {
   renderHome();
 }
 
+// ═══════════════════════════════════════
+// 汎用カード管理
+// AppData.studyCards = [{
+//   id, type('memo'|'problem'), subject, deck,
+//   question, answer, hint,
+//   lastResult, nextDate, streak
+// }]
+// ═══════════════════════════════════════
+
+function showStudyCardList() {
+  document.getElementById('parentModalTitle').textContent = '🃏 カード管理';
+  const content = document.getElementById('parentContent');
+  const cards = AppData.studyCards || [];
+
+  // デッキ（科目＋名前）でグループ化
+  const decks = {};
+  cards.forEach(c => {
+    const key = c.subject + '：' + c.deck;
+    if (!decks[key]) decks[key] = { subject: c.subject, deck: c.deck, memo: 0, problem: 0 };
+    decks[key][c.type]++;
+  });
+
+  const deckRows = Object.entries(decks).map(([key, d]) => `
+    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);
+                padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;
+                cursor:pointer" onclick="showStudyCardDeck('${d.subject}','${d.deck}')">
+      <div style="font-size:24px">🃏</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700">${key}</div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:2px">
+          ${d.memo > 0 ? `暗記${d.memo}枚` : ''}${d.memo>0&&d.problem>0?' · ':''}${d.problem > 0 ? `問題${d.problem}枚` : ''}
+        </div>
+      </div>
+      <span style="color:var(--ink3)">›</span>
+    </div>`).join('');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+    <button onclick="showAddStudyCard()" class="btn btn-primary"
+            style="width:100%;padding:13px;font-size:14px;margin-bottom:20px">
+      ＋ カードを追加する
+    </button>
+    ${cards.length === 0 ? `
+      <div style="text-align:center;padding:32px;color:var(--ink3)">
+        <div style="font-size:40px;margin-bottom:12px">🃏</div>
+        <div style="font-size:13px;line-height:1.8">
+          繰り返し練習したい問題や<br>覚えたいことをカードに登録しよう
+        </div>
+      </div>` : deckRows}
+  `;
+}
+
+function showStudyCardDeck(subject, deck) {
+  document.getElementById('parentModalTitle').textContent = subject + '：' + deck;
+  const content = document.getElementById('parentContent');
+  const cards = (AppData.studyCards || []).filter(c => c.subject === subject && c.deck === deck);
+
+  const rows = cards.map(c => `
+    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);
+                padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:11px;padding:1px 7px;border-radius:10px;font-weight:700;
+                     background:${c.type==='memo'?'#E8F5F2':'#FEF2F0'};
+                     color:${c.type==='memo'?'#2E8B6E':'#D94F3D'}">
+          ${c.type==='memo'?'暗記':'問題'}
+        </span>
+        <div style="font-size:13px;font-weight:700;flex:1">${c.question}</div>
+      </div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">${c.answer}</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="deleteStudyCard('${c.id}')"
+                style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
+      </div>
+    </div>`).join('');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showStudyCardList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+    <button onclick="startStudyCardSession('${subject}','${deck}')" class="btn btn-primary"
+            style="width:100%;padding:13px;font-size:14px;margin-bottom:16px">
+      ▶ このデッキを練習する
+    </button>
+    ${rows}
+    <button onclick="showAddStudyCard('${subject}','${deck}')" class="btn btn-secondary"
+            style="width:100%;padding:12px;font-size:13px;margin-top:8px">
+      ＋ このデッキにカードを追加
+    </button>
+  `;
+}
+
+function showAddStudyCard(prefSubject, prefDeck) {
+  document.getElementById('parentModalTitle').textContent = '＋ カードを追加';
+  const content = document.getElementById('parentContent');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showStudyCardList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <!-- カード種類 -->
+    <div class="input-group">
+      <label class="input-label">カードの種類</label>
+      <div style="display:flex;gap:8px">
+        <button id="sc_type_memo" onclick="selectCardType('memo')"
+                class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">
+          🧠 暗記カード<br><span style="font-size:10px;font-weight:400">用語・単語・年号など</span>
+        </button>
+        <button id="sc_type_problem" onclick="selectCardType('problem')"
+                class="btn btn-secondary" style="flex:1;padding:10px;font-size:13px">
+          📐 問題カード<br><span style="font-size:10px;font-weight:400">計算・文章題など</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 科目 -->
+    <div class="input-group">
+      <label class="input-label">科目</label>
+      <div style="display:flex;flex-wrap:wrap;gap:6px" id="sc_subject_btns">
+        ${SUBJECTS.map(s => `
+          <button onclick="selectCardSubject('${s}',this)"
+                  style="padding:6px 12px;border-radius:16px;border:1px solid var(--border);
+                         background:${s===prefSubject?'var(--accent)':'#fff'};
+                         color:${s===prefSubject?'#fff':'var(--ink2)'};
+                         font-family:var(--font);font-size:12px;cursor:pointer">
+            ${s}
+          </button>`).join('')}
+      </div>
+      <input type="hidden" id="sc_subject" value="${prefSubject||''}">
+    </div>
+
+    <!-- デッキ名 -->
+    <div class="input-group">
+      <label class="input-label">デッキ名（単元・テーマ）</label>
+      <input type="text" class="input-field" id="sc_deck"
+             placeholder="例：正負の数、同音異義語、化学式"
+             value="${prefDeck||''}">
+    </div>
+
+    <!-- 問題 -->
+    <div class="input-group">
+      <label class="input-label" id="sc_q_label">問題・表</label>
+      <textarea class="input-field" id="sc_question" rows="3"
+                placeholder="問題文や覚えたいことを書く"
+                style="resize:none;font-size:14px"></textarea>
+    </div>
+
+    <!-- 答え -->
+    <div class="input-group">
+      <label class="input-label" id="sc_a_label">答え・裏</label>
+      <textarea class="input-field" id="sc_answer" rows="2"
+                placeholder="答えや意味を書く"
+                style="resize:none;font-size:14px"></textarea>
+    </div>
+
+    <!-- ヒント（任意） -->
+    <div class="input-group">
+      <label class="input-label">ヒント・解説（任意）</label>
+      <input type="text" class="input-field" id="sc_hint"
+             placeholder="例：「こうえん」と読む同音異義語">
+    </div>
+
+    <button onclick="saveStudyCard()" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px">
+      ✓ カードを登録する
+    </button>
+  `;
+
+  window._scType = 'memo';
+  if (prefSubject) {
+    // 科目ボタンを選択状態に
+    document.querySelector(`#sc_subject_btns button[onclick*="${prefSubject}"]`)?.click();
+  }
+}
+
+function selectCardType(type) {
+  window._scType = type;
+  const memo    = document.getElementById('sc_type_memo');
+  const problem = document.getElementById('sc_type_problem');
+  if (type === 'memo') {
+    memo.className    = 'btn btn-primary';
+    problem.className = 'btn btn-secondary';
+    document.getElementById('sc_q_label').textContent = '表（覚えたいこと）';
+    document.getElementById('sc_a_label').textContent = '裏（意味・答え）';
+    document.getElementById('sc_question').placeholder = '例：光合成';
+    document.getElementById('sc_answer').placeholder   = '例：植物が光でデンプンを作る働き';
+  } else {
+    memo.className    = 'btn btn-secondary';
+    problem.className = 'btn btn-primary';
+    document.getElementById('sc_q_label').textContent = '問題文';
+    document.getElementById('sc_a_label').textContent = '答え';
+    document.getElementById('sc_question').placeholder = '例：分速80mで歩くと1秒に何m進む？';
+    document.getElementById('sc_answer').placeholder   = '例：1と1/3m（80÷60=4/3）';
+  }
+}
+
+function selectCardSubject(subject, btn) {
+  document.getElementById('sc_subject').value = subject;
+  document.querySelectorAll('#sc_subject_btns button').forEach(b => {
+    b.style.background = '#fff';
+    b.style.color = 'var(--ink2)';
+    b.style.borderColor = 'var(--border)';
+  });
+  btn.style.background  = 'var(--accent)';
+  btn.style.color       = '#fff';
+  btn.style.borderColor = 'var(--accent)';
+}
+
+function saveStudyCard() {
+  const subject  = document.getElementById('sc_subject')?.value;
+  const deck     = document.getElementById('sc_deck')?.value.trim();
+  const question = document.getElementById('sc_question')?.value.trim();
+  const answer   = document.getElementById('sc_answer')?.value.trim();
+  const hint     = document.getElementById('sc_hint')?.value.trim() || '';
+  const type     = window._scType || 'memo';
+
+  if (!subject) { showToast('科目を選んでください'); return; }
+  if (!deck)    { showToast('デッキ名を入力してください'); return; }
+  if (!question){ showToast('問題・表を入力してください'); return; }
+  if (!answer)  { showToast('答え・裏を入力してください'); return; }
+
+  if (!AppData.studyCards) AppData.studyCards = [];
+  AppData.studyCards.push({
+    id: 'sc_' + Date.now(),
+    type, subject, deck, question, answer, hint,
+    streak: 0, lastResult: null, nextDate: getTodayString()
+  });
+
+  saveData();
+  showToast('✓ カードを登録しました');
+  showAddStudyCard(subject, deck);
+}
+
+function deleteStudyCard(id) {
+  if (!confirm('このカードを削除しますか？')) return;
+  AppData.studyCards = (AppData.studyCards||[]).filter(c => c.id !== id);
+  saveData();
+  showToast('削除しました');
+  showStudyCardList();
+}
+
+// カード練習セッション
+function startStudyCardSession(subject, deck) {
+  const cards = (AppData.studyCards||[])
+    .filter(c => c.subject === subject && c.deck === deck)
+    .sort(() => Math.random() - 0.5);
+  if (cards.length === 0) { showToast('カードがありません'); return; }
+
+  closeParentModal();
+  document.getElementById('outputModalTitle').textContent = '🃏 ' + subject + '：' + deck;
+  document.getElementById('outputModal').classList.add('show');
+
+  window.scSession = { cards, index: 0, subject, deck };
+  renderStudyCard();
+}
+
+function renderStudyCard() {
+  const content = document.getElementById('outputContent');
+  const { cards, index } = window.scSession;
+  if (index >= cards.length) {
+    content.innerHTML = `
+      <div style="text-align:center;padding:40px 20px">
+        <div style="font-size:48px;margin-bottom:16px">🎉</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:8px">全部終わった！</div>
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:24px">${cards.length}枚完了</div>
+        <button onclick="closeOutputModal()" class="btn btn-primary" style="padding:14px 32px">閉じる</button>
+      </div>`;
+    return;
+  }
+
+  const c = cards[index];
+  const pct = Math.round(index/cards.length*100);
+  const isMemo = c.type === 'memo';
+
+  content.innerHTML = `
+    <!-- プログレス -->
+    <div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
+        <span>${isMemo?'🧠 暗記':'📐 問題'}カード</span>
+        <span>${index+1} / ${cards.length}</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:4px;height:5px">
+        <div style="background:var(--accent);width:${pct}%;height:100%;border-radius:4px"></div>
+      </div>
+    </div>
+
+    <!-- 問題 -->
+    <div style="background:#fff;border:2px solid var(--accent);border-radius:12px;
+                padding:20px;margin-bottom:16px;min-height:80px">
+      <div style="font-size:11px;color:var(--accent);font-weight:700;margin-bottom:8px">
+        ${isMemo?'表':'問題'}
+      </div>
+      <div style="font-size:16px;font-weight:600;line-height:1.8;white-space:pre-wrap">${c.question}</div>
+    </div>
+
+    <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:10px">
+      ノートで考えてから答えを確認してね
+    </div>
+    <button onclick="showStudyCardAnswer()" class="btn btn-secondary"
+            style="width:100%;padding:12px;font-size:14px;margin-bottom:8px">
+      📋 答えを確認する
+    </button>
+
+    <!-- 答えエリア -->
+    <div id="sc_answer_area" style="display:none">
+      <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">${isMemo?'裏':'答え'}</div>
+        <div style="font-size:18px;font-weight:700;white-space:pre-wrap;margin-bottom:${c.hint?'10px':'0'}">${c.answer}</div>
+        ${c.hint ? `<div style="font-size:12px;color:var(--teal);border-top:1px solid var(--border);padding-top:8px">💡 ${c.hint}</div>` : ''}
+      </div>
+
+      ${c.type === 'problem' ? `
+        <button onclick="showSimilarProblem('${c.id}')"
+                style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--teal);
+                       background:#fff;color:var(--teal);font-family:var(--font);font-size:13px;
+                       font-weight:700;cursor:pointer;margin-bottom:12px">
+          🔀 類似問題を出してもらう
+        </button>` : ''}
+
+      <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:10px">どうだった？</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="saveStudyCardResult('${c.id}','perfect')"
+                style="padding:12px;background:#4A9B5F;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+          ✅ 完璧に答えられた
+        </button>
+        <button onclick="saveStudyCardResult('${c.id}','hint')"
+                style="padding:12px;background:#C8922A;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+          💡 見たらわかった
+        </button>
+        <button onclick="saveStudyCardResult('${c.id}','wrong')"
+                style="padding:12px;background:#D94F3D;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+          ❌ わからなかった
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function showStudyCardAnswer() {
+  document.getElementById('sc_answer_area').style.display = 'block';
+  document.querySelector('#outputContent button.btn-secondary')?.remove();
+}
+
+function saveStudyCardResult(cardId, result) {
+  const card = (AppData.studyCards||[]).find(c => c.id === cardId);
+  if (card) {
+    if (result === 'perfect') {
+      card.streak = (card.streak||0) + 1;
+      card.lastResult = '◎';
+    } else if (result === 'hint') {
+      card.streak = Math.max((card.streak||0)-1, 0);
+      card.lastResult = '△';
+    } else {
+      card.streak = 0;
+      card.lastResult = '×';
+    }
+    saveData();
+  }
+  window.scSession.index++;
+  renderStudyCard();
+}
+
+async function showSimilarProblem(cardId) {
+  const card = (AppData.studyCards||[]).find(c => c.id === cardId);
+  if (!card) return;
+  if (!AppData.settings?.apiKey) { showToast('設定画面でAPIキーを入力してください'); return; }
+
+  const btn = document.querySelector('button[onclick*="showSimilarProblem"]');
+  if (btn) { btn.textContent = '⏳ 生成中...'; btn.disabled = true; }
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 500,
+        system: '中学1年生向けの類似問題を1問だけ作ってください。JSONのみ出力（コードブロック不要）。\n{"question":"問題文","answer":"答え（計算過程も）","hint":"解説1文"}',
+        messages: [{ role: 'user', content: `以下の問題と同じ単元の類似問題を1問作ってください。\n\n元の問題：${card.question}\n答え：${card.answer}\n科目：${card.subject}` }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+
+    // 類似問題を表示
+    const area = document.getElementById('sc_answer_area');
+    if (area) {
+      const div = document.createElement('div');
+      div.style.cssText = 'background:#EEF9F7;border-radius:12px;padding:16px;margin-top:12px';
+      div.innerHTML = `
+        <div style="font-size:11px;color:var(--teal);font-weight:700;margin-bottom:8px">🔀 類似問題</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:10px">${parsed.question}</div>
+        <details>
+          <summary style="font-size:12px;color:var(--teal);cursor:pointer">答えを見る</summary>
+          <div style="margin-top:8px;font-size:14px;font-weight:700">${parsed.answer}</div>
+          ${parsed.hint ? `<div style="font-size:12px;color:var(--ink3);margin-top:4px">${parsed.hint}</div>` : ''}
+        </details>`;
+      area.appendChild(div);
+    }
+  } catch(e) {
+    showToast('類似問題の生成に失敗しました');
+  }
+}
+
 function toggleSaitama(subject) {
   if (!AppData.testPrepItems) AppData.testPrepItems = [];
 
@@ -10249,12 +10883,11 @@ function toggleSaitama(subject) {
     saveData();
     showToast(`埼玉県学力調査（${subject}）をOFFにしました`);
   } else {
-    // ONにする（来年4月を期限に設定）
-    const nextApril = new Date();
-    nextApril.setMonth(3);
-    nextApril.setDate(20);
-    if (nextApril < new Date()) nextApril.setFullYear(nextApril.getFullYear() + 1);
-    const testDate = nextApril.toISOString().split('T')[0];
+    // ONにする（毎年5月12日頃）
+    const now = new Date();
+    const nextSaitama = new Date(now.getFullYear(), 4, 12); // 5月12日
+    if (nextSaitama < now) nextSaitama.setFullYear(nextSaitama.getFullYear() + 1);
+    const testDate = nextSaitama.toISOString().split('T')[0];
 
     AppData.testPrepItems.push({
       id: `tp_saitama_${subject}_${Date.now()}`,
@@ -10761,6 +11394,7 @@ async function startWeakPointSession() {
 
 # 厳守事項
 - questionには答えを絶対に含めない
+- 問題文の中に答えが推測できるヒントを入れない（文脈から答えが明らかにならないこと）
 - 全て日本語で出力する
 - 出題範囲：小学校〜中学1年生前半（正の数・負の数の基本、文字式の基本まで）
 - 方程式（2x+3=7など）・連立方程式など未習内容は出題しない
@@ -10926,6 +11560,10 @@ function renderQAQuestion() {
                 class="btn" style="padding:13px;background:#888;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
           📚 まだ習っていない
         </button>
+        <button onclick="saveQAResult('skip')"
+                class="btn" style="padding:10px;background:none;color:var(--ink3);font-size:12px;border-radius:10px;border:1px solid var(--border)">
+          🚫 この問題おかしい（スキップ）
+        </button>
       </div>
     </div>
   `;
@@ -10949,7 +11587,13 @@ function saveQAResult(result) {
   if (isWeakPoint && q.weakPointId) {
     const wp = (AppData.weakPoints || []).find(w => w.id === q.weakPointId);
     if (wp) {
-      if (result === 'notlearned') {
+      if (result === 'skip') {
+        // スキップ：弱点には記録せず次へ
+        showToast('スキップしました');
+        window.qaSession.index++;
+        renderQAQuestion();
+        return;
+      } else if (result === 'notlearned') {
         const next = new Date(); next.setDate(next.getDate() + 7);
         wp.nextDate = next.toISOString().split('T')[0];
         wp.lastResult = '未';
@@ -11214,6 +11858,19 @@ function showParentMenu(section) {
           <div style="font-weight:700;font-size:14px">宿題を登録する</div>
           <div style="font-size:11px;color:var(--ink3);margin-top:3px">
             ${undoneHw.length > 0 ? `現在 ${undoneHw.length}件登録中` : '登録なし'}
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
+
+      <!-- カードを登録する -->
+      <button onclick="showStudyCardList()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">🃏</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">カードを登録する</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            暗記カード・問題カード（数学・国語・理科など何でも）
           </div>
         </div>
         <span style="margin-left:auto;color:var(--ink3)">›</span>
@@ -13499,7 +14156,7 @@ function openScheduleModal() {
   }
 
   // アプリでやるもの
-  var colorMap = { word_session:'var(--teal)', eiken:'#C8922A', kanji:'#444', bulk_test:'var(--purple)', test_prep:'var(--red)', weak_point:'#8B4513' };
+  var colorMap = { word_session:'var(--teal)', anki:'var(--teal)', eiken:'#C8922A', kanji:'#444', bulk_test:'var(--purple)', test_prep:'var(--red)', weak_point:'#8B4513' };
   var iconMap  = { word_session:'🔤', eiken:'🌟', kanji:'🖊️', bulk_test:'📋', test_prep:'🎯', weak_point:'⚠️' };
 
   let appHtml = '';
@@ -13511,6 +14168,7 @@ function openScheduleModal() {
       var ic = iconMap[t.action]  || '📚';
       var fnStr = '';
       if (t.action === 'word_session') fnStr = "startOutputSession('word')";
+      else if (t.action === 'anki')     fnStr = 'showAnkiChoice()';
       else if (t.action === 'eiken')   fnStr = 'startTodayEiken()';
       else if (t.action === 'kanji')   fnStr = 'startKanjiPractice()';
       else if (t.action === 'bulk_test') fnStr = 'showBulkTestSetup()';
