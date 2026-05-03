@@ -4061,85 +4061,78 @@ function renderNormalHome(todayPlan) {
 // インライン表示用のAIチャット（Claude/Gemini風）
 function renderTestBanner() {
   const todayD = new Date(); todayD.setHours(0,0,0,0);
-  const nearExam = (AppData.examRanges||[])
+  const nearExams = (AppData.examRanges||[])
     .filter(e => {
       const d = new Date(e.testDate);
       const days = Math.ceil((d - todayD)/(1000*60*60*24));
       return days >= 0 && days <= 14;
     })
-    .sort((a,b) => a.testDate.localeCompare(b.testDate))[0];
+    .sort((a,b) => a.testDate.localeCompare(b.testDate));
 
-  if (!nearExam) {
+  if (nearExams.length === 0) {
     return '<div style="font-size:13px;color:var(--ink3);line-height:1.8;margin-bottom:24px">勉強で分からないことがあったら<br>なんでも聞いてね😊</div>';
   }
 
-  const daysLeft = Math.ceil((new Date(nearExam.testDate) - todayD)/(1000*60*60*24));
-  const urgency  = daysLeft <= 3 ? 'var(--red)' : daysLeft <= 7 ? '#C8922A' : 'var(--teal)';
-  const msg      = daysLeft === 0 ? '今日がテスト当日！' :
-                   daysLeft === 1 ? '明日がテスト！' :
-                   'テストまであと' + daysLeft + '日！';
+  return nearExams.map(nearExam => {
+    const daysLeft = Math.ceil((new Date(nearExam.testDate) - todayD)/(1000*60*60*24));
+    const urgency  = daysLeft <= 3 ? 'var(--red)' : daysLeft <= 7 ? '#C8922A' : 'var(--teal)';
+    const msg      = daysLeft === 0 ? '今日がテスト当日！' :
+                     daysLeft === 1 ? '明日がテスト！' :
+                     'テストまであと' + daysLeft + '日！';
 
-  // 診断履歴を取得
-  const diagHistory = (AppData.examDiagnosis||{});
-  const diagRecords = Object.values(diagHistory).filter(d => d.examId === nearExam.id)
-    .sort((a,b) => b.date.localeCompare(a.date));
-  const lastDiag  = diagRecords[0];
-  const diagCount = diagRecords.length;
+    const diagHistory = (AppData.examDiagnosis||{});
+    const diagRecords = Object.values(diagHistory).filter(d => d.examId === nearExam.id)
+      .sort((a,b) => b.date.localeCompare(a.date));
+    const lastDiag = diagRecords[0];
 
-  // タイムラインに応じた診断ボタンを決定
-  let diagBtn = '';
-  if (daysLeft === 0) {
-    // 当日：診断不要
-    diagBtn = '';
-  } else if (daysLeft === 1) {
-    // 前日：最終確認モード
-    diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'final\')"'
-      + ' style="width:100%;padding:9px;border-radius:20px;border:none;background:var(--red);'
-      + 'color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
-      + '✅ 前日の最終確認（5分）</button>';
-  } else if (daysLeft <= 3) {
-    // 3日前：直前診断＋ひっかけガイド
-    diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'final\')"'
-      + ' style="width:100%;padding:9px;border-radius:20px;border:none;background:var(--red);'
-      + 'color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
-      + '🎯 直前診断・作戦を立てる</button>'
-      + '<button onclick="showTrapGuide(\'' + nearExam.id + '\')"'
-      + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid var(--red);background:#fff;'
-      + 'color:var(--red);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:6px">'
-      + '⚠️ ひっかけ・よく間違えるポイント</button>';
-  } else if (daysLeft <= 7) {
-    // 1週間前：中間診断
-    const label = lastDiag ? '🔍 中間診断（前回比較）' : '🔍 理解度を診断する';
-    diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'mid\')"'
-      + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid ' + urgency + ';background:#fff;'
-      + 'color:' + urgency + ';font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
-      + label + '</button>';
-  } else {
-    // 2週間前：初回診断
-    const label = lastDiag ? '🔍 理解度を再診断する' : '🔍 理解度を診断する（初回）';
-    diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'initial\')"'
-      + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid ' + urgency + ';background:#fff;'
-      + 'color:' + urgency + ';font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
-      + label + '</button>';
-  }
+    let diagBtn = '';
+    if (daysLeft === 0) {
+      diagBtn = '';
+    } else if (daysLeft === 1) {
+      diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'final\')"'
+        + ' style="width:100%;padding:9px;border-radius:20px;border:none;background:var(--red);'
+        + 'color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
+        + '✅ 前日の最終確認（5分）</button>';
+    } else if (daysLeft <= 3) {
+      diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'final\')"'
+        + ' style="width:100%;padding:9px;border-radius:20px;border:none;background:var(--red);'
+        + 'color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
+        + '🎯 直前診断・作戦を立てる</button>'
+        + '<button onclick="showTrapGuide(\'' + nearExam.id + '\')"'
+        + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid var(--red);background:#fff;'
+        + 'color:var(--red);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:6px">'
+        + '⚠️ ひっかけ・よく間違えるポイント</button>';
+    } else if (daysLeft <= 7) {
+      const label = lastDiag ? '🔍 中間診断（前回比較）' : '🔍 理解度を診断する';
+      diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'mid\')"'
+        + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid ' + urgency + ';background:#fff;'
+        + 'color:' + urgency + ';font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
+        + label + '</button>';
+    } else {
+      const label = lastDiag ? '🔍 理解度を再診断する' : '🔍 理解度を診断する（初回）';
+      diagBtn = '<button onclick="startExamDiagnosis(\'' + nearExam.id + '\',\'initial\')"'
+        + ' style="width:100%;padding:9px;border-radius:20px;border:1.5px solid ' + urgency + ';background:#fff;'
+        + 'color:' + urgency + ';font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-top:8px">'
+        + label + '</button>';
+    }
 
-  // 前回診断からの経過日数
-  const lastDiagInfo = lastDiag
-    ? '<div style="font-size:10px;color:var(--ink3);margin-top:4px">前回診断：' + lastDiag.date +
-      '　' + lastDiag.okCount + '/' + (lastDiag.okCount + lastDiag.ngCount) + '問正解</div>'
-    : '';
+    const lastDiagInfo = lastDiag
+      ? '<div style="font-size:10px;color:var(--ink3);margin-top:2px">前回診断：' + lastDiag.date
+        + '　' + lastDiag.okCount + '/' + (lastDiag.okCount + lastDiag.ngCount) + '問正解</div>'
+      : '';
 
-  return '<div style="background:linear-gradient(135deg,#FFF5EF,#fff);border:1.5px solid ' + urgency + ';'
-    + 'border-radius:12px;padding:14px 18px;margin-bottom:20px;width:100%;max-width:360px">'
-    + '<div style="font-size:13px;font-weight:700;color:' + urgency + ';margin-bottom:2px">📅 ' + nearExam.name + '　' + msg + '</div>'
-    + lastDiagInfo
-    + '<div style="font-size:12px;color:var(--ink3);margin:8px 0">今日何をやるかポメに聞いてみよう</div>'
-    + '<button onclick="pomeQuickSend(\'今日何をやればいい？\')"'
-    + ' style="width:100%;padding:10px;border-radius:20px;border:none;background:' + urgency + ';'
-    + 'color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">'
-    + '💬 今日何をやればいい？</button>'
-    + diagBtn
-    + '</div>';
+    return '<div style="background:linear-gradient(135deg,#FFF5EF,#fff);border:1.5px solid ' + urgency + ';'
+      + 'border-radius:12px;padding:14px 18px;margin-bottom:12px;width:100%;max-width:360px">'
+      + '<div style="font-size:13px;font-weight:700;color:' + urgency + ';margin-bottom:2px">📅 ' + nearExam.name + '　' + msg + '</div>'
+      + lastDiagInfo
+      + '<div style="font-size:12px;color:var(--ink3);margin:8px 0">今日何をやるかポメに聞いてみよう</div>'
+      + '<button onclick="pomeQuickSend(\'今日何をやればいい？\')"'
+      + ' style="width:100%;padding:10px;border-radius:20px;border:none;background:' + urgency + ';'
+      + 'color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">'
+      + '💬 今日何をやればいい？</button>'
+      + diagBtn
+      + '</div>';
+  }).join('');
 }
 
 function renderAIChatInline() {
