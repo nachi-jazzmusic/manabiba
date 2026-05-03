@@ -10976,22 +10976,21 @@ function showAddStudyCard(prefSubject, prefDeck) {
   content.innerHTML = `
     <button class="btn btn-secondary" onclick="showStudyCardList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
 
-    <!-- カード種類 -->
-    <div class="input-group">
-      <label class="input-label">カードの種類</label>
-      <div style="display:flex;gap:8px">
-        <button id="sc_type_memo" onclick="selectCardType('memo')"
-                class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">
-          🧠 暗記カード<br><span style="font-size:10px;font-weight:400">用語・単語・年号など</span>
-        </button>
-        <button id="sc_type_problem" onclick="selectCardType('problem')"
-                class="btn btn-secondary" style="flex:1;padding:10px;font-size:13px">
-          📐 問題カード<br><span style="font-size:10px;font-weight:400">計算・文章題など</span>
-        </button>
-      </div>
+    <!-- 登録方法タブ -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:10px;overflow:hidden">
+      <button id="sc_tab_bulk" onclick="switchCardTab('bulk')"
+              style="flex:1;padding:10px;border:none;background:var(--accent);color:#fff;
+                     font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+        📋 まとめて登録
+      </button>
+      <button id="sc_tab_single" onclick="switchCardTab('single')"
+              style="flex:1;padding:10px;border:none;background:var(--bg2);color:var(--ink3);
+                     font-family:var(--font);font-size:13px;cursor:pointer">
+        ＋ 1枚ずつ登録
+      </button>
     </div>
 
-    <!-- 科目 -->
+    <!-- 科目（共通） -->
     <div class="input-group">
       <label class="input-label">科目</label>
       <div style="display:flex;flex-wrap:wrap;gap:6px" id="sc_subject_btns">
@@ -11007,49 +11006,178 @@ function showAddStudyCard(prefSubject, prefDeck) {
       <input type="hidden" id="sc_subject" value="${prefSubject||''}">
     </div>
 
-    <!-- デッキ名 -->
+    <!-- デッキ名（共通） -->
     <div class="input-group">
       <label class="input-label">デッキ名（単元・テーマ）</label>
       <input type="text" class="input-field" id="sc_deck"
-             placeholder="例：正負の数、同音異義語、化学式"
+             placeholder="例：家族・親族、be動詞、正負の数"
              value="${prefDeck||''}">
     </div>
 
-    <!-- 問題 -->
-    <div class="input-group">
-      <label class="input-label" id="sc_q_label">問題・表</label>
-      <textarea class="input-field" id="sc_question" rows="3"
-                placeholder="問題文や覚えたいことを書く"
-                style="resize:none;font-size:14px"></textarea>
+    <!-- まとめて登録エリア -->
+    <div id="sc_bulk_area">
+      <div class="input-group">
+        <label class="input-label">単語リストを貼り付け</label>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">
+          「日本語＝英語」または「英語＝日本語」の形式で<br>
+          読点（、）や改行で区切ってそのまま貼り付けてOK
+        </div>
+        <textarea class="input-field" id="sc_bulk_text" rows="8"
+                  placeholder="例：家族＝family、祖父＝grandfather、祖母＝grandmother
+父＝father、母＝mother、兄（弟）＝brother"
+                  style="resize:vertical;font-size:13px;line-height:1.8"></textarea>
+      </div>
+      <div id="sc_bulk_preview" style="margin-bottom:12px"></div>
+      <button onclick="previewBulkCards()" class="btn btn-secondary"
+              style="width:100%;padding:11px;font-size:13px;margin-bottom:8px">
+        👁 プレビュー確認
+      </button>
+      <button onclick="saveBulkCards()" class="btn btn-primary"
+              style="width:100%;padding:14px;font-size:14px">
+        ✓ 一括登録する
+      </button>
     </div>
 
-    <!-- 答え -->
-    <div class="input-group">
-      <label class="input-label" id="sc_a_label">答え・裏</label>
-      <textarea class="input-field" id="sc_answer" rows="2"
-                placeholder="答えや意味を書く"
-                style="resize:none;font-size:14px"></textarea>
+    <!-- 1枚ずつ登録エリア -->
+    <div id="sc_single_area" style="display:none">
+      <!-- カード種類 -->
+      <div class="input-group">
+        <label class="input-label">カードの種類</label>
+        <div style="display:flex;gap:8px">
+          <button id="sc_type_memo" onclick="selectCardType('memo')"
+                  class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">
+            🧠 暗記カード<br><span style="font-size:10px;font-weight:400">用語・単語・年号など</span>
+          </button>
+          <button id="sc_type_problem" onclick="selectCardType('problem')"
+                  class="btn btn-secondary" style="flex:1;padding:10px;font-size:13px">
+            📐 問題カード<br><span style="font-size:10px;font-weight:400">計算・文章題など</span>
+          </button>
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label" id="sc_q_label">問題・表</label>
+        <textarea class="input-field" id="sc_question" rows="3"
+                  placeholder="問題文や覚えたいことを書く"
+                  style="resize:none;font-size:14px"></textarea>
+      </div>
+      <div class="input-group">
+        <label class="input-label" id="sc_a_label">答え・裏</label>
+        <textarea class="input-field" id="sc_answer" rows="2"
+                  placeholder="答えや意味を書く"
+                  style="resize:none;font-size:14px"></textarea>
+      </div>
+      <div class="input-group">
+        <label class="input-label">ヒント・解説（任意）</label>
+        <input type="text" class="input-field" id="sc_hint"
+               placeholder="例：「こうえん」と読む同音異義語">
+      </div>
+      <button onclick="saveStudyCard()" class="btn btn-primary"
+              style="width:100%;padding:14px;font-size:14px">
+        ✓ カードを登録する
+      </button>
     </div>
-
-    <!-- ヒント（任意） -->
-    <div class="input-group">
-      <label class="input-label">ヒント・解説（任意）</label>
-      <input type="text" class="input-field" id="sc_hint"
-             placeholder="例：「こうえん」と読む同音異義語">
-    </div>
-
-    <button onclick="saveStudyCard()" class="btn btn-primary"
-            style="width:100%;padding:14px;font-size:14px">
-      ✓ カードを登録する
-    </button>
   `;
 
   window._scType = 'memo';
   if (prefSubject) {
-    // 科目ボタンを選択状態に
-    document.querySelector(`#sc_subject_btns button[onclick*="${prefSubject}"]`)?.click();
+    setTimeout(() => {
+      const btn = document.querySelector(`#sc_subject_btns button[onclick*="${prefSubject}"]`);
+      if (btn) selectCardSubject(prefSubject, btn);
+    }, 50);
   }
 }
+
+function switchCardTab(tab) {
+  const isBulk = tab === 'bulk';
+  document.getElementById('sc_bulk_area').style.display   = isBulk ? 'block' : 'none';
+  document.getElementById('sc_single_area').style.display = isBulk ? 'none' : 'block';
+  document.getElementById('sc_tab_bulk').style.background   = isBulk ? 'var(--accent)' : 'var(--bg2)';
+  document.getElementById('sc_tab_bulk').style.color        = isBulk ? '#fff' : 'var(--ink3)';
+  document.getElementById('sc_tab_single').style.background = isBulk ? 'var(--bg2)' : 'var(--accent)';
+  document.getElementById('sc_tab_single').style.color      = isBulk ? 'var(--ink3)' : '#fff';
+}
+
+function parseBulkText(text) {
+  // 「＝」「=」で区切り、「、」「,」「\n」で分割
+  const pairs = [];
+  const separators = /[、,\n]/;
+  const items = text.split(separators).map(s => s.trim()).filter(Boolean);
+  items.forEach(item => {
+    // 全角＝または半角=で分割
+    const match = item.match(/^(.+?)[=＝](.+)$/);
+    if (match) {
+      const front = match[1].trim();
+      const back  = match[2].trim();
+      if (front && back) pairs.push({ question: front, answer: back });
+    }
+  });
+  return pairs;
+}
+
+function previewBulkCards() {
+  const text = document.getElementById('sc_bulk_text')?.value || '';
+  const pairs = parseBulkText(text);
+  const preview = document.getElementById('sc_bulk_preview');
+  if (!preview) return;
+
+  if (pairs.length === 0) {
+    preview.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px">形式が認識できません。「日本語＝英語」の形式で入力してください</div>';
+    return;
+  }
+
+  preview.innerHTML = `
+    <div style="background:var(--bg2);border-radius:10px;padding:12px;font-size:12px">
+      <div style="font-weight:700;margin-bottom:8px;color:var(--teal)">✓ ${pairs.length}枚を認識しました</div>
+      <div style="max-height:120px;overflow-y:auto">
+        ${pairs.map(p => `
+          <div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)">
+            <span style="flex:1;color:var(--ink)">${p.question}</span>
+            <span style="color:var(--ink3)">→</span>
+            <span style="flex:1;color:var(--ink2)">${p.answer}</span>
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function saveBulkCards() {
+  const subject = document.getElementById('sc_subject')?.value;
+  const deck    = document.getElementById('sc_deck')?.value.trim();
+  const text    = document.getElementById('sc_bulk_text')?.value || '';
+  const pairs   = parseBulkText(text);
+
+  if (!subject) { showToast('科目を選んでください'); return; }
+  if (!deck)    { showToast('デッキ名を入力してください'); return; }
+  if (pairs.length === 0) { showToast('単語リストを入力してください'); return; }
+
+  if (!AppData.studyCards) AppData.studyCards = [];
+  pairs.forEach(p => {
+    AppData.studyCards.push({
+      id: 'sc_' + Date.now() + '_' + Math.random().toString(36).slice(2),
+      type: 'memo', subject, deck,
+      question: p.question, answer: p.answer, hint: '',
+      streak: 0, lastResult: null, nextDate: getTodayString()
+    });
+  });
+
+  saveData();
+  showToast('✓ ' + pairs.length + '枚のカードを登録しました');
+  showStudyCardDeck(subject, deck);
+}
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showStudyCardList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <!-- カード種類 -->
+    <div class="input-group">
+      <label class="input-label">カードの種類</label>
+      <div style="display:flex;gap:8px">
+        <button id="sc_type_memo" onclick="selectCardType('memo')"
+                class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">
+          🧠 暗記カード<br><span style="font-size:10px;font-weight:400">用語・単語・年号など</span>
+        </button>
+        <button id="sc_type_problem" onclick="selectCardType('problem')"
+                class="btn btn-secondary" style="flex:1;padding:10px;font-size:13px">
+          📐 問題カード<br><span style="font-size:10px;font-weight:400">計算・文章題など</span>
 
 function selectCardType(type) {
   window._scType = type;
