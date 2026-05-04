@@ -1407,6 +1407,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 <div id="outputModal" class="modal">
   <div class="modal-content" style="max-width:700px;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-header">
+      <button id="outputBackBtn" onclick="closeOutputModal()"
+              style="border:none;background:none;color:var(--ink3);font-size:13px;
+                     cursor:pointer;padding:4px 8px;border-radius:6px;display:none">
+        ← 戻る
+      </button>
       <div class="modal-title" id="outputModalTitle">📚 暗記ネタを作る・やる</div>
       <button class="modal-close" onclick="closeOutputModal()">×</button>
     </div>
@@ -2610,6 +2615,23 @@ function getDeskTasksForToday() {
     });
   });
 
+  // テスト計画タスク（今日の日付のもの）
+  (AppData.testPlan || []).forEach(plan => {
+    if (plan.date !== today) return;
+    tasks.push({
+      cardId:    plan.id,
+      subject:   '📅',
+      content:   plan.content + (plan.estimatedMin ? '　' + plan.estimatedMin + '分' : ''),
+      hwType:    'plan',
+      memo:      '',
+      dueDate:   plan.date,
+      daysLeft:  0,
+      done:      plan.done || false,
+      sortOrder: 999,
+      isPlan:    true
+    });
+  });
+
   // 未完了を上・完了を下、それぞれsortOrder順
   tasks.sort((a, b) => {
     if (a.done !== b.done) return a.done ? 1 : -1;
@@ -2781,6 +2803,16 @@ function getUnitShort(unit) {
 }
 
 function toggleDeskTask(cardId) {
+  // テスト計画タスク
+  const plan = (AppData.testPlan||[]).find(t => t.id === cardId);
+  if (plan) {
+    plan.done = !plan.done;
+    saveData();
+    renderHome();
+    if (plan.done) showToast('✓ 完了！お疲れ様！');
+    return;
+  }
+  // 通常の宿題カード
   const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
   if (!card) return;
   card.done = !card.done;
@@ -11372,6 +11404,178 @@ async function showSimilarProblem(cardId) {
   }
 }
 
+// ═══════════════════════════════════════
+// テスト計画管理
+// AppData.testPlan = [{
+//   id, date, content, estimatedMin, done
+// }]
+// ═══════════════════════════════════════
+
+function showTestPlan() {
+  document.getElementById('parentModalTitle').textContent = '📅 テスト計画';
+  const content = document.getElementById('parentContent');
+  const plans = AppData.testPlan || [];
+  const today = getTodayString();
+
+  // 日付でグループ化
+  const byDate = {};
+  plans.forEach(p => {
+    if (!byDate[p.date]) byDate[p.date] = [];
+    byDate[p.date].push(p);
+  });
+
+  const dateRows = Object.keys(byDate).sort().map(date => {
+    const tasks = byDate[date];
+    const done  = tasks.filter(t => t.done).length;
+    const d     = new Date(date);
+    const dow   = ['日','月','火','水','木','金','土'][d.getDay()];
+    const isPast = date < today;
+    const isToday = date === today;
+    const totalMin = tasks.reduce((s,t) => s + (t.estimatedMin||0), 0);
+
+    return `
+      <div style="margin-bottom:12px;opacity:${isPast?0.6:1}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:13px;font-weight:700;color:${isToday?'var(--accent)':'var(--ink)'}">
+            ${date}（${dow}）${isToday?'　← 今日':''}
+            ${totalMin > 0 ? '<span style="font-size:11px;font-weight:400;color:var(--ink3);margin-left:8px">目安 ' + totalMin + '分</span>' : ''}
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="showAddTestPlanTask('${date}')"
+                    style="border:none;background:none;color:var(--teal);font-size:12px;cursor:pointer;font-weight:700">
+              ＋追加
+            </button>
+          </div>
+        </div>
+        ${tasks.map(t => `
+          <div style="background:#fff;border-radius:8px;border:1px solid #EBEBEB;
+                      padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+            <span style="font-size:14px;cursor:pointer;flex-shrink:0"
+                  onclick="toggleTestPlanTask('${t.id}')">${t.done?'✅':'☐'}</span>
+            <div style="flex:1;${t.done?'text-decoration:line-through;color:var(--ink3)':''}">
+              <span style="font-size:13px">${t.content}</span>
+              ${t.estimatedMin ? '<span style="font-size:11px;color:var(--ink3);margin-left:6px">' + t.estimatedMin + '分</span>' : ''}
+            </div>
+            <button onclick="deleteTestPlanTask('${t.id}')"
+                    style="border:none;background:none;color:var(--ink3);font-size:16px;cursor:pointer">×</button>
+          </div>`).join('')}
+        <div style="font-size:11px;color:var(--ink3);text-align:right;margin-top:2px">
+          ${done}/${tasks.length}完了
+        </div>
+      </div>`;
+  }).join('');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+    <button onclick="showAddTestPlanTask()" class="btn btn-primary"
+            style="width:100%;padding:13px;font-size:14px;margin-bottom:20px">
+      ＋ タスクを追加する
+    </button>
+    ${Object.keys(byDate).length === 0 ? `
+      <div style="text-align:center;padding:32px;color:var(--ink3)">
+        <div style="font-size:32px;margin-bottom:8px">📅</div>
+        <div style="font-size:13px">日付ごとにやることを登録しよう<br>その日の右パネルに表示されます</div>
+      </div>` : dateRows}
+  `;
+}
+
+function showAddTestPlanTask(prefDate) {
+  document.getElementById('parentModalTitle').textContent = '＋ タスクを追加';
+  const content = document.getElementById('parentContent');
+  const defaultDate = prefDate || getTodayString();
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showTestPlan()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div class="input-group">
+      <label class="input-label">日付</label>
+      <input type="date" class="input-field" id="tp_date" value="${defaultDate}">
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">やること</label>
+      <input type="text" class="input-field" id="tp_content"
+             placeholder="例：学校ワーク 国語・社会、英語の例文を3回音読">
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">目安時間（任意）</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" class="input-field" id="tp_min"
+               placeholder="30" style="width:80px" min="0" max="300">
+        <span style="font-size:13px;color:var(--ink3)">分</span>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${[15,30,45,60].map(m => `
+            <button onclick="document.getElementById('tp_min').value=${m}"
+                    style="padding:5px 10px;border-radius:14px;border:1px solid var(--border);
+                           background:#fff;font-family:var(--font);font-size:12px;cursor:pointer">
+              ${m}分
+            </button>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:16px">
+      💡 複数のタスクは1件ずつ登録してください
+    </div>
+
+    <button onclick="saveTestPlanTask()" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px;margin-bottom:8px">
+      ✓ 登録する
+    </button>
+    <button onclick="showAddTestPlanTask(document.getElementById('tp_date')?.value)" 
+            class="btn btn-secondary"
+            style="width:100%;padding:11px;font-size:13px">
+      ✓ 登録してもう1件追加
+    </button>
+  `;
+
+  setTimeout(() => document.getElementById('tp_content')?.focus(), 100);
+}
+
+function saveTestPlanTask(andContinue) {
+  const date    = document.getElementById('tp_date')?.value;
+  const content = document.getElementById('tp_content')?.value.trim();
+  const min     = parseInt(document.getElementById('tp_min')?.value) || 0;
+
+  if (!date)    { showToast('日付を入力してください'); return; }
+  if (!content) { showToast('やることを入力してください'); return; }
+
+  if (!AppData.testPlan) AppData.testPlan = [];
+  AppData.testPlan.push({
+    id: 'tp_' + Date.now(),
+    date, content,
+    estimatedMin: min || null,
+    done: false
+  });
+
+  saveData();
+  showToast('✓ 登録しました');
+  renderHome();
+
+  if (andContinue) {
+    showAddTestPlanTask(date);
+  } else {
+    showTestPlan();
+  }
+}
+
+function toggleTestPlanTask(id) {
+  const task = (AppData.testPlan||[]).find(t => t.id === id);
+  if (!task) return;
+  task.done = !task.done;
+  saveData();
+  showTestPlan();
+  renderHome();
+}
+
+function deleteTestPlanTask(id) {
+  AppData.testPlan = (AppData.testPlan||[]).filter(t => t.id !== id);
+  saveData();
+  showTestPlan();
+  renderHome();
+}
+
 function toggleSaitama(subject) {
   if (!AppData.testPrepItems) AppData.testPrepItems = [];
 
@@ -11978,96 +12182,175 @@ function renderQAQuestion() {
     return;
   }
 
-  const q = questions[index];
-  const total = questions.length;
-  const pct = Math.round((index / total) * 100);
   const accentColor = isWeakPoint ? 'var(--red)' : 'var(--teal)';
   const icon = isWeakPoint ? '⚠️' : '🎯';
+  const BATCH = 5; // 1回に表示する問題数
+
+  // 今回のバッチ
+  const batchStart = index;
+  const batchEnd   = Math.min(index + BATCH, questions.length);
+  const batch      = questions.slice(batchStart, batchEnd);
+  const total      = questions.length;
+  const pct        = Math.round((batchStart / total) * 100);
 
   content.scrollTop = 0;
-
   content.innerHTML = `
     <!-- プログレスバー -->
-    <div style="margin-bottom:16px">
+    <div style="margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
         <span>${icon} ${itemName || (isWeakPoint ? '弱点練習' : 'テスト対策')}</span>
-        <span>${index+1} / ${total}</span>
+        <span>${batchStart+1}〜${batchEnd} / ${total}</span>
       </div>
       <div style="background:var(--bg2);border-radius:4px;height:6px">
         <div style="background:${accentColor};width:${pct}%;height:100%;border-radius:4px;transition:width .3s"></div>
       </div>
     </div>
 
-    <!-- 科目タグ -->
-    ${q.subject ? `<div style="display:inline-block;font-size:11px;font-weight:700;color:${accentColor};
-                               background:${isWeakPoint?'#FEF2F0':'#EEF9F7'};border-radius:12px;
-                               padding:3px 10px;margin-bottom:12px">${q.subject}</div>` : ''}
-
-    <!-- 問題文 -->
-    <div style="background:#fff;border:2px solid ${accentColor};border-radius:12px;
-                padding:20px;margin-bottom:20px;min-height:80px">
-      <div style="font-size:11px;color:${accentColor};font-weight:700;margin-bottom:8px">問題</div>
-      <div style="font-size:16px;font-weight:600;line-height:1.9;white-space:pre-wrap">${q.question}</div>
+    <div style="font-size:11px;color:var(--ink3);text-align:center;margin-bottom:12px">
+      ノートで全部解いてから「まとめて答えを確認する」を押してね
     </div>
 
-    <!-- ステップ1：ノートで解いてから確認 -->
-    <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:10px">
-      ノートで解いてから「答えを確認する」を押してね
+    <!-- 問題一覧 -->
+    <div id="qa_batch_questions">
+      ${batch.map((q, bi) => `
+        <div style="background:#fff;border:1.5px solid ${accentColor};border-radius:10px;
+                    padding:14px;margin-bottom:8px">
+          <div style="font-size:11px;color:${accentColor};font-weight:700;margin-bottom:6px">
+            問${batchStart+bi+1}
+            ${q.subject ? '<span style="margin-left:8px;background:' + (isWeakPoint?'#FEF2F0':'#EEF9F7') + ';padding:1px 8px;border-radius:8px">' + q.subject + '</span>' : ''}
+          </div>
+          <div style="font-size:14px;font-weight:600;line-height:1.8;white-space:pre-wrap">${q.question}</div>
+        </div>`).join('')}
     </div>
-    <button id="qaAnswerBtn" onclick="showQAAnswer()"
-            class="btn btn-secondary"
-            style="width:100%;padding:12px;font-size:14px;margin-bottom:8px">
-      📋 答えを確認する
+
+    <!-- まとめて確認ボタン -->
+    <button id="qa_batch_btn" onclick="showQABatchAnswers()"
+            class="btn btn-primary" style="width:100%;padding:13px;font-size:14px;margin-bottom:8px">
+      📋 まとめて答えを確認する
     </button>
 
-    <!-- 答えエリア（最初は非表示） -->
-    <div id="qaAnswerArea" style="display:none">
-      <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:12px">
-        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">答え</div>
-        <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:12px;
-                    white-space:pre-wrap;line-height:1.7">${q.answer}</div>
-        <div style="border-top:1px solid var(--border);padding-top:10px">
-          <div style="font-size:11px;color:var(--teal);font-weight:700;margin-bottom:4px">💡 解説</div>
-          <div style="font-size:13px;color:var(--ink2);line-height:1.8">${q.explanation || '解説なし'}</div>
-        </div>
-        <!-- ポメ解説ボタン（問題に戻れる） -->
-        <button onclick="askPomeQAExplanationKeepSession(${JSON.stringify(q.question).replace(/"/g,'&quot;')}, ${JSON.stringify(q.answer).replace(/"/g,'&quot;')}, '${(q.subject||'').replace(/'/g,'')}')"
-                style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid var(--teal);
-                       background:#fff;color:var(--teal);font-family:var(--font);font-size:12px;
-                       font-weight:700;cursor:pointer">
-          🐾 ポメにもっと詳しく解説してもらう
-        </button>
-      </div>
+    <!-- 答え一覧（最初は非表示） -->
+    <div id="qa_batch_answers" style="display:none">
+      ${batch.map((q, bi) => `
+        <div id="qa_ans_${bi}" style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:10px">
+          <div style="font-size:11px;color:${accentColor};font-weight:700;margin-bottom:4px">問${batchStart+bi+1}の答え</div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:8px;white-space:pre-wrap">${q.answer}</div>
 
-      <!-- ステップ2：自己評価（4段階） -->
-      <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:4px">自分はどうだった？</div>
-      <div style="font-size:11px;color:var(--ink3);text-align:center;margin-bottom:12px">
-        正直に選んでね
-      </div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button onclick="saveQAResult('perfect')"
-                class="btn" style="padding:13px;background:#4A9B5F;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-          ✅ 答えを見ずに解けた
-        </button>
-        <button onclick="saveQAResult('hint')"
-                class="btn" style="padding:13px;background:#C8922A;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-          💡 答えを見てわかった
-        </button>
-        <button onclick="saveQAResult('wrong')"
-                class="btn" style="padding:13px;background:#D94F3D;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-          ❌ 答えを見てもわからない
-        </button>
-        <button onclick="saveQAResult('notlearned')"
-                class="btn" style="padding:13px;background:#888;color:#fff;font-size:13px;font-weight:700;border-radius:10px">
-          📚 まだ習っていない
-        </button>
-        <button onclick="saveQAResult('skip')"
-                class="btn" style="padding:10px;background:none;color:var(--ink3);font-size:12px;border-radius:10px;border:1px solid var(--border)">
-          🚫 この問題おかしい（スキップ）
-        </button>
-      </div>
+          <!-- 解説（折りたたみ） -->
+          <details style="margin-bottom:10px">
+            <summary style="font-size:12px;color:var(--teal);cursor:pointer;font-weight:700">💡 解説を見る</summary>
+            <div style="font-size:12px;color:var(--ink2);line-height:1.8;margin-top:6px;padding:8px;
+                        background:#fff;border-radius:6px">${q.explanation || '解説なし'}</div>
+          </details>
+
+          <!-- 自己評価ボタン -->
+          <div id="qa_rate_${bi}" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button onclick="rateBatchQ(${bi}, 'perfect')"
+                    style="flex:1;padding:8px 4px;border-radius:8px;border:none;
+                           background:#4A9B5F;color:#fff;font-size:12px;font-weight:700;cursor:pointer">
+              ✅ 解けた
+            </button>
+            <button onclick="rateBatchQ(${bi}, 'hint')"
+                    style="flex:1;padding:8px 4px;border-radius:8px;border:none;
+                           background:#C8922A;color:#fff;font-size:12px;font-weight:700;cursor:pointer">
+              💡 見てわかった
+            </button>
+            <button onclick="rateBatchQ(${bi}, 'wrong')"
+                    style="flex:1;padding:8px 4px;border-radius:8px;border:none;
+                           background:#D94F3D;color:#fff;font-size:12px;font-weight:700;cursor:pointer">
+              ❌ わからない
+            </button>
+            <button onclick="rateBatchQ(${bi}, 'notlearned')"
+                    style="padding:8px 6px;border-radius:8px;border:none;
+                           background:#888;color:#fff;font-size:11px;font-weight:700;cursor:pointer">
+              📚 未習
+            </button>
+            <button onclick="rateBatchQ(${bi}, 'skip')"
+                    style="padding:8px 6px;border-radius:8px;border:1px solid var(--border);
+                           background:#fff;color:var(--ink3);font-size:11px;cursor:pointer">
+              🚫 変な問題
+            </button>
+          </div>
+        </div>`).join('')}
+
+      <!-- 次へボタン -->
+      <button id="qa_next_btn" onclick="submitBatchResults()" disabled
+              style="width:100%;padding:13px;border-radius:10px;border:none;
+                     background:var(--bg2);color:var(--ink3);
+                     font-family:var(--font);font-size:14px;font-weight:700;cursor:not-allowed;margin-top:4px">
+        全問評価してから次へ →
+      </button>
     </div>
   `;
+
+  // バッチの評価状態を初期化
+  window.qaSession.batchRatings = new Array(batch.length).fill(null);
+  window.qaSession.batchStart   = batchStart;
+  window.qaSession.batch        = batch;
+}
+
+function showQABatchAnswers() {
+  document.getElementById('qa_batch_answers').style.display = 'block';
+  document.getElementById('qa_batch_btn').style.display = 'none';
+  document.getElementById('qa_batch_answers').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function rateBatchQ(bi, result) {
+  window.qaSession.batchRatings[bi] = result;
+
+  // ボタンを選択状態に
+  const rateDiv = document.getElementById('qa_rate_' + bi);
+  if (rateDiv) {
+    rateDiv.querySelectorAll('button').forEach(btn => {
+      btn.style.opacity = '0.4';
+    });
+    // 押したボタンだけ強調
+    const colorMap = { perfect:'#4A9B5F', hint:'#C8922A', wrong:'#D94F3D', notlearned:'#888', skip:'#ccc' };
+    const clicked = rateDiv.querySelectorAll('button')[['perfect','hint','wrong','notlearned','skip'].indexOf(result)];
+    if (clicked) { clicked.style.opacity = '1'; clicked.style.outline = '2px solid #333'; }
+    // ✓マークを追加
+    const ansDiv = document.getElementById('qa_ans_' + bi);
+    if (ansDiv) {
+      const labelMap = { perfect:'✅ 解けた', hint:'💡 見てわかった', wrong:'❌ わからない', notlearned:'📚 未習', skip:'🚫 変な問題' };
+      let badge = ansDiv.querySelector('.qa-badge');
+      if (!badge) { badge = document.createElement('div'); badge.className = 'qa-badge'; ansDiv.insertBefore(badge, ansDiv.firstChild); }
+      badge.style.cssText = 'font-size:11px;font-weight:700;margin-bottom:6px;color:var(--ink3)';
+      badge.textContent = '評価：' + labelMap[result];
+    }
+  }
+
+  // 全問評価完了したら次へボタンを有効化
+  const allRated = window.qaSession.batchRatings.every(r => r !== null);
+  const nextBtn  = document.getElementById('qa_next_btn');
+  if (nextBtn && allRated) {
+    nextBtn.disabled = false;
+    nextBtn.style.background = 'var(--accent)';
+    nextBtn.style.color = '#fff';
+    nextBtn.style.cursor = 'pointer';
+    nextBtn.textContent = batchEnd < questions.length ? '次の問題へ →' : '結果を見る';
+    nextBtn.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+}
+
+function submitBatchResults() {
+  const { batch, batchRatings, batchStart, isWeakPoint, questions } = window.qaSession;
+
+  batch.forEach((q, bi) => {
+    const result = batchRatings[bi];
+    if (!result) return;
+
+    window.qaSession.results[q.id] = result;
+
+    // 弱点問題の場合：忘却曲線を更新
+    if (isWeakPoint && q.weakPointId) {
+      const wp = (AppData.weakPoints || []).find(w => w.id === q.weakPointId);
+      if (wp) saveQAResultToWeakPoint(wp, result);
+    }
+  });
+
+  saveData();
+  window.qaSession.index = batchStart + batch.length;
+  renderQAQuestion();
 }
 
 function showQAAnswer() {
@@ -12075,6 +12358,38 @@ function showQAAnswer() {
   document.getElementById('qaAnswerBtn').style.display = 'none';
   // 答えエリアにスクロール
   document.getElementById('qaAnswerArea').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// 弱点の忘却曲線を更新する共通関数
+function saveQAResultToWeakPoint(wp, result) {
+  if (result === 'skip') return;
+  if (result === 'notlearned') {
+    const next = new Date(); next.setDate(next.getDate() + 7);
+    wp.nextDate = next.toISOString().split('T')[0];
+    wp.lastResult = '未';
+  } else if (result === 'perfect') {
+    wp.correctStreak = (wp.correctStreak || 0) + 1;
+    const intervals = [1, 3, 7, 14, 30];
+    const days = intervals[Math.min(wp.correctStreak, intervals.length - 1)];
+    const next = new Date(); next.setDate(next.getDate() + days);
+    wp.nextDate = next.toISOString().split('T')[0];
+    wp.lastResult = '◎';
+    if (wp.correctStreak >= 5) { wp.active = false; wp.status = 'mastered'; }
+    else if (wp.correctStreak >= 3) { wp.status = 'mastered'; }
+    else if (wp.correctStreak >= 1) { wp.status = 'watching'; }
+  } else if (result === 'hint') {
+    wp.correctStreak = Math.max((wp.correctStreak || 0) - 1, 0);
+    const next = new Date(); next.setDate(next.getDate() + 2);
+    wp.nextDate = next.toISOString().split('T')[0];
+    wp.lastResult = '△';
+    wp.status = 'watching';
+  } else {
+    wp.correctStreak = 0;
+    const next = new Date(); next.setDate(next.getDate() + 1);
+    wp.nextDate = next.toISOString().split('T')[0];
+    wp.lastResult = '×';
+    wp.status = 'practicing';
+  }
 }
 
 function saveQAResult(result) {
@@ -12350,6 +12665,19 @@ function showParentMenu(section) {
   content.innerHTML = `
     ${summaryHtml}
     <div style="display:flex;flex-direction:column;gap:10px">
+
+      <!-- テスト計画を作る -->
+      <button onclick="showTestPlan()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">📅</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">テスト計画を作る</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            日付ごとにやることを登録。その日の右パネルに表示されます
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
 
       <!-- 宿題を登録する -->
       <button onclick="showParentHomework()" class="btn btn-secondary"
