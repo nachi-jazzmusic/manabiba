@@ -4305,6 +4305,25 @@ function renderAIChatInline() {
 }
 
 // サジェストボタンから送信
+// 簡易マークダウン→HTML変換
+function renderMarkdown(text) {
+  return text
+    // ## 見出し → 太字（大きくしない）
+    .replace(/^##\s+(.+)$/gm, '<div style="font-weight:700;margin:8px 0 4px;color:var(--ink)">$1</div>')
+    // # 見出し → 太字
+    .replace(/^#\s+(.+)$/gm, '<div style="font-weight:700;margin:8px 0 4px;color:var(--ink)">$1</div>')
+    // **太字**
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // *斜体*（省略）
+    .replace(/\*(.+?)\*/g, '$1')
+    // - リスト
+    .replace(/^[\-\*]\s+(.+)$/gm, '<div style="padding-left:12px;margin:2px 0">・$1</div>')
+    // 数字リスト
+    .replace(/^\d+\.\s+(.+)$/gm, '<div style="padding-left:12px;margin:2px 0">$1</div>')
+    // 改行
+    .replace(/\n/g, '<br>');
+}
+
 function pomeQuickSend(text) {
   if (text === 'ポメに単元を説明してみる') {
     showExplainModeSelector();
@@ -14410,11 +14429,11 @@ function renderAIChatMessages() {
         <div style="margin-bottom:16px;display:flex;justify-content:flex-end">
           <div style="background:var(--teal);color:#fff;padding:10px 16px;border-radius:18px 18px 4px 18px;
                       max-width:80%;line-height:1.6;font-size:14px;word-break:break-word">
-            ${msg.content.replace(/\n/g, '<br>')}
+            ${renderMarkdown(msg.content)}
           </div>
         </div>`;
     } else {
-      const formattedContent = msg.content.replace(/\n/g, '<br>');
+      const formattedContent = renderMarkdown(msg.content);
       html += `
         <div style="margin-bottom:16px;display:flex;gap:8px;align-items:flex-start">
           <div style="font-size:22px;flex-shrink:0;margin-top:2px">🐾</div>
@@ -15015,7 +15034,7 @@ async function sendImageToAI(base64Image) {
       aiMessageDiv.className = 'ai-message';
       aiMessageDiv.innerHTML = `
         <div class="ai-avatar">🐾</div>
-        <div class="ai-bubble">${aiText.replace(/\n/g, '<br>')}</div>
+        <div class="ai-bubble">${renderMarkdown(aiText)}</div>
       `;
       container.appendChild(aiMessageDiv);
       container.scrollTop = container.scrollHeight;
