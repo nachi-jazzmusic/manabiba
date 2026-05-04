@@ -2348,13 +2348,16 @@ function getThreeDaySchedule() {
 
 // ── コンパクト版カード描画 ──
 function renderDeskTaskCardCompact(t, showUp) {
-  const typeLabel   = t.hwType === 'juku' ? '塾' : '学校';
-  const typeBg      = t.hwType === 'juku' ? '#F0EEFF' : '#E8F5F2';
-  const typeColor   = t.hwType === 'juku' ? '#6B5FBB' : '#2E8B6E';
-  const isOverdue   = t.daysLeft <= 0;
-  const isSoon      = t.daysLeft === 1;
+  // テスト計画タスクの場合は別表示
+  const isPlan      = t.isPlan || t.hwType === 'plan';
+  const typeLabel   = isPlan ? '計画' : t.hwType === 'juku' ? '塾' : '学校';
+  const typeBg      = isPlan ? '#EEF2FF' : t.hwType === 'juku' ? '#F0EEFF' : '#E8F5F2';
+  const typeColor   = isPlan ? '#5B6EE8' : t.hwType === 'juku' ? '#6B5FBB' : '#2E8B6E';
+  // テスト計画タスクは期限切れ判定しない（今日だけ表示が前提）
+  const isOverdue   = isPlan ? false : t.daysLeft <= 0;
+  const isSoon      = isPlan ? false : t.daysLeft === 1;
   const borderColor = t.done ? '#E8E8E8' : isOverdue ? 'var(--red)' : isSoon ? '#C8922A' : '#E8E8E8';
-  const dayLabel    = t.daysLeft <= 0 ? '期限切れ' : t.daysLeft === 1 ? '明日まで' : 'あと' + t.daysLeft + '日';
+  const dayLabel    = isPlan ? '今日のタスク' : t.daysLeft <= 0 ? '期限切れ' : t.daysLeft === 1 ? '明日まで' : 'あと' + t.daysLeft + '日';
   const dayColor    = isOverdue ? 'var(--red)' : isSoon ? '#C8922A' : 'var(--ink3)';
   const dayWeight   = (isOverdue || isSoon) ? 'font-weight:700;' : '';
   const cid = t.cardId;
@@ -11452,12 +11455,16 @@ function showTestPlan() {
                       padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px">
             <span style="font-size:14px;cursor:pointer;flex-shrink:0"
                   onclick="toggleTestPlanTask('${t.id}')">${t.done?'✅':'☐'}</span>
-            <div style="flex:1;${t.done?'text-decoration:line-through;color:var(--ink3)':''}">
+            <div style="flex:1;min-width:0;${t.done?'text-decoration:line-through;color:var(--ink3)':''}">
               <span style="font-size:13px">${t.content}</span>
               ${t.estimatedMin ? '<span style="font-size:11px;color:var(--ink3);margin-left:6px">' + t.estimatedMin + '分</span>' : ''}
             </div>
+            <button onclick="editTestPlanTask('${t.id}')"
+                    style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700;flex-shrink:0">
+              編集
+            </button>
             <button onclick="deleteTestPlanTask('${t.id}')"
-                    style="border:none;background:none;color:var(--ink3);font-size:16px;cursor:pointer">×</button>
+                    style="border:none;background:none;color:var(--ink3);font-size:16px;cursor:pointer;flex-shrink:0">×</button>
           </div>`).join('')}
         <div style="font-size:11px;color:var(--ink3);text-align:right;margin-top:2px">
           ${done}/${tasks.length}完了
@@ -11519,11 +11526,11 @@ function showAddTestPlanTask(prefDate) {
       💡 複数のタスクは1件ずつ登録してください
     </div>
 
-    <button onclick="saveTestPlanTask()" class="btn btn-primary"
+    <button onclick="saveTestPlanTask(false)" class="btn btn-primary"
             style="width:100%;padding:14px;font-size:14px;margin-bottom:8px">
       ✓ 登録する
     </button>
-    <button onclick="showAddTestPlanTask(document.getElementById('tp_date')?.value)" 
+    <button onclick="saveTestPlanTask(true)" 
             class="btn btn-secondary"
             style="width:100%;padding:11px;font-size:13px">
       ✓ 登録してもう1件追加
@@ -11567,6 +11574,67 @@ function toggleTestPlanTask(id) {
   saveData();
   showTestPlan();
   renderHome();
+}
+
+function editTestPlanTask(id) {
+  const task = (AppData.testPlan||[]).find(t => t.id === id);
+  if (!task) return;
+
+  document.getElementById('parentModalTitle').textContent = '✏️ タスクを編集';
+  const content = document.getElementById('parentContent');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showTestPlan()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div class="input-group">
+      <label class="input-label">日付</label>
+      <input type="date" class="input-field" id="tp_date" value="${task.date}">
+    </div>
+    <div class="input-group">
+      <label class="input-label">やること</label>
+      <input type="text" class="input-field" id="tp_content" value="${task.content}">
+    </div>
+    <div class="input-group">
+      <label class="input-label">目安時間（任意）</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" class="input-field" id="tp_min"
+               value="${task.estimatedMin||''}" style="width:80px" min="0" max="300">
+        <span style="font-size:13px;color:var(--ink3)">分</span>
+        <div style="display:flex;gap:6px">
+          ${[15,30,45,60].map(m => `
+            <button onclick="document.getElementById('tp_min').value=${m}"
+                    style="padding:5px 10px;border-radius:14px;border:1px solid var(--border);
+                           background:#fff;font-family:var(--font);font-size:12px;cursor:pointer">
+              ${m}分
+            </button>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <button onclick="updateTestPlanTask('${id}')" class="btn btn-primary"
+            style="width:100%;padding:14px;font-size:14px">
+      ✓ 更新する
+    </button>
+  `;
+}
+
+function updateTestPlanTask(id) {
+  const task    = (AppData.testPlan||[]).find(t => t.id === id);
+  if (!task) return;
+  const date    = document.getElementById('tp_date')?.value;
+  const content = document.getElementById('tp_content')?.value.trim();
+  const min     = parseInt(document.getElementById('tp_min')?.value) || 0;
+
+  if (!date || !content) { showToast('日付とやることを入力してください'); return; }
+
+  task.date         = date;
+  task.content      = content;
+  task.estimatedMin = min || null;
+
+  saveData();
+  renderHome();
+  showToast('✓ 更新しました');
+  showTestPlan();
 }
 
 function deleteTestPlanTask(id) {
