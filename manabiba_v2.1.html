@@ -269,7 +269,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
   padding:12px 16px;
   border-radius:12px;
   max-width:80%;
-  line-height:1.6;
+  line-height:1.65;
+  font-size:14px;
 }
 .user-message{
   display:flex;
@@ -4237,8 +4238,15 @@ function renderAIChatInline() {
 
         <!-- サジェスト -->
         <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:360px">
+          <button onclick="showTestAttackSelector()"
+                  style="padding:10px 16px;border-radius:20px;border:1px solid var(--border);
+                         background:#fff;color:var(--ink2);font-family:var(--font);font-size:13px;
+                         cursor:pointer;text-align:left;transition:background 0.15s"
+                  onmouseover="this.style.background='var(--bg2)'"
+                  onmouseout="this.style.background='#fff'">
+            🎯 テスト攻略を相談する
+          </button>
           ${[
-            '中間テストの攻略を一緒に考えて',
             'ポメに単元を説明してみる',
             '苦手な問題を解説してほしい'
           ].map(s => `
@@ -4310,6 +4318,124 @@ function pomeQuickSend(text) {
 }
 
 // 説明モード：単元選択UI
+// テスト攻略相談：テスト選択UI
+function showTestAttackSelector() {
+  const today = getTodayString();
+  const exams = (AppData.examRanges||[]).filter(e => e.testDate >= today)
+    .sort((a,b) => a.testDate.localeCompare(b.testDate));
+
+  const overlay = document.createElement('div');
+  overlay.id = 'testAttackOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;'
+    + 'display:flex;align-items:flex-end;justify-content:center;padding:16px';
+
+  if (exams.length === 0) {
+    // テスト情報未登録の場合
+    overlay.innerHTML = `
+      <div style="background:var(--bg);border-radius:16px 16px 0 0;padding:24px;width:100%;max-width:500px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">🎯 テスト攻略を相談する</div>
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:20px">
+          先に保護者メニューで「テスト情報をポメに伝える」からテスト範囲を登録してね。<br>
+          登録すると、ポメが範囲を把握して攻略法を提案できるよ！
+        </div>
+        <button onclick="pomeQuickSend('テストの攻略法を一緒に考えて');document.getElementById('testAttackOverlay').remove()"
+                class="btn btn-primary" style="width:100%;padding:12px;margin-bottom:8px">
+          範囲なしで相談する
+        </button>
+        <button onclick="document.getElementById('testAttackOverlay').remove()"
+                style="width:100%;padding:10px;border-radius:10px;border:none;background:var(--bg2);
+                       font-family:var(--font);font-size:13px;cursor:pointer;color:var(--ink3)">
+          キャンセル
+        </button>
+      </div>`;
+    document.body.appendChild(overlay);
+    return;
+  }
+
+  const examBtns = exams.map(exam => {
+    const todayD   = new Date(); todayD.setHours(0,0,0,0);
+    const daysLeft = Math.ceil((new Date(exam.testDate) - todayD)/(1000*60*60*24));
+    const diagRecords = Object.values(AppData.examDiagnosis||{})
+      .filter(d => d.examId === exam.id).sort((a,b) => b.date.localeCompare(a.date));
+    const lastDiag = diagRecords[0];
+    const diagInfo = lastDiag
+      ? '前回診断：' + lastDiag.okCount + '/' + (lastDiag.okCount+lastDiag.ngCount) + '問正解'
+      : '未診断';
+
+    return `
+      <button onclick="startTestAttack('${exam.id}')"
+              style="width:100%;padding:14px;border-radius:12px;border:1px solid var(--border);
+                     background:#fff;font-family:var(--font);text-align:left;cursor:pointer;
+                     margin-bottom:8px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:3px">${exam.name}</div>
+        <div style="font-size:11px;color:var(--teal)">あと${daysLeft}日　${exam.subjects?.map(s=>s.subject).join('・')||''}</div>
+        <div style="font-size:11px;color:var(--ink3);margin-top:2px">${diagInfo}</div>
+      </button>`;
+  }).join('');
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:16px 16px 0 0;padding:24px;width:100%;
+                max-width:500px;max-height:70vh;overflow-y:auto">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">🎯 どのテストを攻略する？</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:16px">
+        テストを選ぶと、ポメが範囲と診断結果を踏まえて攻略法を提案するよ
+      </div>
+      ${examBtns}
+      <button onclick="document.getElementById('testAttackOverlay').remove()"
+              style="width:100%;padding:10px;border-radius:10px;border:none;background:var(--bg2);
+                     font-family:var(--font);font-size:13px;cursor:pointer;color:var(--ink3);margin-top:4px">
+        キャンセル
+      </button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+}
+
+function startTestAttack(examId) {
+  document.getElementById('testAttackOverlay')?.remove();
+
+  const exam   = (AppData.examRanges||[]).find(e => e.id === examId);
+  if (!exam) return;
+
+  const todayD   = new Date(); todayD.setHours(0,0,0,0);
+  const daysLeft = Math.ceil((new Date(exam.testDate) - todayD)/(1000*60*60*24));
+
+  // 診断結果を取得
+  const diagRecords = Object.values(AppData.examDiagnosis||{})
+    .filter(d => d.examId === examId).sort((a,b) => b.date.localeCompare(a.date));
+  const lastDiag = diagRecords[0];
+
+  // 科目と範囲
+  const subjectInfo = (exam.subjects||[]).map(s =>
+    s.subject + '：' + s.range + (s.advice ? '（アドバイス：' + s.advice + '）' : '')
+  ).join('\n');
+
+  // 診断結果
+  let diagInfo = '';
+  if (lastDiag && lastDiag.results) {
+    const okList = lastDiag.results.filter(r => r.result === 'ok').map(r => r.category);
+    const ngList = lastDiag.results.filter(r => r.result !== 'ok' && r.result !== 'skip').map(r => r.category);
+    diagInfo = '\n\n【理解度診断の結果（' + lastDiag.date + '）】\n'
+      + (okList.length > 0 ? '✅ できた：' + okList.join('・') + '\n' : '')
+      + (ngList.length > 0 ? '❌ 要復習：' + ngList.join('・') : '');
+  } else {
+    diagInfo = '\n\n【理解度診断】まだ実施していない'
+      + '\n→ 「ポメ画面のバナーから理解度診断をやってから相談すると精度が上がるよ」と最初に一言伝えてから、範囲だけで攻略法を提案してほしい';
+  }
+
+  // ポメへ送るメッセージ
+  const msg = exam.name + 'の攻略法を一緒に考えてほしい。\n\n'
+    + '【テスト情報】\nテスト日：' + exam.testDate + '（あと' + daysLeft + '日）\n\n'
+    + '【範囲】\n' + subjectInfo
+    + diagInfo + '\n\n'
+    + '以下をお願い：\n'
+    + '1. 各科目の状況を踏まえた攻略法を、中学生にわかる言葉で教えて\n'
+    + '2. できている科目とできていない科目で、具体的に何をやればいいか教えて\n'
+    + '3. 最後に「勉強できる時間を教えてくれたらカリキュラムを組むよ」と聞いて';
+
+  pomeQuickSend(msg);
+}
+
 function showExplainModeSelector() {
   const overlay = document.createElement('div');
   overlay.id = 'explainOverlay';
@@ -10634,6 +10760,13 @@ function showExamRangeList() {
                        font-weight:700;cursor:pointer">
           📝 ワーク・プリントを宿題に登録する
         </button>
+        <button onclick="closeParentModal();startExamDiagnosis('${exam.id}','initial')"
+                style="margin-top:6px;width:100%;padding:8px;border-radius:8px;
+                       border:none;background:var(--teal);
+                       color:#fff;font-family:var(--font);font-size:12px;
+                       font-weight:700;cursor:pointer">
+          🔍 理解度を診断する
+        </button>
       </div>`;
   }).join('');
 
@@ -14432,8 +14565,22 @@ async function sendAIMessage() {
 4. 100文字以内・背中を押すトーンで
 良い例：「テストまで7日！今日は数学P40-45だけ！終わったら英単語10個も💪」
 
-【テスト相談への対応】
-登録済みテスト範囲があればそれを参照して答える。
+【テスト攻略相談モード】
+「〇〇の攻略法を一緒に考えてほしい」というメッセージが来たら：
+1. テスト範囲・診断結果を必ず確認する
+2. 科目ごとに攻略法を提案する（中学生にわかる言葉で）
+   - できている科目→「ここは大丈夫！直前に1回確認するだけでOK✨」
+   - 要復習の科目→具体的な手順を示す
+     例：「ノートを見返す→ドリルを1回→間違えた問題だけもう1回」
+   - 「本当にわかった指標」を一言添える
+     例：「問題を見た瞬間に解き方がわかるようになったら合格！」
+3. 絶対にやること：最後に「何日に何時間勉強できるか教えて！カリキュラム組むよ📅」と聞く
+
+勉強時間を教えてもらったら：
+- 平日・休日・塾の日で分けて考える
+- テスト日から逆算して日ごとのやることを提案する
+- 1日2〜3個に絞る
+- 「これをテスト計画に登録してね」と案内する
 
 【登録済みテスト範囲】
 ${(() => {
