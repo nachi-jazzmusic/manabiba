@@ -14876,20 +14876,24 @@ async function hwSend() {
   if (!chatHistory) { showToast('チャット欄が見つかりません'); return; }
 
   // チャットに手書き画像を表示
-  chatHistory.innerHTML += `
-    <div class="user-message">
-      <div class="user-bubble" style="padding:8px">
-        <img src="${dataUrl}" style="max-width:200px;border-radius:8px;display:block;margin-bottom:4px">
-        <div style="font-size:13px">${caption}</div>
-      </div>
+  const userDiv = document.createElement('div');
+  userDiv.className = 'user-message';
+  userDiv.innerHTML = `
+    <div class="user-bubble" style="padding:8px">
+      <img src="${dataUrl}" style="max-width:200px;border-radius:8px;display:block;margin-bottom:4px">
+      <div style="font-size:13px">${caption}</div>
     </div>`;
+  chatHistory.appendChild(userDiv);
   chatHistory.scrollTop = chatHistory.scrollHeight;
 
   // APIキー確認
   if (!AppData.settings?.apiKey) { showToast('設定画面でAPIキーを入力してください'); return; }
 
-  const loadingId = 'hw_loading_' + Date.now();
-  chatHistory.innerHTML += `<div id="${loadingId}" class="ai-message"><div class="ai-bubble">読み取り中...🔍</div></div>`;
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'ai-message';
+  loadingDiv.id = 'hw_loading_' + Date.now();
+  loadingDiv.innerHTML = '<div class="ai-bubble">読み取り中...🔍</div>';
+  chatHistory.appendChild(loadingDiv);
   chatHistory.scrollTop = chatHistory.scrollHeight;
 
   try {
@@ -14920,11 +14924,11 @@ async function hwSend() {
     const data = await res.json();
     const text = data.content?.[0]?.text || 'うまく読み取れなかったよ😢もう一度試してみて';
 
-    document.getElementById(loadingId)?.remove();
-    chatHistory.innerHTML += `
-      <div class="ai-message">
-        <div class="ai-bubble">${renderMarkdown(text)}</div>
-      </div>`;
+    loadingDiv.remove();
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'ai-message';
+    aiDiv.innerHTML = '<div class="ai-bubble">' + renderMarkdown(text) + '</div>';
+    chatHistory.appendChild(aiDiv);
     chatHistory.scrollTop = chatHistory.scrollHeight;
 
   } catch(e) {
