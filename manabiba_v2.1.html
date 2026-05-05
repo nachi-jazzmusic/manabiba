@@ -14701,11 +14701,10 @@ function openHandwriting() {
       <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;
                   border-bottom:1px solid var(--border);background:var(--bg2)">
         <span style="font-size:11px;color:var(--ink3)">ペンの太さ：</span>
-        ${[2,4,6,10].map(w => `
-          <button onclick="hwSetWidth(${w})" id="hwW${w}"
-                  style="width:${w*2+16}px;height:${w*2+16}px;border-radius:50%;
-                         border:2px solid ${w===4?'var(--accent)':'var(--border)'};
-                         background:${w===4?'var(--accent)':'#333'};cursor:pointer"></button>`).join('')}
+        <button onclick="hwSetWidth(2)" id="hwW2" style="width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:#333;cursor:pointer"></button>
+        <button onclick="hwSetWidth(4)" id="hwW4" style="width:24px;height:24px;border-radius:50%;border:2px solid var(--accent);background:var(--accent);cursor:pointer"></button>
+        <button onclick="hwSetWidth(6)" id="hwW6" style="width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:#333;cursor:pointer"></button>
+        <button onclick="hwSetWidth(10)" id="hwW10" style="width:36px;height:36px;border-radius:50%;border:2px solid var(--border);background:#333;cursor:pointer"></button>
         <span style="font-size:11px;color:var(--ink3);margin-left:8px">消しゴム：</span>
         <button onclick="hwSetEraser()" id="hwEraser"
                 style="padding:4px 10px;border-radius:8px;border:1px solid var(--border);
@@ -14858,33 +14857,40 @@ async function hwSend() {
   const caption = document.getElementById('hwCaption')?.value.trim()
     || 'この手書きの内容を読み取って解説してほしい';
 
-  // Canvasを画像に変換
+  // Canvasを画像に変換（overlay削除前に）
   const dataUrl = canvas.toDataURL('image/png');
   const base64  = dataUrl.split(',')[1];
 
+  // チャット欄を先に取得（overlay削除前に）
+  // インライン版を優先、なければモーダル版
+  const allMsgs = document.querySelectorAll('#aiChatMessages');
+  const chatHistory = allMsgs.length > 1 ? allMsgs[1] : allMsgs[0];
+
+  // overlayを閉じる
   document.getElementById('hwOverlay')?.remove();
 
-  // チャットに手書き画像を表示
-  const chatHistory = document.getElementById('aiChatHistory');
-  if (chatHistory) {
-    chatHistory.innerHTML += `
-      <div class="user-message">
-        <div class="user-bubble" style="padding:8px">
-          <img src="${dataUrl}" style="max-width:200px;border-radius:8px;display:block;margin-bottom:4px">
-          <div style="font-size:13px">${caption}</div>
-        </div>
-      </div>`;
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-  }
+  // ウェルカム画面を非表示
+  const emptyEl = document.getElementById('pomeChatEmpty');
+  if (emptyEl) emptyEl.style.display = 'none';
 
-  // ポメに送信（画像＋テキスト）
-  if (!AppData.settings?.apiKey) { showToast('APIキーを設定してください'); return; }
+  if (!chatHistory) { showToast('チャット欄が見つかりません'); return; }
+
+  // チャットに手書き画像を表示
+  chatHistory.innerHTML += `
+    <div class="user-message">
+      <div class="user-bubble" style="padding:8px">
+        <img src="${dataUrl}" style="max-width:200px;border-radius:8px;display:block;margin-bottom:4px">
+        <div style="font-size:13px">${caption}</div>
+      </div>
+    </div>`;
+  chatHistory.scrollTop = chatHistory.scrollHeight;
+
+  // APIキー確認
+  if (!AppData.settings?.apiKey) { showToast('設定画面でAPIキーを入力してください'); return; }
 
   const loadingId = 'hw_loading_' + Date.now();
-  if (chatHistory) {
-    chatHistory.innerHTML += `<div id="${loadingId}" class="ai-message"><div class="ai-bubble">考え中...</div></div>`;
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-  }
+  chatHistory.innerHTML += `<div id="${loadingId}" class="ai-message"><div class="ai-bubble">読み取り中...🔍</div></div>`;
+  chatHistory.scrollTop = chatHistory.scrollHeight;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -14915,17 +14921,12 @@ async function hwSend() {
     const text = data.content?.[0]?.text || 'うまく読み取れなかったよ😢もう一度試してみて';
 
     document.getElementById(loadingId)?.remove();
-    if (chatHistory) {
-      chatHistory.innerHTML += `
-        <div class="ai-message">
-          <div class="ai-bubble">${renderMarkdown(text)}</div>
-        </div>`;
-      chatHistory.scrollTop = chatHistory.scrollHeight;
+    chatHistory.innerHTML += `
+      <div class="ai-message">
+        <div class="ai-bubble">${renderMarkdown(text)}</div>
+      </div>`;
+    chatHistory.scrollTop = chatHistory.scrollHeight;
 
-      // チャット履歴に非表示にする
-      const emptyEl = document.getElementById('pomeChatEmpty');
-      if (emptyEl) emptyEl.style.display = 'none';
-    }
   } catch(e) {
     document.getElementById(loadingId)?.remove();
     showToast('送信に失敗しました');
