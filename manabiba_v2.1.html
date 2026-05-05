@@ -14428,11 +14428,24 @@ function renderAIChatMessages() {
   let html = '';
   aiChatHistory.forEach(msg => {
     if (msg.role === 'user') {
+      // 画像付きメッセージの場合
+      let displayHtml = '';
+      if (Array.isArray(msg.content)) {
+        const imgPart  = msg.content.find(c => c.type === 'image');
+        const textPart = msg.content.find(c => c.type === 'text');
+        if (imgPart) {
+          const src = 'data:' + imgPart.source.media_type + ';base64,' + imgPart.source.data;
+          displayHtml += '<img src="' + src + '" style="max-width:180px;border-radius:8px;display:block;margin-bottom:6px">';
+        }
+        if (textPart) displayHtml += '<div>' + renderMarkdown(textPart.text) + '</div>';
+      } else {
+        displayHtml = renderMarkdown(msg.displayContent || msg.content);
+      }
       html += `
         <div style="margin-bottom:16px;display:flex;justify-content:flex-end">
           <div style="background:var(--teal);color:#fff;padding:10px 16px;border-radius:18px 18px 4px 18px;
                       max-width:80%;line-height:1.6;font-size:14px;word-break:break-word">
-            ${renderMarkdown(msg.content)}
+            ${displayHtml}
           </div>
         </div>`;
     } else {
@@ -14857,44 +14870,43 @@ async function hwSend() {
   const caption = document.getElementById('hwCaption')?.value.trim()
     || 'この手書きの内容を読み取って解説してほしい';
 
-  // Canvasを画像に変換（overlay削除前に）
   const dataUrl = canvas.toDataURL('image/png');
   const base64  = dataUrl.split(',')[1];
 
-  // チャット欄を先に取得（overlay削除前に）
-  // インライン版を優先、なければモーダル版
-  const allMsgs = document.querySelectorAll('#aiChatMessages');
-  const chatHistory = allMsgs.length > 1 ? allMsgs[1] : allMsgs[0];
-
-  // overlayを閉じる
   document.getElementById('hwOverlay')?.remove();
+
+  if (!AppData.settings?.apiKey) { showToast('設定画面でAPIキーを入力してください'); return; }
 
   // ウェルカム画面を非表示
   const emptyEl = document.getElementById('pomeChatEmpty');
   if (emptyEl) emptyEl.style.display = 'none';
 
-  if (!chatHistory) { showToast('チャット欄が見つかりません'); return; }
+  // ユーザーメッセージとして画像+テキストをaiChatHistoryに追加
+  aiChatHistory.push({
+    role: 'user',
+    content: [
+      { type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64 } },
+      { type: 'text', text: caption }
+    ],
+    displayContent: '✏️ ' + caption  // 表示用テキスト
+  });
 
-  // チャットに手書き画像を表示
-  const userDiv = document.createElement('div');
-  userDiv.className = 'user-message';
-  userDiv.innerHTML = `
-    <div class="user-bubble" style="padding:8px">
-      <img src="${dataUrl}" style="max-width:200px;border-radius:8px;display:block;margin-bottom:4px">
-      <div style="font-size:13px">${caption}</div>
+  renderAIChatMessages();
+  setAISendingState(true);
+
+  const container = document.getElementById('aiChatMessages');
+  if (container) {
+    container.innerHTML += `<div id="aiLoading" style="margin-bottom:16px">
+      <div style="display:inline-block;background:var(--bg);padding:12px 16px;border-radius:13px">
+        <div class="typing-indicator" style="display:flex;gap:4px">
+          <span style="width:8px;height:8px;background:var(--ink3);border-radius:50%;display:inline-block;animation:typing 1.4s infinite"></span>
+          <span style="width:8px;height:8px;background:var(--ink3);border-radius:50%;display:inline-block;animation:typing 1.4s .2s infinite"></span>
+          <span style="width:8px;height:8px;background:var(--ink3);border-radius:50%;display:inline-block;animation:typing 1.4s .4s infinite"></span>
+        </div>
+      </div>
     </div>`;
-  chatHistory.appendChild(userDiv);
-  chatHistory.scrollTop = chatHistory.scrollHeight;
-
-  // APIキー確認
-  if (!AppData.settings?.apiKey) { showToast('設定画面でAPIキーを入力してください'); return; }
-
-  const loadingDiv = document.createElement('div');
-  loadingDiv.className = 'ai-message';
-  loadingDiv.id = 'hw_loading_' + Date.now();
-  loadingDiv.innerHTML = '<div class="ai-bubble">読み取り中...🔍</div>';
-  chatHistory.appendChild(loadingDiv);
-  chatHistory.scrollTop = chatHistory.scrollHeight;
+    container.scrollTop = container.scrollHeight;
+  }
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -14911,30 +14923,26 @@ async function hwSend() {
         system: `あなたはポメちゃんです。中学生（かりん）の勉強を手伝うアシスタントです。
 手書きの数式・文章・図を読み取って、わかりやすく解説してください。
 回答は簡潔に、中学生向けの言葉で。`,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64 } },
-            { type: 'text', text: caption }
-          ]
-        }]
+        messages: aiChatHistory.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }))
       })
     });
 
     const data = await res.json();
     const text = data.content?.[0]?.text || 'うまく読み取れなかったよ😢もう一度試してみて';
 
-    loadingDiv.remove();
-    const aiDiv = document.createElement('div');
-    aiDiv.className = 'ai-message';
-    aiDiv.innerHTML = '<div class="ai-bubble">' + renderMarkdown(text) + '</div>';
-    chatHistory.appendChild(aiDiv);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
+    document.getElementById('aiLoading')?.remove();
+    aiChatHistory.push({ role: 'assistant', content: text });
+    renderAIChatMessages();
 
   } catch(e) {
-    document.getElementById(loadingId)?.remove();
-    showToast('送信に失敗しました');
+    document.getElementById('aiLoading')?.remove();
+    showToast('送信に失敗しました: ' + e.message);
   }
+
+  setAISendingState(false);
 }
 
 function startVoiceInput() {
