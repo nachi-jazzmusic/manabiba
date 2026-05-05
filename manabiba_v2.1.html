@@ -4287,6 +4287,9 @@ function renderAIChatInline() {
             <button onclick="openCamera()"
                     style="padding:8px;border-radius:50%;border:none;background:none;
                            font-size:18px;cursor:pointer;color:var(--ink3)" title="写真">📷</button>
+            <button onclick="openHandwriting()"
+                    style="padding:8px;border-radius:50%;border:none;background:none;
+                           font-size:18px;cursor:pointer;color:var(--ink3)" title="手書き">✏️</button>
             <button onclick="startVoiceInput()" id="voiceBtn"
                     style="padding:8px;border-radius:50%;border:none;background:none;
                            font-size:18px;cursor:pointer;color:var(--ink3)" title="音声">🎤</button>
@@ -14669,6 +14672,265 @@ ${(() => {
 // ═══════════════════════════════════════
 
 let recognition = null;
+
+// ── 手書き入力 ──
+function openHandwriting() {
+  const overlay = document.createElement('div');
+  overlay.id = 'hwOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;'
+    + 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
+
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:600px;
+                display:flex;flex-direction:column;gap:0;overflow:hidden">
+      <!-- ヘッダー -->
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  padding:12px 16px;border-bottom:1px solid var(--border)">
+        <div style="font-size:14px;font-weight:700">✏️ 手書き入力</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="hwUndo()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);
+                  background:#fff;font-family:var(--font);font-size:12px;cursor:pointer">元に戻す</button>
+          <button onclick="hwClear()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);
+                  background:#fff;font-family:var(--font);font-size:12px;cursor:pointer">クリア</button>
+          <button onclick="document.getElementById('hwOverlay').remove()"
+                  style="padding:6px 12px;border-radius:8px;border:none;background:var(--bg2);
+                  font-family:var(--font);font-size:12px;cursor:pointer;color:var(--ink3)">×</button>
+        </div>
+      </div>
+      <!-- ペン太さ選択 -->
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;
+                  border-bottom:1px solid var(--border);background:var(--bg2)">
+        <span style="font-size:11px;color:var(--ink3)">ペンの太さ：</span>
+        ${[2,4,6,10].map(w => `
+          <button onclick="hwSetWidth(${w})" id="hwW${w}"
+                  style="width:${w*2+16}px;height:${w*2+16}px;border-radius:50%;
+                         border:2px solid ${w===4?'var(--accent)':'var(--border)'};
+                         background:${w===4?'var(--accent)':'#333'};cursor:pointer"></button>`).join('')}
+        <span style="font-size:11px;color:var(--ink3);margin-left:8px">消しゴム：</span>
+        <button onclick="hwSetEraser()" id="hwEraser"
+                style="padding:4px 10px;border-radius:8px;border:1px solid var(--border);
+                       background:#fff;font-family:var(--font);font-size:12px;cursor:pointer">🧹</button>
+      </div>
+      <!-- Canvas -->
+      <canvas id="hwCanvas" style="touch-action:none;background:#fff;cursor:crosshair;
+                                    display:block;width:100%;height:400px"></canvas>
+      <!-- 送信ボタン -->
+      <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px">
+        <input type="text" id="hwCaption" placeholder="一言添える（例：この問題の解き方を教えて）"
+               class="input-field" style="flex:1;font-size:13px">
+        <button onclick="hwSend()"
+                style="padding:8px 16px;border-radius:10px;border:none;background:var(--accent);
+                       color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+          送信
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+
+  // Canvas初期化
+  const canvas = document.getElementById('hwCanvas');
+  const dpr    = window.devicePixelRatio || 1;
+  canvas.width  = canvas.offsetWidth  * dpr;
+  canvas.height = canvas.offsetHeight * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth   = 4;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
+  window._hw = {
+    ctx, canvas, dpr,
+    drawing: false,
+    eraser: false,
+    lineWidth: 4,
+    paths: [], // undoのために保存
+    currentPath: null
+  };
+
+  // PointerEvent（ペン対応）
+  canvas.addEventListener('pointerdown', hwStart);
+  canvas.addEventListener('pointermove', hwMove);
+  canvas.addEventListener('pointerup',   hwEnd);
+  canvas.addEventListener('pointerleave',hwEnd);
+}
+
+function hwGetPos(e) {
+  const rect = window._hw.canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+function hwStart(e) {
+  e.preventDefault();
+  const { ctx, eraser, lineWidth } = window._hw;
+  const pos = hwGetPos(e);
+  window._hw.drawing = true;
+  window._hw.currentPath = [pos];
+
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+  if (eraser) {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.lineWidth = lineWidth * 4;
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineWidth = lineWidth;
+    // ペン筆圧対応（Surfaceペン）
+    if (e.pressure && e.pressure > 0) {
+      ctx.lineWidth = lineWidth * (0.5 + e.pressure);
+    }
+  }
+}
+
+function hwMove(e) {
+  e.preventDefault();
+  if (!window._hw.drawing) return;
+  const { ctx, eraser, lineWidth } = window._hw;
+  const pos = hwGetPos(e);
+  window._hw.currentPath.push(pos);
+  ctx.lineTo(pos.x, pos.y);
+  if (e.pressure && e.pressure > 0 && !eraser) {
+    ctx.lineWidth = lineWidth * (0.5 + e.pressure);
+  }
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+}
+
+function hwEnd(e) {
+  if (!window._hw.drawing) return;
+  window._hw.drawing = false;
+  window._hw.ctx.globalCompositeOperation = 'source-over';
+  if (window._hw.currentPath) {
+    window._hw.paths.push(window._hw.currentPath);
+    window._hw.currentPath = null;
+  }
+}
+
+function hwSetWidth(w) {
+  window._hw.lineWidth = w;
+  window._hw.eraser    = false;
+  window._hw.ctx.globalCompositeOperation = 'source-over';
+  [2,4,6,10].forEach(n => {
+    const btn = document.getElementById('hwW' + n);
+    if (btn) {
+      btn.style.border = n === w ? '2px solid var(--accent)' : '2px solid var(--border)';
+      btn.style.background = n === w ? 'var(--accent)' : '#333';
+    }
+  });
+  const eb = document.getElementById('hwEraser');
+  if (eb) eb.style.background = '#fff';
+}
+
+function hwSetEraser() {
+  window._hw.eraser = true;
+  const eb = document.getElementById('hwEraser');
+  if (eb) eb.style.background = 'var(--bg2)';
+}
+
+function hwClear() {
+  const { ctx, canvas, dpr } = window._hw;
+  ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
+  window._hw.paths = [];
+}
+
+function hwUndo() {
+  window._hw.paths.pop();
+  // 再描画
+  const { ctx, canvas, dpr, paths, lineWidth } = window._hw;
+  ctx.clearRect(0, 0, canvas.width/dpr, canvas.height/dpr);
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth   = lineWidth;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  paths.forEach(path => {
+    if (path.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(path[0].x, path[0].y);
+    path.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  });
+}
+
+async function hwSend() {
+  const canvas  = document.getElementById('hwCanvas');
+  const caption = document.getElementById('hwCaption')?.value.trim()
+    || 'この手書きの内容を読み取って解説してほしい';
+
+  // Canvasを画像に変換
+  const dataUrl = canvas.toDataURL('image/png');
+  const base64  = dataUrl.split(',')[1];
+
+  document.getElementById('hwOverlay')?.remove();
+
+  // チャットに手書き画像を表示
+  const chatHistory = document.getElementById('aiChatHistory');
+  if (chatHistory) {
+    chatHistory.innerHTML += `
+      <div class="user-message">
+        <div class="user-bubble" style="padding:8px">
+          <img src="${dataUrl}" style="max-width:200px;border-radius:8px;display:block;margin-bottom:4px">
+          <div style="font-size:13px">${caption}</div>
+        </div>
+      </div>`;
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+  }
+
+  // ポメに送信（画像＋テキスト）
+  if (!AppData.settings?.apiKey) { showToast('APIキーを設定してください'); return; }
+
+  const loadingId = 'hw_loading_' + Date.now();
+  if (chatHistory) {
+    chatHistory.innerHTML += `<div id="${loadingId}" class="ai-message"><div class="ai-bubble">考え中...</div></div>`;
+    chatHistory.scrollTop = chatHistory.scrollHeight;
+  }
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': AppData.settings.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `あなたはポメちゃんです。中学生（かりん）の勉強を手伝うアシスタントです。
+手書きの数式・文章・図を読み取って、わかりやすく解説してください。
+回答は簡潔に、中学生向けの言葉で。`,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: 'image/png', data: base64 } },
+            { type: 'text', text: caption }
+          ]
+        }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'うまく読み取れなかったよ😢もう一度試してみて';
+
+    document.getElementById(loadingId)?.remove();
+    if (chatHistory) {
+      chatHistory.innerHTML += `
+        <div class="ai-message">
+          <div class="ai-bubble">${renderMarkdown(text)}</div>
+        </div>`;
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+
+      // チャット履歴に非表示にする
+      const emptyEl = document.getElementById('pomeChatEmpty');
+      if (emptyEl) emptyEl.style.display = 'none';
+    }
+  } catch(e) {
+    document.getElementById(loadingId)?.remove();
+    showToast('送信に失敗しました');
+  }
+}
 
 function startVoiceInput() {
   const voiceBtn = document.getElementById('voiceBtn');
