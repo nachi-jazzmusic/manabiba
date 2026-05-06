@@ -4193,6 +4193,13 @@ function renderTestBanner() {
                    cursor:pointer;margin-top:8px">
       💬 今日何をやればいい？
     </button>
+    ${nearExams.some(e => (e.decks||[]).length > 0) ? `
+      <button onclick="showTestStudySetup('${nearExams.find(e=>(e.decks||[]).length>0).id}')"
+              style="width:100%;padding:9px;border-radius:20px;border:none;background:#6B5FBB;
+                     color:#fff;font-family:var(--font);font-size:13px;font-weight:700;
+                     cursor:pointer;margin-top:6px">
+        📖 テスト勉強モード（カード）
+      </button>` : ''}
     ${trapBtn}
   </div>`;
 }
@@ -4456,6 +4463,252 @@ function startTestAttack(examId) {
     + '3. 最後に「勉強できる時間を教えてくれたらカリキュラムを組むよ」と聞いて';
 
   pomeQuickSend(msg);
+}
+
+// ═══════════════════════════════════════
+// テスト勉強モード
+// ═══════════════════════════════════════
+
+function showTestStudySetup(examId) {
+  const exam = (AppData.examRanges||[]).find(e => e.id === examId);
+  if (!exam) return;
+
+  const decks = exam.decks || [];
+  if (decks.length === 0) {
+    showToast('テスト情報にデッキが登録されていません。テスト情報を編集してデッキを選んでください。');
+    return;
+  }
+
+  // デッキ情報を取得
+  const deckData = getAvailableDecks().filter(d => decks.includes(d.key));
+  const totalCards = (AppData.studyCards||[]).filter(c => decks.includes(c.subject+'::'+c.deck)).length;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'testStudyOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;'
+    + 'display:flex;align-items:flex-end;justify-content:center;padding:16px';
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:16px 16px 0 0;padding:24px;
+                width:100%;max-width:500px;max-height:80vh;overflow-y:auto">
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">📖 テスト勉強モード</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:16px">${exam.name}</div>
+
+      <!-- デッキ選択 -->
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">出題するデッキ</div>
+      <div style="margin-bottom:16px">
+        <button onclick="tsSelectDeck('all',this)"
+                id="ts_deck_all"
+                style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--teal);
+                       background:#EEF9F7;color:var(--teal);font-family:var(--font);
+                       font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px">
+          全部まとめて（${totalCards}枚）
+        </button>
+        ${deckData.map(d => `
+          <button onclick="tsSelectDeck('${d.key}',this)"
+                  id="ts_deck_${d.key.replace(/[^a-zA-Z0-9]/g,'_')}"
+                  style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);
+                         background:#fff;color:var(--ink2);font-family:var(--font);
+                         font-size:13px;cursor:pointer;margin-bottom:6px;text-align:left">
+            ${d.subject}：${d.deck}（${d.count}枚）
+          </button>`).join('')}
+        <input type="hidden" id="ts_selected_deck" value="all">
+      </div>
+
+      <!-- 出題順 -->
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">出題順</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button onclick="tsSelectOrder('order',this)" id="ts_order"
+                style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--teal);
+                       background:#EEF9F7;color:var(--teal);font-family:var(--font);
+                       font-size:13px;font-weight:700;cursor:pointer">
+          順番通り
+        </button>
+        <button onclick="tsSelectOrder('random',this)" id="ts_random"
+                style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
+                       background:#fff;color:var(--ink2);font-family:var(--font);
+                       font-size:13px;cursor:pointer">
+          ランダム
+        </button>
+        <input type="hidden" id="ts_order_val" value="order">
+      </div>
+
+      <button onclick="startTestStudy('${examId}')" class="btn btn-primary"
+              style="width:100%;padding:14px;font-size:14px;margin-bottom:8px">
+        📖 テスト勉強を始める
+      </button>
+      <button onclick="document.getElementById('testStudyOverlay').remove()"
+              style="width:100%;padding:11px;border-radius:10px;border:none;background:var(--bg2);
+                     font-family:var(--font);font-size:13px;cursor:pointer;color:var(--ink3)">
+        キャンセル
+      </button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+}
+
+function tsSelectDeck(key, btn) {
+  document.getElementById('ts_selected_deck').value = key;
+  document.querySelectorAll('[id^="ts_deck_"]').forEach(b => {
+    b.style.border = '1px solid var(--border)';
+    b.style.background = '#fff';
+    b.style.color = 'var(--ink2)';
+  });
+  btn.style.border = '2px solid var(--teal)';
+  btn.style.background = '#EEF9F7';
+  btn.style.color = 'var(--teal)';
+}
+
+function tsSelectOrder(val, btn) {
+  document.getElementById('ts_order_val').value = val;
+  ['ts_order','ts_random'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) { b.style.border = '1px solid var(--border)'; b.style.background = '#fff'; b.style.color = 'var(--ink2)'; b.style.fontWeight = '400'; }
+  });
+  btn.style.border = '2px solid var(--teal)';
+  btn.style.background = '#EEF9F7';
+  btn.style.color = 'var(--teal)';
+  btn.style.fontWeight = '700';
+}
+
+function startTestStudy(examId) {
+  const exam       = (AppData.examRanges||[]).find(e => e.id === examId);
+  const deckKey    = document.getElementById('ts_selected_deck')?.value || 'all';
+  const orderVal   = document.getElementById('ts_order_val')?.value || 'order';
+  const examDecks  = exam?.decks || [];
+
+  document.getElementById('testStudyOverlay')?.remove();
+
+  // カードを取得
+  let cards = (AppData.studyCards||[]).filter(c => {
+    const key = c.subject + '::' + c.deck;
+    return deckKey === 'all' ? examDecks.includes(key) : key === deckKey;
+  });
+
+  if (cards.length === 0) { showToast('カードが見つかりません'); return; }
+
+  // 順番/ランダム
+  if (orderVal === 'random') {
+    cards = cards.slice().sort(() => Math.random() - 0.5);
+  }
+
+  // セッション開始
+  window.tsSession = { examId, cards, index: 0, ngIds: [], round: 1 };
+  renderTestStudyCard();
+}
+
+function renderTestStudyCard() {
+  const { cards, index, round } = window.tsSession;
+  const content = document.getElementById('outputContent');
+  document.getElementById('outputModal')?.classList.add('show');
+  document.getElementById('outputModalTitle').textContent = '📖 テスト勉強';
+
+  if (index >= cards.length) {
+    const ngIds = window.tsSession.ngIds;
+    if (ngIds.length === 0) {
+      // 全部○ → 完了
+      content.innerHTML = `
+        <div style="text-align:center;padding:48px 24px">
+          <div style="font-size:48px;margin-bottom:16px">🎉</div>
+          <div style="font-size:20px;font-weight:700;margin-bottom:8px">全部覚えた！</div>
+          <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">
+            ${window.tsSession.round}周目で全問クリア
+          </div>
+          <div style="font-size:13px;color:var(--teal);font-weight:700">テスト頑張れ💪</div>
+          <button onclick="closeOutputModal()" class="btn btn-primary"
+                  style="margin-top:24px;padding:12px 32px">閉じる</button>
+        </div>`;
+      return;
+    }
+    // ×があった → もう1周
+    window.tsSession.cards  = window.tsSession.cards.filter(c => ngIds.includes(c.id));
+    window.tsSession.index  = 0;
+    window.tsSession.ngIds  = [];
+    window.tsSession.round += 1;
+    content.innerHTML = `
+      <div style="text-align:center;padding:48px 24px">
+        <div style="font-size:36px;margin-bottom:12px">🔄</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">
+          ${window.tsSession.round-1}周目終了
+        </div>
+        <div style="font-size:13px;color:var(--red);margin-bottom:20px">
+          ×だった ${window.tsSession.cards.length}枚をもう1周やろう
+        </div>
+        <button onclick="renderTestStudyCard()" class="btn btn-primary"
+                style="width:100%;padding:14px;font-size:14px">
+          🔄 もう1周やる（${window.tsSession.cards.length}枚）
+        </button>
+        <button onclick="closeOutputModal()" class="btn btn-secondary"
+                style="width:100%;padding:12px;margin-top:8px">
+          今日はここまで
+        </button>
+      </div>`;
+    return;
+  }
+
+  const c   = cards[index];
+  const pct = Math.round((index / cards.length) * 100);
+  const total = cards.length;
+
+  content.innerHTML = `
+    <!-- プログレス -->
+    <div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink3);margin-bottom:4px">
+        <span>📖 ${c.subject}　${c.deck}</span>
+        <span>${index+1} / ${total}（${window.tsSession.round}周目）</span>
+      </div>
+      <div style="background:var(--bg2);border-radius:4px;height:6px">
+        <div style="background:var(--teal);width:${pct}%;height:100%;border-radius:4px"></div>
+      </div>
+    </div>
+
+    <!-- 問題 -->
+    <div style="background:#fff;border:2px solid var(--teal);border-radius:12px;
+                padding:20px;margin-bottom:16px;min-height:80px;text-align:center">
+      <div style="font-size:11px;color:var(--teal);font-weight:700;margin-bottom:10px">問題</div>
+      <div style="font-size:20px;font-weight:700;line-height:1.7">${c.question}</div>
+      ${c.hint ? '<div style="font-size:12px;color:var(--ink3);margin-top:8px">💡 ' + c.hint + '</div>' : ''}
+    </div>
+
+    <button onclick="tsShowAnswer()" class="btn btn-secondary"
+            style="width:100%;padding:13px;font-size:14px;margin-bottom:8px">
+      📋 答えを確認する
+    </button>
+
+    <!-- 答え（非表示） -->
+    <div id="ts_answer_area" style="display:none">
+      <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:16px;text-align:center">
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">答え</div>
+        <div style="font-size:22px;font-weight:700">${c.answer}</div>
+      </div>
+      <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:12px">覚えてた？</div>
+      <div style="display:flex;gap:10px">
+        <button onclick="tsRate('ok')"
+                style="flex:1;padding:16px;background:#4A9B5F;color:#fff;border:none;
+                       border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">
+          ✅ 覚えてた
+        </button>
+        <button onclick="tsRate('ng')"
+                style="flex:1;padding:16px;background:#D94F3D;color:#fff;border:none;
+                       border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">
+          ❌ 覚えてない
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function tsShowAnswer() {
+  document.getElementById('ts_answer_area').style.display = 'block';
+  document.querySelector('#outputContent .btn-secondary')?.style.setProperty('display','none');
+}
+
+function tsRate(result) {
+  const { cards, index } = window.tsSession;
+  const c = cards[index];
+  if (result === 'ng') window.tsSession.ngIds.push(c.id);
+  window.tsSession.index++;
+  renderTestStudyCard();
 }
 
 function showExplainModeSelector() {
@@ -10226,15 +10479,15 @@ function showParentHomework() {
     <div class="input-group">
       <label class="input-label">区分</label>
       <div style="display:flex;gap:8px">
-        <button id="phw_type_school" onclick="selectHwType('school')"
+        <button id="phw_type_juku" onclick="selectHwType('juku')"
                 class="btn btn-primary"
                 style="flex:1;padding:10px;font-size:13px;font-weight:700">
-          🏫 学校
+          📚 塾
         </button>
-        <button id="phw_type_juku" onclick="selectHwType('juku')"
+        <button id="phw_type_school" onclick="selectHwType('school')"
                 class="btn btn-secondary"
                 style="flex:1;padding:10px;font-size:13px;font-weight:700">
-          📚 塾
+          🏫 学校
         </button>
       </div>
     </div>
@@ -10274,7 +10527,7 @@ function showParentHomework() {
     </div>
   `;
 
-  window._phwType = 'school';
+  window._phwType = 'juku';
 }
 
 function renderHomeworkList() {
@@ -10789,6 +11042,14 @@ function showExamRangeList() {
                        font-weight:700;cursor:pointer">
           🔍 理解度を診断する
         </button>
+        ${(exam.decks||[]).length > 0 ? `
+        <button onclick="closeParentModal();showTestStudySetup('${exam.id}')"
+                style="margin-top:6px;width:100%;padding:8px;border-radius:8px;
+                       border:none;background:#6B5FBB;
+                       color:#fff;font-family:var(--font);font-size:12px;
+                       font-weight:700;cursor:pointer">
+          📖 テスト勉強モード
+        </button>` : ''}
       </div>`;
   }).join('');
 
@@ -10860,6 +11121,37 @@ function showAddExamRange(prefill) {
       ✓ 登録する
     </button>
   `;
+
+  // デッキ選択UIを動的に追加
+  const decks = getAvailableDecks();
+  const selectedDecks = p.decks || [];
+  const deckSection = document.createElement('div');
+  deckSection.style.cssText = 'margin-bottom:16px';
+  deckSection.innerHTML = `
+    <label class="input-label" style="margin-bottom:8px;display:block">
+      🃏 テスト勉強で使うデッキ（任意）
+    </label>
+    <div style="font-size:11px;color:var(--ink3);margin-bottom:8px">
+      選んだデッキがテスト勉強モードで出題されます
+    </div>
+    <div id="er_deck_list" style="display:flex;flex-wrap:wrap;gap:6px">
+      ${decks.length === 0
+        ? '<div style="font-size:12px;color:var(--ink3)">暗記カードが登録されていません</div>'
+        : decks.map(d => `
+          <button onclick="toggleExamDeck('${d.key}',this)"
+                  id="erdeck_${d.key.replace(/[^a-zA-Z0-9]/g,'_')}"
+                  style="padding:6px 12px;border-radius:16px;font-family:var(--font);font-size:12px;
+                         cursor:pointer;border:1.5px solid ${selectedDecks.includes(d.key)?'var(--teal)':'var(--border)'};
+                         background:${selectedDecks.includes(d.key)?'#EEF9F7':'#fff'};
+                         color:${selectedDecks.includes(d.key)?'var(--teal)':'var(--ink2)'}">
+            ${d.subject}：${d.deck}（${d.count}枚）
+          </button>`).join('')}
+    </div>
+    <input type="hidden" id="er_decks" value="${selectedDecks.join(',')}">
+  `;
+
+  const saveBtn = content.querySelector('.btn.btn-primary');
+  content.insertBefore(deckSection, saveBtn);
 
   // 既存科目のボタンをグレーアウト
   subjects.forEach(s => {
@@ -10937,6 +11229,37 @@ function removeExamSubjectRow(btn, subject) {
   if (addBtn) { addBtn.disabled = false; addBtn.style.opacity = '1'; }
 }
 
+// デッキ一覧を取得
+function getAvailableDecks() {
+  const cards = AppData.studyCards || [];
+  const map = {};
+  cards.forEach(c => {
+    const key = c.subject + '::' + c.deck;
+    if (!map[key]) map[key] = { subject: c.subject, deck: c.deck, key, count: 0 };
+    map[key].count++;
+  });
+  return Object.values(map).sort((a,b) => a.subject.localeCompare(b.subject));
+}
+
+// デッキのON/OFFトグル
+function toggleExamDeck(key, btn) {
+  const hiddenInput = document.getElementById('er_decks');
+  if (!hiddenInput) return;
+  let selected = hiddenInput.value ? hiddenInput.value.split(',') : [];
+  if (selected.includes(key)) {
+    selected = selected.filter(k => k !== key);
+    btn.style.border = '1.5px solid var(--border)';
+    btn.style.background = '#fff';
+    btn.style.color = 'var(--ink2)';
+  } else {
+    selected.push(key);
+    btn.style.border = '1.5px solid var(--teal)';
+    btn.style.background = '#EEF9F7';
+    btn.style.color = 'var(--teal)';
+  }
+  hiddenInput.value = selected.join(',');
+}
+
 function saveExamRange(existingId) {
   const name    = document.getElementById('er_name')?.value.trim();
   const testDate = document.getElementById('er_date')?.value;
@@ -10966,13 +11289,17 @@ function saveExamRange(existingId) {
 
   if (subjects.length === 0) { showToast('少なくとも1科目の範囲を入力してください'); return; }
 
+  // デッキ選択を取得
+  const decksVal = document.getElementById('er_decks')?.value || '';
+  const decks = decksVal ? decksVal.split(',').filter(Boolean) : [];
+
   if (!AppData.examRanges) AppData.examRanges = [];
 
   if (existingId) {
     const idx = AppData.examRanges.findIndex(e => e.id === existingId);
-    if (idx >= 0) AppData.examRanges[idx] = { ...AppData.examRanges[idx], name, testDate, subjects };
+    if (idx >= 0) AppData.examRanges[idx] = { ...AppData.examRanges[idx], name, testDate, subjects, decks };
   } else {
-    AppData.examRanges.push({ id: `er_${Date.now()}`, name, testDate, subjects });
+    AppData.examRanges.push({ id: `er_${Date.now()}`, name, testDate, subjects, decks });
   }
 
   saveData();
@@ -11664,7 +11991,7 @@ function showAddTestPlanTask(prefDate) {
       <label class="input-label">目安時間（任意）</label>
       <div style="display:flex;align-items:center;gap:8px">
         <input type="number" class="input-field" id="tp_min"
-               placeholder="30" style="width:80px" min="0" max="300">
+               value="30" style="width:80px" min="0" max="300">
         <span style="font-size:13px;color:var(--ink3)">分</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           ${[15,30,45,60].map(m => `
@@ -11681,6 +12008,53 @@ function showAddTestPlanTask(prefDate) {
       💡 複数のタスクは1件ずつ登録してください
     </div>
 
+    <!-- 繰り返し設定 -->
+    <div class="input-group">
+      <label class="input-label">繰り返し</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="tp_repeat_btns">
+        <button onclick="selectRepeat('none',this)"
+                style="padding:7px 14px;border-radius:16px;border:2px solid var(--accent);
+                       background:var(--accent);color:#fff;font-family:var(--font);font-size:12px;cursor:pointer">
+          繰り返しなし
+        </button>
+        <button onclick="selectRepeat('daily',this)"
+                style="padding:7px 14px;border-radius:16px;border:1px solid var(--border);
+                       background:#fff;color:var(--ink2);font-family:var(--font);font-size:12px;cursor:pointer">
+          毎日
+        </button>
+        <button onclick="selectRepeat('weekday',this)"
+                style="padding:7px 14px;border-radius:16px;border:1px solid var(--border);
+                       background:#fff;color:var(--ink2);font-family:var(--font);font-size:12px;cursor:pointer">
+          平日のみ
+        </button>
+        <button onclick="selectRepeat('custom',this)"
+                style="padding:7px 14px;border-radius:16px;border:1px solid var(--border);
+                       background:#fff;color:var(--ink2);font-family:var(--font);font-size:12px;cursor:pointer">
+          曜日を選ぶ
+        </button>
+      </div>
+      <input type="hidden" id="tp_repeat" value="none">
+    </div>
+
+    <!-- 曜日選択（曜日を選ぶ時のみ） -->
+    <div id="tp_dow_area" style="display:none;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">繰り返す曜日を選んでください</div>
+      <div style="display:flex;gap:6px">
+        ${['日','月','火','水','木','金','土'].map((d,i) => `
+          <button onclick="toggleDow(${i},this)" id="tp_dow_${i}"
+                  style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);
+                         background:#fff;font-family:var(--font);font-size:13px;cursor:pointer">
+            ${d}
+          </button>`).join('')}
+      </div>
+    </div>
+
+    <!-- 繰り返し終了日（繰り返し設定時のみ） -->
+    <div id="tp_until_area" style="display:none;margin-bottom:16px">
+      <label class="input-label">繰り返しの終了日</label>
+      <input type="date" class="input-field" id="tp_until">
+    </div>
+
     <button onclick="saveTestPlanTask(false)" class="btn btn-primary"
             style="width:100%;padding:14px;font-size:14px;margin-bottom:8px">
       ✓ 登録する
@@ -11695,24 +12069,100 @@ function showAddTestPlanTask(prefDate) {
   setTimeout(() => document.getElementById('tp_content')?.focus(), 100);
 }
 
+function selectRepeat(val, btn) {
+  document.getElementById('tp_repeat').value = val;
+  document.querySelectorAll('#tp_repeat_btns button').forEach(b => {
+    b.style.background = '#fff';
+    b.style.color = 'var(--ink2)';
+    b.style.border = '1px solid var(--border)';
+  });
+  btn.style.background = 'var(--accent)';
+  btn.style.color = '#fff';
+  btn.style.border = '2px solid var(--accent)';
+
+  const dowArea   = document.getElementById('tp_dow_area');
+  const untilArea = document.getElementById('tp_until_area');
+  if (val === 'none') {
+    dowArea.style.display   = 'none';
+    untilArea.style.display = 'none';
+  } else {
+    dowArea.style.display   = val === 'custom' ? 'block' : 'none';
+    untilArea.style.display = 'block';
+  }
+}
+
+function toggleDow(i, btn) {
+  const active = btn.style.background === 'var(--accent)' || btn.style.background === 'rgb(200, 117, 59)';
+  if (active) {
+    btn.style.background = '#fff';
+    btn.style.color = 'var(--ink)';
+    btn.style.border = '1px solid var(--border)';
+  } else {
+    btn.style.background = 'var(--accent)';
+    btn.style.color = '#fff';
+    btn.style.border = '2px solid var(--accent)';
+  }
+}
+
 function saveTestPlanTask(andContinue) {
   const date    = document.getElementById('tp_date')?.value;
   const content = document.getElementById('tp_content')?.value.trim();
   const min     = parseInt(document.getElementById('tp_min')?.value) || 0;
+  const repeat  = document.getElementById('tp_repeat')?.value || 'none';
+  const until   = document.getElementById('tp_until')?.value || '';
 
   if (!date)    { showToast('日付を入力してください'); return; }
   if (!content) { showToast('やることを入力してください'); return; }
 
   if (!AppData.testPlan) AppData.testPlan = [];
-  AppData.testPlan.push({
-    id: 'tp_' + Date.now(),
-    date, content,
-    estimatedMin: min || null,
-    done: false
-  });
+
+  if (repeat === 'none') {
+    // 単発登録
+    AppData.testPlan.push({
+      id: 'tp_' + Date.now(),
+      date, content, estimatedMin: min || null, done: false
+    });
+    showToast('✓ 登録しました');
+  } else {
+    // 繰り返し登録
+    if (!until) { showToast('終了日を入力してください'); return; }
+
+    // 選択された曜日を取得
+    let selectedDows = null;
+    if (repeat === 'custom') {
+      selectedDows = [0,1,2,3,4,5,6].filter(i => {
+        const btn = document.getElementById('tp_dow_' + i);
+        return btn && (btn.style.background === 'var(--accent)' ||
+               btn.style.background.includes('200, 117'));
+      });
+      if (selectedDows.length === 0) { showToast('繰り返す曜日を選んでください'); return; }
+    }
+
+    // 日付を生成
+    const startD = new Date(date);
+    const untilD = new Date(until);
+    let count = 0;
+    let d = new Date(startD);
+    while (d <= untilD) {
+      const dow = d.getDay();
+      const shouldAdd = repeat === 'daily' ? true
+        : repeat === 'weekday' ? (dow >= 1 && dow <= 5)
+        : selectedDows.includes(dow);
+
+      if (shouldAdd) {
+        AppData.testPlan.push({
+          id: 'tp_' + Date.now() + '_' + count,
+          date: d.toISOString().split('T')[0],
+          content, estimatedMin: min || null, done: false
+        });
+        count++;
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    showToast('✓ ' + count + '件登録しました（' + date + '〜' + until + '）');
+  }
 
   saveData();
-  showToast('✓ 登録しました');
   renderHome();
 
   if (andContinue) {
