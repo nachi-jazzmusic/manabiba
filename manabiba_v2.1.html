@@ -2172,12 +2172,15 @@ function renderTodayHub() {
 
     <div style="padding:10px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
 
-      <!-- 机でやるもの -->
+      <!-- 未振り分けの宿題 -->
+      ${renderUnassignedHomework()}
+
+      <!-- 机でやるもの（タスク管理） -->
       <div>
         <div style="font-size:11px;font-weight:700;color:var(--ink3);margin-bottom:6px;
                     display:flex;justify-content:space-between;align-items:center">
-          <span>📚 机でやるもの</span>
-          <button onclick="showParentMenu();setTimeout(()=>showParentHomework(),100)"
+          <span>📅 タスク管理</span>
+          <button onclick="showParentMenu();setTimeout(()=>showTestPlan(),100)"
                   style="border:none;background:none;color:var(--ink3);font-size:13px;cursor:pointer">＋</button>
         </div>
         ${renderDeskTaskSection(deskTasks)}
@@ -2586,40 +2589,100 @@ function adjustTodayTask(cardId, action) {
 }
 
 // ── 机でやるタスク（宿題カード）を取得 ──
+// 未振り分けの宿題エリア
+function renderUnassignedHomework() {
+  const today  = getTodayString();
+  const todayD = new Date(); todayD.setHours(0,0,0,0);
+
+  // 期限2日超過の宿題を自動削除
+  AppData.homeworkCards = (AppData.homeworkCards||[]).filter(c => {
+    if (!c.dueDate) return true;
+    const diff = Math.ceil((todayD - new Date(c.dueDate)) / (1000*60*60*24));
+    return diff < 2;
+  });
+
+  const undone = (AppData.homeworkCards||[]).filter(c => !c.done && c.dueDate >= today);
+  if (undone.length === 0) return '';
+
+  const items = undone.map(c => {
+    const daysLeft = Math.ceil((new Date(c.dueDate) - todayD) / (1000*60*60*24));
+    const urgency  = daysLeft <= 0 ? 'var(--red)' : daysLeft <= 2 ? '#C8922A' : 'var(--ink3)';
+    const dayLabel = daysLeft <= 0 ? '期限！' : daysLeft === 1 ? '明日まで' : 'あと' + daysLeft + '日';
+    const typeLabel = c.hwType === 'juku' ? '塾' : '学校';
+    const typeBg    = c.hwType === 'juku' ? '#F0EEFF' : '#E8F5F2';
+    const typeColor = c.hwType === 'juku' ? '#6B5FBB' : '#2E8B6E';
+
+    return `
+      <div style="background:#fff;border-radius:8px;border:1px solid var(--border);
+                  padding:8px 10px;margin-bottom:5px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;
+                     background:${typeBg};color:${typeColor};flex-shrink:0">${typeLabel}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            ${c.subject ? c.subject + '｜' : ''}${c.content}
+          </div>
+          <div style="font-size:10px;color:${urgency};font-weight:${daysLeft<=1?'700':'400'}">${dayLabel}</div>
+        </div>
+        <button onclick="addHomeworkToTask('${c.id}')"
+                style="flex-shrink:0;padding:5px 8px;border-radius:8px;border:none;
+                       background:var(--accent);color:#fff;font-family:var(--font);
+                       font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
+          今日やる
+        </button>
+      </div>`;
+  }).join('');
+
+  return `
+    <div>
+      <div style="font-size:11px;font-weight:700;color:var(--ink3);margin-bottom:6px;
+                  display:flex;justify-content:space-between;align-items:center">
+        <span>📚 宿題・やること（${undone.length}件）</span>
+        <button onclick="showParentMenu();setTimeout(()=>showParentHomework(),100)"
+                style="border:none;background:none;color:var(--ink3);font-size:13px;cursor:pointer">＋</button>
+      </div>
+      <div style="background:var(--bg2);border-radius:10px;padding:8px">
+        ${items}
+        <div style="font-size:10px;color:var(--ink3);text-align:center;margin-top:4px">
+          「今日やる」を押すとタスクに追加されます
+        </div>
+      </div>
+    </div>`;
+}
+
+// 宿題をタスク管理に追加
+function addHomeworkToTask(cardId) {
+  const card = (AppData.homeworkCards||[]).find(c => c.id === cardId);
+  if (!card) return;
+
+  const today = getTodayString();
+  if (!AppData.testPlan) AppData.testPlan = [];
+
+  // 既に今日のタスクに同じ宿題があればスキップ
+  const already = AppData.testPlan.some(t =>
+    t.date === today && t.homeworkId === cardId
+  );
+  if (already) { showToast('すでに今日のタスクに追加済みです'); return; }
+
+  const label  = (card.subject ? card.subject + '｜' : '') + card.content;
+  AppData.testPlan.push({
+    id: 'tp_hw_' + Date.now(),
+    date: today,
+    content: label,
+    estimatedMin: 30,
+    done: false,
+    homeworkId: cardId  // 宿題との紐付け
+  });
+
+  saveData();
+  renderHome();
+  showToast('✓ 今日のタスクに追加しました');
+}
+
 function getDeskTasksForToday() {
-  const now = new Date();
   const today = getTodayString();
   const tasks = [];
 
-  (AppData.homeworkCards || []).forEach(card => {
-    if (!card.dueDate) return;
-
-    // 期限日の18時以降は表示しない（完了・未完了問わず）
-    const dueDate = new Date(card.dueDate);
-    dueDate.setHours(18, 0, 0, 0);
-    if (now >= dueDate) return;
-
-    const todayD   = new Date(); todayD.setHours(0,0,0,0);
-    const daysLeft = Math.ceil((new Date(card.dueDate) - todayD) / (1000*60*60*24));
-    const urgentColor = daysLeft <= 0 ? 'var(--red)' : daysLeft === 1 ? '#C8922A' : 'var(--teal)';
-
-    tasks.push({
-      id: card.id,
-      cardId: card.id,
-      subject: card.subject,
-      content: card.content,
-      memo: card.memo || '',
-      hwType: card.hwType || 'school',
-      done: card.done || false,
-      dueDate: card.dueDate,
-      daysLeft,
-      urgentColor,
-      sortOrder: card.sortOrder ?? 999,
-      estimatedMin: 15
-    });
-  });
-
-  // テスト計画タスク（今日の日付のもの）
+  // テスト計画タスク（今日の日付のもの）のみ
   (AppData.testPlan || []).forEach(plan => {
     if (plan.date !== today) return;
     tasks.push({
@@ -2636,7 +2699,7 @@ function getDeskTasksForToday() {
     });
   });
 
-  // 未完了を上・完了を下、それぞれsortOrder順
+  // 未完了を上・完了を下
   tasks.sort((a, b) => {
     if (a.done !== b.done) return a.done ? 1 : -1;
     return a.sortOrder - b.sortOrder;
@@ -11911,7 +11974,7 @@ async function showSimilarProblem(cardId) {
 // ═══════════════════════════════════════
 
 function showTestPlan() {
-  document.getElementById('parentModalTitle').textContent = '📅 テスト計画';
+  document.getElementById('parentModalTitle').textContent = '📅 タスク管理';
   const content = document.getElementById('parentContent');
   const plans = AppData.testPlan || [];
   const today = getTodayString();
@@ -11971,9 +12034,45 @@ function showTestPlan() {
   content.innerHTML = `
     <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
     <button onclick="showAddTestPlanTask()" class="btn btn-primary"
-            style="width:100%;padding:13px;font-size:14px;margin-bottom:20px">
+            style="width:100%;padding:13px;font-size:14px;margin-bottom:12px">
       ＋ タスクを追加する
     </button>
+
+    <!-- 宿題から追加 -->
+    ${(() => {
+      const todayD = new Date(); todayD.setHours(0,0,0,0);
+      const unassigned = (AppData.homeworkCards||[]).filter(c => {
+        if (c.done || !c.dueDate) return false;
+        return new Date(c.dueDate) >= todayD;
+      });
+      if (unassigned.length === 0) return '';
+      return `
+        <div style="background:linear-gradient(135deg,#FFF5EF,#fff);border-radius:10px;
+                    padding:12px;margin-bottom:12px;border:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--ink2)">
+            📚 宿題から今日のタスクに追加
+          </div>
+          ${unassigned.map(c => {
+            const daysLeft = Math.ceil((new Date(c.dueDate) - todayD) / (1000*60*60*24));
+            const urgency  = daysLeft <= 1 ? 'var(--red)' : daysLeft <= 3 ? '#C8922A' : 'var(--ink3)';
+            const label = (c.subject ? c.subject + '｜' : '') + c.content;
+            return `
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div style="flex:1;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                  ${label}
+                </div>
+                <div style="font-size:10px;color:${urgency};flex-shrink:0">あと${daysLeft}日</div>
+                <button onclick="addHomeworkToTask('${c.id}');showTestPlan()"
+                        style="flex-shrink:0;padding:4px 8px;border-radius:8px;border:none;
+                               background:var(--accent);color:#fff;font-family:var(--font);
+                               font-size:11px;font-weight:700;cursor:pointer">
+                  今日やる
+                </button>
+              </div>`;
+          }).join('')}
+        </div>`;
+    })()}
+
     ${Object.keys(byDate).length === 0 ? `
       <div style="text-align:center;padding:32px;color:var(--ink3)">
         <div style="font-size:32px;margin-bottom:8px">📅</div>
@@ -13440,12 +13539,12 @@ function showParentMenu(section) {
     ${summaryHtml}
     <div style="display:flex;flex-direction:column;gap:10px">
 
-      <!-- テスト計画を作る -->
+      <!-- タスク管理 -->
       <button onclick="showTestPlan()" class="btn btn-secondary"
               style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
         <span style="font-size:26px">📅</span>
         <div>
-          <div style="font-weight:700;font-size:14px">テスト計画を作る</div>
+          <div style="font-weight:700;font-size:14px">タスク管理</div>
           <div style="font-size:11px;color:var(--ink3);margin-top:3px">
             日付ごとにやることを登録。その日の右パネルに表示されます
           </div>
