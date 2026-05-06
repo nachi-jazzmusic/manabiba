@@ -799,7 +799,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
     </button>
     <button class="nav-btn" onclick="showBulkTestSetup()">
       <span class="nav-icon">📋</span>
-      <span>小テスト</span>
+      <span>暗記テスト</span>
     </button>
     <button class="nav-btn" onclick="showUnitLearn()">
       <span class="nav-icon">📖</span>
@@ -4193,8 +4193,8 @@ function renderTestBanner() {
                    cursor:pointer;margin-top:8px">
       💬 今日何をやればいい？
     </button>
-    ${nearExams.some(e => (e.decks||[]).length > 0) ? `
-      <button onclick="showTestStudySetup('${nearExams.find(e=>(e.decks||[]).length>0).id}')"
+    ${nearExams.length > 0 ? `
+      <button onclick="showTestStudySetup('${nearExams.sort((a,b)=>(b.decks||[]).length-(a.decks||[]).length)[0].id}')"
               style="width:100%;padding:9px;border-radius:20px;border:none;background:#6B5FBB;
                      color:#fff;font-family:var(--font);font-size:13px;font-weight:700;
                      cursor:pointer;margin-top:6px">
@@ -4475,7 +4475,21 @@ function showTestStudySetup(examId) {
 
   const decks = exam.decks || [];
   if (decks.length === 0) {
-    showToast('テスト情報にデッキが登録されていません。テスト情報を編集してデッキを選んでください。');
+    const overlay = document.createElement('div');
+    overlay.id = 'testStudyOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;'
+      + 'display:flex;align-items:flex-end;justify-content:center;padding:16px';
+    overlay.innerHTML = `
+      <div style="background:var(--bg);border-radius:16px 16px 0 0;padding:24px;width:100%;max-width:500px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">📖 テスト勉強モード</div>
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:20px">
+          まずテスト情報に「使うデッキ」を登録してください。<br><br>
+          保護者メニュー → テスト情報 → 編集 → デッキを選ぶ
+        </div>
+        <button onclick="document.getElementById('testStudyOverlay').remove()"
+                class="btn btn-primary" style="width:100%;padding:12px">閉じる</button>
+      </div>`;
+    document.body.appendChild(overlay);
     return;
   }
 
@@ -9156,16 +9170,16 @@ function showOutputMenu() {
       </div>`
     }
 
-    <!-- まとめテスト -->
+    <!-- 暗記テスト -->
     ${(AppData.outputCards || []).filter(c => c.type === 'word').length > 0 ? `
     <div class="card">
-      <div class="card-title"><span class="card-icon">📋</span>まとめテスト</div>
+      <div class="card-title"><span class="card-icon">📋</span>暗記テスト</div>
       <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">
         範囲を選んで、音読→意味テスト→筆記テストを一気にやろう！
       </div>
       <button class="btn btn-primary" onclick="showBulkTestSetup()"
               style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
-        📋 まとめテストをはじめる
+        📋 暗記テストをはじめる
       </button>
     </div>` : ''}
 
@@ -10671,7 +10685,7 @@ function showParentProgress() {
 const DAILY_ITEM_PRESETS = [
   { type:'eiken',        label:'英検練習',   icon:'🌟', estimatedMin:10, action:'eiken',        detail:'今日の単元をAIが提案' },
   { type:'anki',         label:'暗記練習',   icon:'🧠', estimatedMin:10, action:'anki',         detail:'英単語・漢字をまとめて練習' },
-  { type:'bulk_test',    label:'単語小テスト', icon:'📋', estimatedMin:15, action:'bulk_test',    detail:'登録済みカードでテスト' },
+
 ];
 
 function showDailyItemsSettings() {
@@ -12203,7 +12217,7 @@ function editTestPlanTask(id) {
       <label class="input-label">目安時間（任意）</label>
       <div style="display:flex;align-items:center;gap:8px">
         <input type="number" class="input-field" id="tp_min"
-               value="${task.estimatedMin||''}" style="width:80px" min="0" max="300">
+               value="${task.estimatedMin||30}" style="width:80px" min="0" max="300">
         <span style="font-size:13px;color:var(--ink3)">分</span>
         <div style="display:flex;gap:6px">
           ${[15,30,45,60].map(m => `
@@ -12214,6 +12228,51 @@ function editTestPlanTask(id) {
             </button>`).join('')}
         </div>
       </div>
+    </div>
+
+    <!-- 繰り返し設定 -->
+    <div class="input-group">
+      <label class="input-label">繰り返し（この日以降に追加登録）</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="tp_repeat_btns">
+        <button onclick="selectRepeat('none',this)"
+                style="padding:7px 14px;border-radius:16px;border:2px solid var(--accent);
+                       background:var(--accent);color:#fff;font-family:var(--font);font-size:12px;cursor:pointer">
+          繰り返しなし
+        </button>
+        <button onclick="selectRepeat('daily',this)"
+                style="padding:7px 14px;border-radius:16px;border:1px solid var(--border);
+                       background:#fff;color:var(--ink2);font-family:var(--font);font-size:12px;cursor:pointer">
+          毎日
+        </button>
+        <button onclick="selectRepeat('weekday',this)"
+                style="padding:7px 14px;border-radius:16px;border:1px solid var(--border);
+                       background:#fff;color:var(--ink2);font-family:var(--font);font-size:12px;cursor:pointer">
+          平日のみ
+        </button>
+        <button onclick="selectRepeat('custom',this)"
+                style="padding:7px 14px;border-radius:16px;border:1px solid var(--border);
+                       background:#fff;color:var(--ink2);font-family:var(--font);font-size:12px;cursor:pointer">
+          曜日を選ぶ
+        </button>
+      </div>
+      <input type="hidden" id="tp_repeat" value="none">
+    </div>
+
+    <div id="tp_dow_area" style="display:none;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">繰り返す曜日</div>
+      <div style="display:flex;gap:6px">
+        ${['日','月','火','水','木','金','土'].map((d,i) => `
+          <button onclick="toggleDow(${i},this)" id="tp_dow_${i}"
+                  style="width:36px;height:36px;border-radius:50%;border:1px solid var(--border);
+                         background:#fff;font-family:var(--font);font-size:13px;cursor:pointer">
+            ${d}
+          </button>`).join('')}
+      </div>
+    </div>
+
+    <div id="tp_until_area" style="display:none;margin-bottom:16px">
+      <label class="input-label">繰り返しの終了日</label>
+      <input type="date" class="input-field" id="tp_until">
     </div>
 
     <button onclick="updateTestPlanTask('${id}')" class="btn btn-primary"
@@ -12229,16 +12288,58 @@ function updateTestPlanTask(id) {
   const date    = document.getElementById('tp_date')?.value;
   const content = document.getElementById('tp_content')?.value.trim();
   const min     = parseInt(document.getElementById('tp_min')?.value) || 0;
+  const repeat  = document.getElementById('tp_repeat')?.value || 'none';
+  const until   = document.getElementById('tp_until')?.value || '';
 
   if (!date || !content) { showToast('日付とやることを入力してください'); return; }
 
+  // 元のタスクを更新
   task.date         = date;
   task.content      = content;
   task.estimatedMin = min || null;
 
+  // 繰り返しがあれば追加登録
+  if (repeat !== 'none') {
+    if (!until) { showToast('終了日を入力してください'); return; }
+
+    let selectedDows = null;
+    if (repeat === 'custom') {
+      selectedDows = [0,1,2,3,4,5,6].filter(i => {
+        const btn = document.getElementById('tp_dow_' + i);
+        return btn && btn.style.background.includes('accent') || btn?.style.background.includes('200, 117');
+      });
+      if (selectedDows.length === 0) { showToast('繰り返す曜日を選んでください'); return; }
+    }
+
+    // 翌日から終了日まで追加
+    const startD = new Date(date);
+    startD.setDate(startD.getDate() + 1);
+    const untilD = new Date(until);
+    let count = 0;
+    let d = new Date(startD);
+    while (d <= untilD) {
+      const dow = d.getDay();
+      const shouldAdd = repeat === 'daily' ? true
+        : repeat === 'weekday' ? (dow >= 1 && dow <= 5)
+        : selectedDows.includes(dow);
+      if (shouldAdd) {
+        AppData.testPlan.push({
+          id: 'tp_' + Date.now() + '_' + count,
+          date: d.toISOString().split('T')[0],
+          content, estimatedMin: min || null, done: false
+        });
+        count++;
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    if (count > 0) showToast('✓ 更新＋' + count + '件追加しました');
+    else showToast('✓ 更新しました');
+  } else {
+    showToast('✓ 更新しました');
+  }
+
   saveData();
   renderHome();
-  showToast('✓ 更新しました');
   showTestPlan();
 }
 
@@ -13391,19 +13492,6 @@ function showParentMenu(section) {
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
 
-      <!-- テスト対策を登録する -->
-      <button onclick="showTestPrepList()" class="btn btn-secondary"
-              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
-        <span style="font-size:26px">🎯</span>
-        <div>
-          <div style="font-weight:700;font-size:14px">🎯 小テスト対策（AI出題）</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
-            単語テストなど毎日AIが問題を出します
-          </div>
-        </div>
-        <span style="margin-left:auto;color:var(--ink3)">›</span>
-      </button>
-
       <!-- 弱点問題を登録する -->
       <button onclick="showWeakPointList()" class="btn btn-secondary"
               style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
@@ -14337,14 +14425,14 @@ function renderTodayUnitChecks() {
 }
 
 // ═══════════════════════════════════════
-// まとめテスト機能
+// 暗記テスト機能
 // ═══════════════════════════════════════
 
 let bulkTest = {}; // セッション状態
 
 // ① 範囲選択画面
 function showBulkTestSetup() {
-  document.getElementById('outputModalTitle').textContent = '📋 まとめテスト';
+  document.getElementById('outputModalTitle').textContent = '📋 暗記テスト';
   const content = document.getElementById('outputContent');
   const wordCards = (AppData.outputCards || []).filter(c => c.type === 'word');
 
@@ -14452,7 +14540,7 @@ function startBulkTest() {
 
 // ② テスト画面のメイン描画
 function renderBulkTest() {
-  document.getElementById('outputModalTitle').textContent = '📋 まとめテスト';
+  document.getElementById('outputModalTitle').textContent = '📋 暗記テスト';
   const { phase, cards, retryCards, index } = bulkTest;
   const content = document.getElementById('outputContent');
 
