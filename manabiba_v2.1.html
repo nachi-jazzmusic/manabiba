@@ -783,9 +783,6 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 
     <!-- ── アプリ ── -->
     <div style="font-size:9px;font-weight:700;color:var(--ink3);padding:6px 9px 4px;letter-spacing:1px;text-transform:uppercase">アプリ</div>
-    <button class="nav-btn active" onclick="showPanel('home')">
-      <span class="nav-icon">📅</span><span>今日やること</span>
-    </button>
     <button class="nav-btn" onclick="showEikenMenu()">
       <span class="nav-icon">🌟</span><span>英検練習</span>
     </button>
@@ -2114,8 +2111,9 @@ function renderHome() {
   const pomePane   = document.getElementById('homePome');
   if (!container) return;
 
-  // 右（小）：今日やること
-  container.innerHTML = renderTodayHub();
+  // 右（小）：シンプルリスト
+  container.innerHTML = renderRightPanel();
+  container.style.background = 'var(--bg2)';
 
   // 左（大）：ポメちゃん固定
   if (pomePane) pomePane.innerHTML = renderAIChatInline();
@@ -4113,221 +4111,105 @@ function deleteHomeworkCard(id) {
   showToast('削除しました');
 }
 
-// コンパクトスケジュール（右側）
+// ═══════════════════════════════════════
+// 右パネル：シンプルリスト形式
+// ═══════════════════════════════════════
+
 function renderCompactSchedule(todayPlan) {
-  if (!todayPlan || !todayPlan.schedule || todayPlan.schedule.length === 0) {
-    return `
-      <div style="text-align:center;padding:20px 20px 16px;color:var(--ink3)">
-        <div style="font-size:28px;margin-bottom:6px;opacity:0.5">📅</div>
-        <div style="font-size:12px;margin-bottom:12px">今日の予定を立ててね</div>
-        <button class="btn btn-primary" onclick="startCheckin()" 
-                style="padding:8px 16px;font-size:12px;width:100%">
-          📝 予定を作る
-        </button>
+  return renderRightPanel();
+}
+
+function renderRightPanel() {
+  const todayStr = getTodayString();
+  const todayD   = new Date(); todayD.setHours(0,0,0,0);
+
+  // ── 共通の行スタイルヘルパー ──
+  const row = (checked, label, sub, onToggle) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;
+                border-bottom:1px solid var(--border)">
+      <div onclick="${onToggle}" style="cursor:pointer;font-size:16px;flex-shrink:0;line-height:1">
+        ${checked ? '✅' : '⬜'}
       </div>
-      ${renderOverallWorkload()}
-    `;
-  }
-  
-  let html = `
-    <div class="compact-schedule-header" style="padding-top:4px">
-      📋 今日の予定
-      <button class="btn btn-secondary" onclick="startCheckin();closeScheduleModal()" 
-              style="margin-left:auto;padding:4px 8px;font-size:11px">
-        立て直す
-      </button>
-    </div>
-  `;
-  
-  // タスク一覧
-  todayPlan.schedule.forEach(task => {
-    const isDone = task.status === 'completed';
-    const isSkipped = task.status === 'skipped';
-    
-    if (isSkipped) return; // スキップは表示しない
-    
-    if (task.type === 'break') {
-      html += `
-        <div class="compact-task ${isDone ? 'completed' : ''}" 
-             style="border-left-color:var(--green);cursor:pointer"
-             onclick="toggleTaskComplete('${task.id}')">
-          <div class="compact-task-name">${isDone ? '✓ ' : ''}🌸 休憩</div>
-          <div class="compact-task-time">${task.startTime}〜 • ${task.estimatedMin}分</div>
-        </div>
-      `;
-    } else {
-      html += `
-        <div class="compact-task ${isDone ? 'completed' : ''} ${task.memorizationTaskId && isMemorizationDeleted(task.memorizationTaskId) ? 'deleted-task' : ''}" 
-             style="cursor:pointer"
-             onclick="${task.memorizationTaskId ? `toggleMemorizationTask('${task.memorizationTaskId}')` : `toggleTaskComplete('${task.id}')`}">
-          <div class="compact-task-name">${isDone ? '✓ ' : ''}${task.name}</div>
-          <div class="compact-task-time">${task.startTime}〜 • ${task.estimatedMin}分${task.desc ? ' • ' + task.desc : ''}</div>
-        </div>
-      `;
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;${checked?'text-decoration:line-through;color:var(--ink3)':'color:var(--ink)'}
+                    ;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+        ${sub ? `<div style="font-size:10px;color:var(--ink3)">${sub}</div>` : ''}
+      </div>
+    </div>`;
+
+  const sectionHeader = (icon, title, onAdd) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:10px 0 4px;position:sticky;top:0;background:var(--bg2);z-index:1">
+      <div style="font-size:11px;font-weight:700;color:var(--ink2)">${icon} ${title}</div>
+      ${onAdd ? `<button onclick="${onAdd}"
+              style="border:none;background:none;color:var(--accent);font-size:18px;
+                     cursor:pointer;padding:0;line-height:1;font-weight:300">＋</button>` : ''}
+    </div>`;
+
+  let html = `<div style="padding:0 12px 16px">`;
+
+  // ══ 1. 宿題（学校・塾） ══
+  html += sectionHeader('📚', '宿題（学校・塾）', 'showHomeworkPanel()');
+
+  const hwCards = (AppData.homeworkCards || []).filter(c => !c.allDone);
+  // 今日のタスクがある宿題 + 未割当て宿題
+  let hwRows = 0;
+  hwCards.forEach(card => {
+    const todayTask = (card.tasks || []).find(t => t.date === todayStr);
+    if (todayTask) {
+      const idx = card.tasks.indexOf(todayTask);
+      const daysLeft = Math.ceil((new Date(card.dueDate) - todayD) / (1000*60*60*24));
+      const sub = `あと${daysLeft}日　${todayTask.qty}${getUnitShort(card.unit)}`;
+      html += row(
+        todayTask.done,
+        `${card.subject}｜${card.content}`,
+        sub,
+        `toggleHwTask('${card.id}',${idx})`
+      );
+      hwRows++;
+    } else if (!card.tasks || card.tasks.length === 0) {
+      // 未割当て
+      html += row(false, `${card.subject}｜${card.content}`, '⚠️ タスク未設定', 'showHomeworkPanel()');
+      hwRows++;
     }
   });
-  
-  // サマリー
-  const activeTasks = todayPlan.schedule.filter(t => t.status !== 'skipped');
-  if (activeTasks.length > 0) {
-    const totalMin = activeTasks.reduce((sum, t) => sum + t.estimatedMin, 0);
-    const firstTask = activeTasks[0];
-    const startTime = firstTask?.startTime || '--:--';
-    const lastTask = activeTasks[activeTasks.length - 1];
-    const endTime = lastTask?.endTime || (lastTask ? calculateEndTime(lastTask.startTime, lastTask.estimatedMin) : '--:--');
-    
-    html += `
-      <div class="compact-summary">
-        <div class="compact-summary-row">
-          <span class="compact-summary-label">開始</span>
-          <span class="compact-summary-value">${startTime}</span>
-        </div>
-        <div class="compact-summary-row">
-          <span class="compact-summary-label">終了予定</span>
-          <span class="compact-summary-value">${endTime}</span>
-        </div>
-        <div class="compact-summary-row" style="margin-bottom:0">
-          <span class="compact-summary-label">合計</span>
-          <span class="compact-summary-value">${Math.floor(totalMin / 60)}時間${totalMin % 60}分</span>
-        </div>
-      </div>
-    `;
+  if (hwRows === 0) {
+    html += `<div style="font-size:11px;color:var(--ink3);padding:6px 0">宿題はありません</div>`;
   }
-  
-  html += `
-    <div style="margin-top:12px">
-      <button class="btn btn-secondary" onclick="showBreakOptions();closeScheduleModal()" 
-              style="width:100%;padding:10px;font-size:12px;background:var(--accent);color:#fff">
-        🍚 休憩
-      </button>
-    </div>
-  `;
-  
-  // 全体ボリューム表示を追加
-  html += renderOverallWorkload();
 
-  // 今日の宿題タスクを追加
-  html += renderTodayHomeworkTasks();
+  // ══ 2. タスク管理 ══
+  html += sectionHeader('📋', 'タスク管理', 'showTestPlan()');
 
-  return html;
-}
-
-// 右パネル：今日の宿題タスク
-function renderTodayHomeworkTasks() {
-  const todayStr = getTodayString();
-  const cards = (AppData.homeworkCards || []).filter(c => !c.allDone);
-  const todayTasks = [];
-  cards.forEach(card => {
-    (card.tasks || []).forEach((t, i) => {
-      if (t.date === todayStr) {
-        todayTasks.push({ card, task: t, idx: i });
-      }
-    });
-  });
-
-  if (todayTasks.length === 0) return '';
-
-  let html = `
-    <div style="margin-top:12px;padding:12px;background:var(--bg3);border-radius:9px">
-      <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--accent);
-                  display:flex;align-items:center;justify-content:space-between">
-        <span>📚 今日の宿題タスク</span>
-        <button onclick="showHomeworkPanel()"
-                style="border:none;background:none;color:var(--ink3);font-size:10px;cursor:pointer;padding:0">
-          管理 →
-        </button>
-      </div>`;
-
-  todayTasks.forEach(({ card, task, idx }) => {
-    const mins = getEstimatedTime(card.subject, card.unit, task.qty);
-    html += `
-      <div style="background:#fff;padding:8px 10px;border-radius:7px;margin-bottom:6px;
-                  border-left:3px solid ${task.done ? 'var(--green)' : 'var(--accent)'};
-                  display:flex;align-items:center;gap:8px;cursor:pointer"
-           onclick="toggleHwTask('${card.id}',${idx})">
-        <div style="font-size:16px">${task.done ? '✅' : '⬜'}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:12px;font-weight:700;${task.done ? 'text-decoration:line-through;color:var(--ink3)' : ''}">
-            ${card.subject}：${task.qty}${getUnitShort(card.unit)}
-          </div>
-          <div style="font-size:10px;color:var(--ink3)">約${mins}分</div>
-        </div>
-      </div>`;
-  });
-
-  html += `</div>`;
-  return html;
-}
-
-// 全体ボリューム表示
-function renderOverallWorkload() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = getTodayString();
-
-  let html = `<div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:9px">`;
-
-  // ── 理解度チェック通知 ──
-  const checksHtml = renderTodayUnitChecks();
-  if (checksHtml) html += checksHtml;
-
-  // ── 暗記タスク一覧 ──────────────────────────
-  html += `<div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--purple)">🧠 暗記タスク（登録済み）</div>`;
-
-  const memoTasks = AppData.memorizationTasks || [];
-  const activeMemos = memoTasks.filter(t => t.active);
-
-  if (activeMemos.length === 0) {
-    html += `<div style="font-size:11px;color:var(--ink3);margin-bottom:10px;text-align:center">なし</div>`;
+  const todayTasks = (AppData.testPlan || []).filter(t => t.date === todayStr);
+  if (todayTasks.length === 0) {
+    html += `<div style="font-size:11px;color:var(--ink3);padding:6px 0">今日のタスクはありません</div>`;
   } else {
+    todayTasks.forEach(t => {
+      html += row(t.done, t.content, t.estimatedMin ? `約${t.estimatedMin}分` : null,
+        `toggleTestPlanTask('${t.id}');renderHome()`);
+    });
+  }
+
+  // ══ 3. 暗記タスク（アクティブなもののみ） ══
+  const activeMemos = (AppData.memorizationTasks || []).filter(t => t.active);
+  if (activeMemos.length > 0) {
+    html += sectionHeader('🧠', '暗記タスク', null);
     activeMemos.forEach(task => {
       const startDate = new Date(task.startDate);
-      const daysPassed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
-      const currentDay = daysPassed + 1;
-      const daysLeft = task.daysTotal - daysPassed;
-      const progress = Math.min(Math.round((daysPassed / task.daysTotal) * 100), 100);
-      const isExpired = daysLeft <= 0;
-      const isUrgent = daysLeft === 1;
-
-      const statusColor = isExpired ? 'var(--red)' : isUrgent ? '#E8824A' : 'var(--teal)';
-      const statusLabel = isExpired ? '期限切れ' : isUrgent ? '明日まで！' : `残り${daysLeft}日`;
-
-      html += `
-        <div style="background:#fff;padding:8px 10px;border-radius:7px;margin-bottom:6px;
-                    border-left:3px solid ${statusColor}">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <div style="font-size:12px;font-weight:700">${task.subject}：${task.range}</div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <div style="font-size:10px;color:${statusColor};font-weight:700">${statusLabel}</div>
-              <button onclick="deleteMemorizationTaskFromPanel('${task.id}')" 
-                      style="border:none;background:none;color:#C0807A;font-size:15px;
-                             cursor:pointer;padding:0 2px;line-height:1;font-weight:700"
-                      title="削除">×</button>
-            </div>
-          </div>
-          <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">
-            ${currentDay}/${task.daysTotal}日目 · 約${task.totalWords}個
-          </div>
-          <!-- 進捗バー -->
-          <div style="background:var(--bg2);border-radius:3px;height:4px;overflow:hidden">
-            <div style="background:${statusColor};width:${progress}%;height:100%;border-radius:3px;transition:width .3s"></div>
-          </div>
-        </div>
-      `;
+      const daysPassed = Math.floor((todayD - startDate) / (1000*60*60*24));
+      const daysLeft   = task.daysTotal - daysPassed;
+      const isExpired  = daysLeft <= 0;
+      const sub = isExpired ? '期限切れ' : `残り${daysLeft}日`;
+      html += row(false, `${task.subject}：${task.range}`, sub, '');
     });
   }
-
-  // 予定を立てる際のヒント
-  html += `
-    <div style="font-size:10px;color:var(--ink3);margin-bottom:12px;padding:6px 8px;
-                background:rgba(123,94,167,0.08);border-radius:6px;line-height:1.6">
-      💡 予定を立てるとき、上の暗記タスクは自動で追加されます
-    </div>
-  `;
 
   html += `</div>`;
   return html;
 }
+
+// renderOverallWorkload は renderRightPanel に統合済み
+function renderOverallWorkload() { return ''; }
 
 // 右パネルの×ボタンから暗記タスクを削除
 function deleteMemorizationTaskFromPanel(taskId) {
