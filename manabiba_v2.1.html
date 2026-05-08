@@ -4123,63 +4123,27 @@ function renderRightPanel() {
   const todayStr = getTodayString();
   const todayD   = new Date(); todayD.setHours(0,0,0,0);
 
-  // ── 共通の行スタイルヘルパー ──
   const row = (checked, label, sub, onToggle) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;
-                border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
       <div onclick="${onToggle}" style="cursor:pointer;font-size:16px;flex-shrink:0;line-height:1">
         ${checked ? '✅' : '⬜'}
       </div>
       <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600;${checked?'text-decoration:line-through;color:var(--ink3)':'color:var(--ink)'}
-                    ;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
+        <div style="font-size:12px;font-weight:600;${checked?'text-decoration:line-through;color:var(--ink3)':'color:var(--ink)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
         ${sub ? `<div style="font-size:10px;color:var(--ink3)">${sub}</div>` : ''}
       </div>
     </div>`;
 
   const sectionHeader = (icon, title, onAdd) => `
-    <div style="display:flex;align-items:center;justify-content:space-between;
-                padding:10px 0 4px;position:sticky;top:0;background:var(--bg2);z-index:1">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 4px;position:sticky;top:0;background:var(--bg2);z-index:1">
       <div style="font-size:11px;font-weight:700;color:var(--ink2)">${icon} ${title}</div>
-      ${onAdd ? `<button onclick="${onAdd}"
-              style="border:none;background:none;color:var(--accent);font-size:18px;
-                     cursor:pointer;padding:0;line-height:1;font-weight:300">＋</button>` : ''}
+      ${onAdd ? `<button onclick="${onAdd}" style="border:none;background:none;color:var(--accent);font-size:18px;cursor:pointer;padding:0;line-height:1">＋</button>` : ''}
     </div>`;
 
   let html = `<div style="padding:0 12px 16px">`;
 
-  // ══ 1. 宿題（学校・塾） ══
-  html += sectionHeader('📚', '宿題（学校・塾）', 'showHomeworkPanel()');
-
-  const hwCards = (AppData.homeworkCards || []).filter(c => !c.allDone);
-  // 今日のタスクがある宿題 + 未割当て宿題
-  let hwRows = 0;
-  hwCards.forEach(card => {
-    const todayTask = (card.tasks || []).find(t => t.date === todayStr);
-    if (todayTask) {
-      const idx = card.tasks.indexOf(todayTask);
-      const daysLeft = Math.ceil((new Date(card.dueDate) - todayD) / (1000*60*60*24));
-      const sub = `あと${daysLeft}日　${todayTask.qty}${getUnitShort(card.unit)}`;
-      html += row(
-        todayTask.done,
-        `${card.subject}｜${card.content}`,
-        sub,
-        `toggleHwTask('${card.id}',${idx})`
-      );
-      hwRows++;
-    } else if (!card.tasks || card.tasks.length === 0) {
-      // 未割当て
-      html += row(false, `${card.subject}｜${card.content}`, '⚠️ タスク未設定', 'showHomeworkPanel()');
-      hwRows++;
-    }
-  });
-  if (hwRows === 0) {
-    html += `<div style="font-size:11px;color:var(--ink3);padding:6px 0">宿題はありません</div>`;
-  }
-
-  // ══ 2. タスク管理 ══
-  html += sectionHeader('📋', 'タスク管理', 'showTestPlan()');
-
+  // ══ 1. 今日のタスク ══
+  html += sectionHeader('📋', '今日のタスク', "showParentMenu();setTimeout(()=>showTestPlan(),100)");
   const todayTasks = (AppData.testPlan || []).filter(t => t.date === todayStr);
   if (todayTasks.length === 0) {
     html += `<div style="font-size:11px;color:var(--ink3);padding:6px 0">今日のタスクはありません</div>`;
@@ -4190,17 +4154,96 @@ function renderRightPanel() {
     });
   }
 
-  // ══ 3. 暗記タスク（アクティブなもののみ） ══
+  // ══ 2. 今日やるアプリ ══
+  const appTasks    = getAppTasksForToday();
+  const showWeekend = hasWeekendChecks();
+  const actionMap   = {
+    'word_session':     { fn: "startOutputSession('word')", icon: '🔤' },
+    'anki':             { fn: "showAnkiChoice()",            icon: '🧠' },
+    'sentence_session': { fn: "startOutputSession('word')", icon: '🔤' },
+    'eiken':            { fn: 'startTodayEiken()',           icon: '🌟' },
+    'bulk_test':        { fn: 'showBulkTestSetup()',         icon: '📋' },
+    'kanji':            { fn: 'startKanjiPractice()',        icon: '🖊️' },
+    'test_prep':        { fn: '',                            icon: '🎯' },
+    'weak_point':       { fn: 'startWeakPointSession()',     icon: '⚠️' },
+  };
+
+  if (appTasks.length > 0 || showWeekend) {
+    html += sectionHeader('📱', '今日やるアプリ', null);
+
+    if (showWeekend) {
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:16px;flex-shrink:0">📒</div>
+        <div style="flex:1;font-size:12px;font-weight:600;color:var(--ink)">週末チェック</div>
+        <button onclick="showUnitTracker()" style="flex-shrink:0;padding:3px 10px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer">やる→</button>
+      </div>`;
+    }
+
+    appTasks.forEach(t => {
+      const act = actionMap[t.action] || { fn: '', icon: '📚' };
+      const fn  = t.action === 'test_prep'
+        ? `startTestPrepSession('${t.testPrepId||''}');markAppTaskDone('${t.id}')`
+        : `${act.fn}${act.fn?';':''}markAppTaskDone('${t.id}')`;
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);opacity:${t.done?0.5:1}">
+        <div style="font-size:16px;flex-shrink:0">${t.done ? '✅' : act.icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;${t.done?'text-decoration:line-through;color:var(--ink3)':'color:var(--ink)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.label}</div>
+          ${t.detail ? `<div style="font-size:10px;color:var(--ink3)">${t.detail}</div>` : ''}
+        </div>
+        ${!t.done
+          ? `<button onclick="${fn}" style="flex-shrink:0;padding:3px 10px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font);font-size:10px;font-weight:700;cursor:pointer">やる→</button>`
+          : `<button onclick="unmarkAppTaskDone('${t.id}')" style="flex-shrink:0;padding:3px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);color:var(--ink3);font-family:var(--font);font-size:10px;cursor:pointer">取消</button>`}
+      </div>`;
+    });
+  }
+
+  // ══ 3. 宿題（折りたたみ） ══
+  const hwCards = (AppData.homeworkCards || []).filter(c => !c.allDone);
+  const hwOpen  = AppData._hwPanelOpen === true; // デフォルト閉じ
+
+  html += `<div style="padding:10px 0 4px;position:sticky;top:0;background:var(--bg2);z-index:1">
+    <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer"
+         onclick="AppData._hwPanelOpen=!AppData._hwPanelOpen;renderHome()">
+      <div style="font-size:11px;font-weight:700;color:var(--ink2)">
+        📚 宿題
+        ${hwCards.length > 0 ? `<span style="font-size:10px;color:var(--ink3);font-weight:400;margin-left:4px">${hwCards.length}件</span>` : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button onclick="event.stopPropagation();showHomeworkPanel()" style="border:none;background:none;color:var(--accent);font-size:16px;cursor:pointer;padding:0;line-height:1">＋</button>
+        <span style="font-size:11px;color:var(--ink3)">${hwOpen ? '▲' : '▼'}</span>
+      </div>
+    </div>
+  </div>`;
+
+  if (hwOpen) {
+    if (hwCards.length === 0) {
+      html += `<div style="font-size:11px;color:var(--ink3);padding:6px 0">宿題はありません</div>`;
+    } else {
+      hwCards.forEach(card => {
+        const todayTask = (card.tasks || []).find(t => t.date === todayStr);
+        const daysLeft  = Math.ceil((new Date(card.dueDate) - todayD) / (1000*60*60*24));
+        const dueTxt    = daysLeft <= 0 ? '期限切れ' : daysLeft === 1 ? '明日まで' : `あと${daysLeft}日`;
+        const sub       = todayTask
+          ? `${dueTxt}　今日:${todayTask.qty}${getUnitShort(card.unit)}`
+          : `${dueTxt}　⚠️未設定`;
+        if (todayTask) {
+          const idx = card.tasks.indexOf(todayTask);
+          html += row(todayTask.done, `${card.subject}｜${card.content}`, sub, `toggleHwTask('${card.id}',${idx})`);
+        } else {
+          html += row(false, `${card.subject}｜${card.content}`, sub, 'showHomeworkPanel()');
+        }
+      });
+    }
+  }
+
+  // ══ 4. 暗記タスク ══
   const activeMemos = (AppData.memorizationTasks || []).filter(t => t.active);
   if (activeMemos.length > 0) {
     html += sectionHeader('🧠', '暗記タスク', null);
     activeMemos.forEach(task => {
-      const startDate = new Date(task.startDate);
-      const daysPassed = Math.floor((todayD - startDate) / (1000*60*60*24));
+      const daysPassed = Math.floor((todayD - new Date(task.startDate)) / (1000*60*60*24));
       const daysLeft   = task.daysTotal - daysPassed;
-      const isExpired  = daysLeft <= 0;
-      const sub = isExpired ? '期限切れ' : `残り${daysLeft}日`;
-      html += row(false, `${task.subject}：${task.range}`, sub, '');
+      html += row(false, `${task.subject}：${task.range}`, daysLeft <= 0 ? '期限切れ' : `残り${daysLeft}日`, '');
     });
   }
 
