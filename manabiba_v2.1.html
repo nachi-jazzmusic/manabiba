@@ -3757,8 +3757,9 @@ function showHwDetail(cardId) {
   const tasks  = card.tasks || [];
 
   function buildDetail() {
-    const totalAssigned = tasks.reduce((s, t) => s + t.qty, 0);
-    const remaining     = card.totalQty - totalAssigned;
+    const totalQty      = parseInt(card.totalQty) || 0;
+    const totalAssigned = tasks.reduce((s, t) => s + (t.qty||0), 0);
+    const remaining     = totalQty > 0 ? totalQty - totalAssigned : null; // nullなら量不明
     const daysLeft      = Math.ceil((new Date(card.dueDate) - todayD) / (1000*60*60*24));
 
     let taskRows = '';
@@ -3789,7 +3790,7 @@ function showHwDetail(cardId) {
       const lbl = i === 0 ? '今日' : i === 1 ? '明日' : `${d2.getMonth()+1}/${d2.getDate()}`;
       const alreadyHas = tasks.find(t => t.date === ds);
       dateBtns += `
-        <button onclick="addHwTaskDate('${cardId}','${ds}')"
+        <button onclick="addHwTaskDate('${cardId}','${ds}',parseInt(document.getElementById('hw_add_qty_${cardId}')?.value)||1)"
                 style="padding:6px 10px;border-radius:8px;border:1px solid ${alreadyHas?'var(--green)':'var(--border)'};
                        background:${alreadyHas?'#E8F5E9':'#fff'};font-family:var(--font);font-size:12px;cursor:pointer;
                        color:${alreadyHas?'var(--green)':'var(--ink2)'};font-weight:${alreadyHas?'700':'400'}">
@@ -3813,14 +3814,17 @@ function showHwDetail(cardId) {
         <!-- 全体量バー -->
         <div style="background:var(--bg2);border-radius:9px;padding:12px;margin-bottom:16px">
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
-            <span style="font-weight:700">全体：${card.totalQty}${getUnitShort(card.unit)}</span>
-            <span style="color:${remaining>0?'var(--accent)':'var(--green)'};font-weight:700">
-              ${remaining > 0 ? `未割当 ${remaining}${getUnitShort(card.unit)}` : '✓ 全部割り当て済み'}
+            <span style="font-weight:700">全体：${totalQty > 0 ? `${totalQty}${getUnitShort(card.unit)}` : '量未設定'}</span>
+            <span style="color:${remaining === null ? 'var(--ink3)' : remaining > 0 ? 'var(--accent)' : 'var(--green)'};font-weight:700">
+              ${remaining === null
+                ? tasks.length > 0 ? `${tasks.length}タスク設定済み` : '未設定'
+                : remaining > 0 ? `未割当 ${remaining}${getUnitShort(card.unit)}` : '✓ 全部割り当て済み'}
             </span>
           </div>
+          ${totalQty > 0 ? `
           <div style="background:var(--bg3);border-radius:4px;height:6px;overflow:hidden">
-            <div style="background:var(--accent);width:${Math.min(100,Math.round(totalAssigned/card.totalQty*100))}%;height:100%;border-radius:4px"></div>
-          </div>
+            <div style="background:var(--accent);width:${Math.min(100,Math.round(totalAssigned/totalQty*100))}%;height:100%;border-radius:4px"></div>
+          </div>` : ''}
           <div style="font-size:11px;color:var(--ink3);margin-top:4px">期限：${card.dueDate}（あと${daysLeft}日）</div>
         </div>
 
@@ -3833,7 +3837,7 @@ function showHwDetail(cardId) {
           <div style="font-size:12px;font-weight:700;margin-bottom:8px">＋ タスクを追加する</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${dateBtns}</div>
           <div style="display:flex;gap:8px;align-items:center">
-            <input type="number" id="hw_add_qty" value="${remaining > 0 ? remaining : 1}" min="1" max="${card.totalQty}"
+            <input type="number" id="hw_add_qty_${cardId}" value="${remaining !== null && remaining > 0 ? remaining : 1}" min="1" max="${totalQty || 999}"
                    style="width:70px;padding:8px;border-radius:7px;border:1.5px solid var(--border);
                           font-family:var(--font);font-size:14px;text-align:center">
             <span style="font-size:13px;color:var(--ink3)">${getUnitShort(card.unit)}</span>
@@ -3862,12 +3866,12 @@ function showHwDetail(cardId) {
 }
 
 // ── タスクを特定日に追加 ──
-function addHwTaskDate(cardId, dateStr) {
+function addHwTaskDate(cardId, dateStr, qty) {
   const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
   if (!card) return;
   if (!card.tasks) card.tasks = [];
 
-  const qty = parseInt(document.getElementById('hw_add_qty')?.value) || 1;
+  qty = parseInt(qty) || 1;
 
   // 同じ日付がすでにあれば上書き、なければ追加
   const existing = card.tasks.find(t => t.date === dateStr);
@@ -4228,8 +4232,15 @@ function renderRightPanel() {
   }
 
   // ══ 3. 宿題（折りたたみ） ══
-  const hwCards = (AppData.homeworkCards || []).filter(c => !c.allDone);
-  const hwOpen  = AppData._hwPanelOpen === true; // デフォルト閉じ
+  // 完了済みも含めて表示（取り消し線で残す）
+  const allHwCards = AppData.homeworkCards || [];
+  const hwCards    = allHwCards.filter(c => {
+    // 期限切れで完了済みは非表示
+    const daysLeft = Math.ceil((new Date(c.dueDate) - todayD) / (1000*60*60*24));
+    if (c.allDone && daysLeft < -1) return false;
+    return true;
+  });
+  const hwOpen = AppData._hwPanelOpen === true;
 
   html += `<div style="padding:10px 0 4px;position:sticky;top:0;background:var(--bg2);z-index:1">
     <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer"
@@ -4255,15 +4266,16 @@ function renderRightPanel() {
         const dueTxt    = daysLeft <= 0 ? '期限切れ' : daysLeft === 1 ? '明日まで' : `あと${daysLeft}日`;
 
         if (todayTask) {
-          // タスク割り振り済み → タスクのチェック
-          const idx = card.tasks.indexOf(todayTask);
-          const sub = `${dueTxt}　今日:${todayTask.qty}${getUnitShort(card.unit)}`;
+          // タスク割り振り済み → タスクのチェック（完了後も取り消し線で残る）
+          const idx  = card.tasks.indexOf(todayTask);
+          const sub  = `${dueTxt}　今日:${todayTask.qty}${getUnitShort(card.unit)}`;
           html += row(todayTask.done, `${card.subject}｜${card.content}`, sub,
             `toggleHwTask('${card.id}',${idx})`);
         } else {
-          // 未割り振り → カード自体を完了トグル
-          const sub = `${dueTxt}　タップで完了`;
-          html += row(card.manualDone === true, `${card.subject}｜${card.content}`, sub,
+          // 未割り振り → カード自体を完了トグル（完了後も取り消し線で残る）
+          const isDone = card.manualDone === true || card.allDone === true;
+          const sub    = isDone ? `${dueTxt}　完了` : `${dueTxt}　タップで完了`;
+          html += row(isDone, `${card.subject}｜${card.content}`, sub,
             `toggleHwCardManualDone('${card.id}')`);
         }
       });
@@ -12339,40 +12351,6 @@ function showTestPlan() {
       📚 宿題タスク管理（日ごとに割り振る）
     </button>
 
-    <!-- 宿題から追加 -->
-    ${(() => {
-      const todayD = new Date(); todayD.setHours(0,0,0,0);
-      const unassigned = (AppData.homeworkCards||[]).filter(c => {
-        if (c.done || !c.dueDate) return false;
-        return new Date(c.dueDate) >= todayD;
-      });
-      if (unassigned.length === 0) return '';
-      return `
-        <div style="background:linear-gradient(135deg,#FFF5EF,#fff);border-radius:10px;
-                    padding:12px;margin-bottom:12px;border:1px solid var(--border)">
-          <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--ink2)">
-            📚 宿題から今日のタスクに追加
-          </div>
-          ${unassigned.map(c => {
-            const daysLeft = Math.ceil((new Date(c.dueDate) - todayD) / (1000*60*60*24));
-            const urgency  = daysLeft <= 1 ? 'var(--red)' : daysLeft <= 3 ? '#C8922A' : 'var(--ink3)';
-            const label = (c.subject ? c.subject + '｜' : '') + c.content;
-            return `
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                <div style="flex:1;font-size:12px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                  ${label}
-                </div>
-                <div style="font-size:10px;color:${urgency};flex-shrink:0">あと${daysLeft}日</div>
-                <button onclick="addHomeworkToTask('${c.id}');showTestPlan()"
-                        style="flex-shrink:0;padding:4px 8px;border-radius:8px;border:none;
-                               background:var(--accent);color:#fff;font-family:var(--font);
-                               font-size:11px;font-weight:700;cursor:pointer">
-                  今日やる
-                </button>
-              </div>`;
-          }).join('')}
-        </div>`;
-    })()}
 
     ${Object.keys(byDate).length === 0 ? `
       <div style="text-align:center;padding:32px;color:var(--ink3)">
