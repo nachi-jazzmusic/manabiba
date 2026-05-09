@@ -16024,70 +16024,71 @@ async function hwSend() {
 
 function startVoiceInput() {
   const voiceBtn = document.getElementById('voiceBtn');
-  
+
   // HTTPS チェック
   if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-    alert('音声入力はHTTPS（安全な接続）が必要です。\n\nGitHub Pagesでアクセスしてください：\nhttps://nachi-jazzmusic.github.io/manabiba/manabiba_v2.html');
+    alert('音声入力はHTTPS（安全な接続）が必要です。\nGitHub Pagesでアクセスしてください。');
     return;
   }
-  
+
   // Web Speech API対応チェック
   if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-    alert('お使いのブラウザは音声入力に対応していません。Safari または Chrome をお使いください。');
+    alert('お使いのブラウザは音声入力に対応していません。Edge または Chrome をお使いください。');
     return;
   }
-  
-  // 初回のみ認識オブジェクトを作成
-  if (!recognition) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRecognition();
-    recognition.lang = 'ja-JP';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    
-    recognition.onstart = () => {
-      voiceBtn.innerHTML = '🔴'; // 録音中
-      voiceBtn.style.background = '#ff4444';
-      voiceBtn.style.color = '#fff';
-    };
-    
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      const input = document.getElementById('aiChatInput');
-      if (input) {
-        input.value = transcript;
-      }
-    };
-    
-    recognition.onerror = (event) => {
-      console.error('音声認識エラー:', event.error);
-      voiceBtn.innerHTML = '🎤';
-      voiceBtn.style.background = '';
-      voiceBtn.style.color = '';
-      
-      if (event.error === 'no-speech') {
-        alert('音声が検出されませんでした。もう一度お試しください。');
-      } else if (event.error === 'not-allowed') {
-        alert('マイクの使用が許可されていません。\n\nSafariの設定でマイクを許可してください。');
-      } else if (event.error === 'network') {
-        alert('ネットワークエラーが発生しました。HTTPS接続を確認してください。');
-      } else {
-        alert(`エラーが発生しました: ${event.error}`);
-      }
-    };
-    
-    recognition.onend = () => {
-      voiceBtn.innerHTML = '🎤';
-      voiceBtn.style.background = '';
-      voiceBtn.style.color = '';
-    };
-  }
-  
+
+  // 毎回新しく作成（使い回しするとエラー後に動かなくなる）
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.lang = 'ja-JP';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    voiceBtn.innerHTML = '🔴';
+    voiceBtn.style.background = '#ff4444';
+    voiceBtn.style.color = '#fff';
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    const input = document.getElementById('aiChatInput');
+    if (input) {
+      input.value = transcript;
+      input.focus();
+    }
+    recognition = null;
+  };
+
+  recognition.onerror = (event) => {
+    console.error('音声認識エラー:', event.error);
+    voiceBtn.innerHTML = '🎤';
+    voiceBtn.style.background = '';
+    voiceBtn.style.color = '';
+    recognition = null;
+
+    if (event.error === 'not-allowed') {
+      alert('マイクの使用が許可されていません。\nアドレスバー左のマイクアイコンから許可してください。');
+    } else if (event.error === 'network') {
+      alert('音声認識でネットワークエラーが発生しました。\nEdgeの設定でマイクが許可されているか確認してください。');
+    } else if (event.error !== 'no-speech') {
+      alert(`エラーが発生しました: ${event.error}`);
+    }
+  };
+
+  recognition.onend = () => {
+    voiceBtn.innerHTML = '🎤';
+    voiceBtn.style.background = '';
+    voiceBtn.style.color = '';
+    recognition = null;
+  };
+
   // 音声認識開始
   try {
     recognition.start();
   } catch (e) {
     console.error('音声認識開始エラー:', e);
+    recognition = null;
     alert('音声認識を開始できませんでした。ページを再読み込みしてお試しください。');
   }
 }
