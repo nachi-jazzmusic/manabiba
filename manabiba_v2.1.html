@@ -268,9 +268,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
   background:var(--bg2);
   padding:12px 16px;
   border-radius:12px;
-  max-width:80%;
+  max-width:88%;
   line-height:1.65;
-  font-size:14px;
+  font-size:13px;
+  word-break:break-word;
 }
 .user-message{
   display:flex;
@@ -4680,7 +4681,7 @@ function renderMarkdown(text) {
     // # 見出し → 太字
     .replace(/^#\s+(.+)$/gm, '<div style="font-weight:700;margin:8px 0 4px;color:var(--ink)">$1</div>')
     // **太字**
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:700">$1</strong>')
     // *斜体*（省略）
     .replace(/\*(.+?)\*/g, '$1')
     // - リスト
