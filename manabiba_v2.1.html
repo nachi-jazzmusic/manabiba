@@ -774,8 +774,27 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 <!-- ══ SIDEBAR ══ -->
 <aside class="sidebar" id="sidebar">
   <!-- ロゴ（ホームへ） -->
-  <div class="sb-logo" onclick="showPanel('home')" style="cursor:pointer">
+  <div class="sb-logo" onclick="showPanel('home')" style="cursor:pointer;display:flex;align-items:center;gap:6px">
     <span>✦</span>まなびば
+    <svg width="26" height="30" viewBox="0 0 80 94" xmlns="http://www.w3.org/2000/svg" style="margin-left:2px;flex-shrink:0">
+      <polygon points="18,23 22,7 32,21" fill="#D8D4CE"/>
+      <polygon points="62,23 58,7 48,21" fill="#D8D4CE"/>
+      <polygon points="19,22 23,9 31,21" fill="#EDEAE6"/>
+      <polygon points="61,22 57,9 49,21" fill="#EDEAE6"/>
+      <ellipse cx="40" cy="68" rx="28" ry="24" fill="#E8E5E0"/>
+      <ellipse cx="40" cy="68" rx="25" ry="21" fill="#F5F3EF"/>
+      <ellipse cx="40" cy="30" rx="27" ry="22" fill="#E8E5E0"/>
+      <ellipse cx="40" cy="30" rx="24" ry="19" fill="#F5F3EF"/>
+      <ellipse cx="40" cy="30" rx="19" ry="14" fill="#FEFEFE"/>
+      <circle cx="31" cy="25" r="3.2" fill="#1A1009"/>
+      <circle cx="32.2" cy="23.8" r="1.1" fill="#fff"/>
+      <circle cx="49" cy="25" r="3.2" fill="#1A1009"/>
+      <circle cx="50.2" cy="23.8" r="1.1" fill="#fff"/>
+      <ellipse cx="40" cy="30" rx="2.8" ry="2" fill="#2C1A10"/>
+      <path d="M35 33 Q40 37 45 33" fill="none" stroke="#C0807A" stroke-width="1.3" stroke-linecap="round"/>
+      <ellipse cx="22" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
+      <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
+    </svg>
   </div>
   <div class="sb-version">v2.13</div>
 
@@ -4124,9 +4143,9 @@ function renderRightPanel() {
   const todayD   = new Date(); todayD.setHours(0,0,0,0);
 
   const row = (checked, label, sub, onToggle) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
-      <div onclick="${onToggle}" style="cursor:pointer;font-size:16px;flex-shrink:0;line-height:1">
-        ${checked ? '✅' : '⬜'}
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="${onToggle}">
+      <div style="font-size:15px;flex-shrink:0;line-height:1;color:${checked?'var(--green)':'var(--ink3)'}">
+        ${checked ? '☑' : '☐'}
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;${checked?'text-decoration:line-through;color:var(--ink3)':'color:var(--ink)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</div>
@@ -4142,15 +4161,23 @@ function renderRightPanel() {
 
   let html = `<div style="padding:0 12px 16px">`;
 
-  // ══ 1. 今日のタスク ══
+  // ══ 1. 今日のタスク（＋暗記タスク） ══
   html += sectionHeader('📋', '今日のタスク', "showParentMenu();setTimeout(()=>showTestPlan(),100)");
   const todayTasks = (AppData.testPlan || []).filter(t => t.date === todayStr);
-  if (todayTasks.length === 0) {
+  if (todayTasks.length === 0 && (AppData.memorizationTasks||[]).filter(t=>t.active).length === 0) {
     html += `<div style="font-size:11px;color:var(--ink3);padding:6px 0">今日のタスクはありません</div>`;
   } else {
     todayTasks.forEach(t => {
       html += row(t.done, t.content, t.estimatedMin ? `約${t.estimatedMin}分` : null,
         `toggleTestPlanTask('${t.id}');renderHome()`);
+    });
+    // 暗記タスクをここに表示
+    const activeMemos = (AppData.memorizationTasks || []).filter(t => t.active);
+    activeMemos.forEach(task => {
+      const daysPassed = Math.floor((todayD - new Date(task.startDate)) / (1000*60*60*24));
+      const daysLeft   = task.daysTotal - daysPassed;
+      html += row(false, `🧠 ${task.subject}：${task.range}`,
+        daysLeft <= 0 ? '期限切れ' : `残り${daysLeft}日`, '');
     });
   }
 
@@ -4180,12 +4207,14 @@ function renderRightPanel() {
     }
 
     appTasks.forEach(t => {
-      const act = actionMap[t.action] || { fn: '', icon: '📚' };
+      const act = actionMap[t.action] || { fn: '', icon: '' };
       const fn  = t.action === 'test_prep'
         ? `startTestPrepSession('${t.testPrepId||''}');markAppTaskDone('${t.id}')`
         : `${act.fn}${act.fn?';':''}markAppTaskDone('${t.id}')`;
       html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);opacity:${t.done?0.5:1}">
-        <div style="font-size:16px;flex-shrink:0">${t.done ? '✅' : act.icon}</div>
+        <div style="font-size:15px;flex-shrink:0;line-height:1;color:${t.done?'var(--green)':'var(--ink3)'}">
+          ${t.done ? '☑' : '☐'}
+        </div>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600;${t.done?'text-decoration:line-through;color:var(--ink3)':'color:var(--ink)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.label}</div>
           ${t.detail ? `<div style="font-size:10px;color:var(--ink3)">${t.detail}</div>` : ''}
@@ -4234,17 +4263,6 @@ function renderRightPanel() {
         }
       });
     }
-  }
-
-  // ══ 4. 暗記タスク ══
-  const activeMemos = (AppData.memorizationTasks || []).filter(t => t.active);
-  if (activeMemos.length > 0) {
-    html += sectionHeader('🧠', '暗記タスク', null);
-    activeMemos.forEach(task => {
-      const daysPassed = Math.floor((todayD - new Date(task.startDate)) / (1000*60*60*24));
-      const daysLeft   = task.daysTotal - daysPassed;
-      html += row(false, `${task.subject}：${task.range}`, daysLeft <= 0 ? '期限切れ' : `残り${daysLeft}日`, '');
-    });
   }
 
   html += `</div>`;
@@ -4520,9 +4538,28 @@ function renderAIChatInline() {
       <div style="padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;
                   display:flex;align-items:center;justify-content:space-between;background:#fff">
         <div style="display:flex;align-items:center;gap:8px">
-          <div style="font-size:20px">🐾</div>
+          <svg width="32" height="38" viewBox="0 0 80 94" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="18,23 22,7 32,21" fill="#D8D4CE"/>
+            <polygon points="62,23 58,7 48,21" fill="#D8D4CE"/>
+            <polygon points="19,22 23,9 31,21" fill="#EDEAE6"/>
+            <polygon points="61,22 57,9 49,21" fill="#EDEAE6"/>
+            <ellipse cx="40" cy="68" rx="28" ry="24" fill="#E8E5E0"/>
+            <ellipse cx="40" cy="68" rx="25" ry="21" fill="#F5F3EF"/>
+            <ellipse cx="40" cy="66" rx="16" ry="17" fill="#FEFEFE"/>
+            <ellipse cx="40" cy="30" rx="27" ry="22" fill="#E8E5E0"/>
+            <ellipse cx="40" cy="30" rx="24" ry="19" fill="#F5F3EF"/>
+            <ellipse cx="40" cy="30" rx="19" ry="14" fill="#FEFEFE"/>
+            <circle cx="31" cy="25" r="3.2" fill="#1A1009"/>
+            <circle cx="32.2" cy="23.8" r="1.1" fill="#fff"/>
+            <circle cx="49" cy="25" r="3.2" fill="#1A1009"/>
+            <circle cx="50.2" cy="23.8" r="1.1" fill="#fff"/>
+            <ellipse cx="40" cy="30" rx="2.8" ry="2" fill="#2C1A10"/>
+            <path d="M35 33 Q40 37 45 33" fill="none" stroke="#C0807A" stroke-width="1.3" stroke-linecap="round"/>
+            <ellipse cx="22" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
+            <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
+          </svg>
           <div>
-            <div style="font-size:15px;font-weight:700">ポメちゃん</div>
+            <div style="font-size:15px;font-weight:700">ポメチャット</div>
             <div style="font-size:10px;color:var(--ink3)">なんでも聞いてね</div>
           </div>
         </div>
