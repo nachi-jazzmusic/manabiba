@@ -4252,14 +4252,18 @@ function renderRightPanel() {
         const todayTask = (card.tasks || []).find(t => t.date === todayStr);
         const daysLeft  = Math.ceil((new Date(card.dueDate) - todayD) / (1000*60*60*24));
         const dueTxt    = daysLeft <= 0 ? '期限切れ' : daysLeft === 1 ? '明日まで' : `あと${daysLeft}日`;
-        const sub       = todayTask
-          ? `${dueTxt}　今日:${todayTask.qty}${getUnitShort(card.unit)}`
-          : `${dueTxt}　⚠️未設定`;
+
         if (todayTask) {
+          // タスク割り振り済み → タスクのチェック
           const idx = card.tasks.indexOf(todayTask);
-          html += row(todayTask.done, `${card.subject}｜${card.content}`, sub, `toggleHwTask('${card.id}',${idx})`);
+          const sub = `${dueTxt}　今日:${todayTask.qty}${getUnitShort(card.unit)}`;
+          html += row(todayTask.done, `${card.subject}｜${card.content}`, sub,
+            `toggleHwTask('${card.id}',${idx})`);
         } else {
-          html += row(false, `${card.subject}｜${card.content}`, sub, 'showHomeworkPanel()');
+          // 未割り振り → カード自体を完了トグル
+          const sub = `${dueTxt}　タップで完了`;
+          html += row(card.manualDone === true, `${card.subject}｜${card.content}`, sub,
+            `toggleHwCardManualDone('${card.id}')`);
         }
       });
     }
@@ -4271,6 +4275,18 @@ function renderRightPanel() {
 
 // renderOverallWorkload は renderRightPanel に統合済み
 function renderOverallWorkload() { return ''; }
+
+// 宿題カードを手動で完了トグル（タスク未割り振り時）
+function toggleHwCardManualDone(cardId) {
+  const card = (AppData.homeworkCards || []).find(c => c.id === cardId);
+  if (!card) return;
+  card.manualDone = !card.manualDone;
+  // 完了にしたらallDoneも立てる
+  card.allDone = card.manualDone;
+  saveData();
+  renderHome();
+  window._refreshHwPanel?.();
+}
 
 // 右パネルの×ボタンから暗記タスクを削除
 function deleteMemorizationTaskFromPanel(taskId) {
