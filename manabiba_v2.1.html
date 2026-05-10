@@ -1404,7 +1404,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
         ← 戻る
       </button>
       <div class="modal-title" id="outputModalTitle">📚 暗記ネタを作る・やる</div>
-      <button class="modal-close" onclick="closeOutputModal()">×</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button id="sessionPauseBtn" onclick="showPauseDialog()"
+                style="display:none;border:none;background:var(--bg2);color:var(--ink3);
+                       font-size:11px;font-weight:700;cursor:pointer;padding:5px 10px;
+                       border-radius:8px;white-space:nowrap">
+          ⏸ 中断
+        </button>
+        <button class="modal-close" onclick="closeOutputModal()">×</button>
+      </div>
     </div>
     <div id="outputContent" style="flex:1;overflow-y:auto;padding:24px">
     </div>
@@ -1416,7 +1424,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
   <div class="modal-content" style="max-width:700px;max-height:92vh;display:flex;flex-direction:column">
     <div class="modal-header">
       <div class="modal-title" id="unitTrackerTitle">📒 理解度をチェック</div>
-      <button class="modal-close" onclick="closeUnitTracker()">×</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button id="unitPauseBtn" onclick="showPauseDialog('unit')"
+                style="display:none;border:none;background:var(--bg2);color:var(--ink3);
+                       font-size:11px;font-weight:700;cursor:pointer;padding:5px 10px;
+                       border-radius:8px;white-space:nowrap">
+          ⏸ 中断
+        </button>
+        <button class="modal-close" onclick="closeUnitTracker()">×</button>
+      </div>
     </div>
     <div id="unitTrackerContent" style="flex:1;overflow-y:auto;padding:24px">
     </div>
@@ -6644,6 +6660,98 @@ let elapsedSeconds = 0;
 let breakTimer = null;
 let breakSeconds = 0;
 
+// ═══════════════════════════════════════
+// セッション中断・再開（練習問題・英検・理解度チェック）
+// ═══════════════════════════════════════
+
+function showSessionPauseBtn(show, modalType) {
+  const btn = document.getElementById(modalType === 'unit' ? 'unitPauseBtn' : 'sessionPauseBtn');
+  if (btn) btn.style.display = show ? 'block' : 'none';
+}
+
+function showPauseDialog(modalType) {
+  const overlay = document.createElement('div');
+  overlay.id = 'pauseDialogOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">⏸ 中断しますか？</div>
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:20px">途中の進み具合を保存できます。<br>次回「続きから」か「最初から」か選べます。</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="pauseAndSaveSession('${modalType||'output'}')" class="btn btn-primary" style="padding:13px;font-size:14px">💾 中断して保存する</button>
+        <button onclick="document.getElementById('pauseDialogOverlay').remove()"
+                style="padding:12px;border-radius:10px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--ink2)">続ける</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function pauseAndSaveSession(modalType) {
+  document.getElementById('pauseDialogOverlay')?.remove();
+  const saved = {
+    type: modalType,
+    qaSession:    window.qaSession    ? JSON.parse(JSON.stringify(window.qaSession))    : null,
+    eikenSession: eikenSession        ? JSON.parse(JSON.stringify(eikenSession))        : null,
+    savedAt: new Date().toISOString(),
+    title: document.getElementById('outputModalTitle')?.textContent
+        || document.getElementById('unitTrackerTitle')?.textContent || 'セッション',
+  };
+  try { localStorage.setItem('manabiba_paused_session', JSON.stringify(saved)); } catch(e) {}
+  if (modalType === 'unit') closeUnitTracker();
+  else closeOutputModal();
+  showToast('💾 中断を保存しました。続きからやり直せます。');
+  renderHome();
+}
+
+function showResumeDialog(onResume, onRestart) {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('manabiba_paused_session')); } catch(e) {}
+  if (!saved) { onRestart(); return; }
+
+  const savedAt = new Date(saved.savedAt);
+  const timeStr = `${savedAt.getMonth()+1}/${savedAt.getDate()} ${savedAt.getHours()}:${String(savedAt.getMinutes()).padStart(2,'0')}`;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'resumeDialogOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="font-size:18px;font-weight:700;margin-bottom:6px">📂 中断データがあります</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:4px">${saved.title}</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:20px">${timeStr} に中断</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="confirmResume(true)" class="btn btn-primary" style="padding:13px;font-size:14px">▶ 続きからやる</button>
+        <button onclick="confirmResume(false)"
+                style="padding:12px;border-radius:10px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--ink2)">🔄 最初からやる</button>
+        <button onclick="document.getElementById('resumeDialogOverlay').remove()"
+                style="padding:10px;border-radius:10px;border:none;background:none;font-family:var(--font);font-size:12px;cursor:pointer;color:var(--ink3)">キャンセル</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  window._resumeCallback  = onResume;
+  window._restartCallback = onRestart;
+}
+
+function confirmResume(doResume) {
+  document.getElementById('resumeDialogOverlay')?.remove();
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('manabiba_paused_session')); } catch(e) {}
+  if (doResume && saved) {
+    if (saved.qaSession)    window.qaSession = saved.qaSession;
+    if (saved.eikenSession) eikenSession     = saved.eikenSession;
+    localStorage.removeItem('manabiba_paused_session');
+    window._resumeCallback?.();
+  } else {
+    localStorage.removeItem('manabiba_paused_session');
+    window._restartCallback?.();
+  }
+}
+
+function hasPausedSession() {
+  try { return !!JSON.parse(localStorage.getItem('manabiba_paused_session')); } catch(e) { return false; }
+}
+
+// ── ごはん中断機能（別機能）
 // 中断機能
 let pauseStartTime = null;
 let pauseTimer = null;
@@ -9541,6 +9649,7 @@ function showOutputMenu() {
 
 function closeOutputModal() {
   document.getElementById('outputModal').classList.remove('show');
+  showSessionPauseBtn(false, 'output');
 }
 
 function renderOutputCardList() {
@@ -10628,6 +10737,9 @@ function renderEikenQuestion() {
   const content = document.getElementById('eikenContent');
   const questions = parsed.questions || [];
   const total = questions.length;
+
+  // 中断ボタンを表示（英検モーダルは outputModal を使用）
+  showSessionPauseBtn(true, 'output');
 
   if (currentQ >= total) {
     renderEikenResult();
@@ -12264,7 +12376,7 @@ function showTestPlan() {
             </button>
           </div>
         </div>
-        ${tasks.map(t => `
+        ${tasks.map((t, ti) => `
           <div style="background:#fff;border-radius:8px;border:1px solid #EBEBEB;
                       padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:8px">
             <span style="font-size:14px;cursor:pointer;flex-shrink:0"
@@ -12272,6 +12384,16 @@ function showTestPlan() {
             <div style="flex:1;min-width:0;${t.done?'text-decoration:line-through;color:var(--ink3)':''}">
               <span style="font-size:13px">${t.content}</span>
               ${t.estimatedMin ? '<span style="font-size:11px;color:var(--ink3);margin-left:6px">' + t.estimatedMin + '分</span>' : ''}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0">
+              <button onclick="moveTestPlanTask('${t.id}','${date}',-1)"
+                      style="border:none;background:none;color:${ti===0?'var(--border)':'var(--ink3)'};
+                             font-size:11px;cursor:${ti===0?'default':'pointer'};padding:0;line-height:1"
+                      ${ti===0?'disabled':''}>▲</button>
+              <button onclick="moveTestPlanTask('${t.id}','${date}',1)"
+                      style="border:none;background:none;color:${ti===tasks.length-1?'var(--border)':'var(--ink3)'};
+                             font-size:11px;cursor:${ti===tasks.length-1?'default':'pointer'};padding:0;line-height:1"
+                      ${ti===tasks.length-1?'disabled':''}>▼</button>
             </div>
             <button onclick="editTestPlanTask('${t.id}')"
                     style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700;flex-shrink:0">
@@ -12667,6 +12789,28 @@ function updateTestPlanTask(id) {
   saveData();
   renderHome();
   showTestPlan();
+}
+
+function moveTestPlanTask(taskId, date, direction) {
+  // 同日のタスクを順番通りに取得
+  const allTasks  = AppData.testPlan || [];
+  const dayTasks  = allTasks.filter(t => t.date === date);
+  const idx       = dayTasks.findIndex(t => t.id === taskId);
+  const swapIdx   = idx + direction;
+
+  if (idx < 0 || swapIdx < 0 || swapIdx >= dayTasks.length) return;
+
+  // AppData.testPlan内の実際のインデックスを取得してswap
+  const ai = allTasks.indexOf(dayTasks[idx]);
+  const bi = allTasks.indexOf(dayTasks[swapIdx]);
+  if (ai < 0 || bi < 0) return;
+
+  // swap
+  [AppData.testPlan[ai], AppData.testPlan[bi]] = [AppData.testPlan[bi], AppData.testPlan[ai]];
+
+  saveData();
+  showTestPlan();
+  renderHome();
 }
 
 function deleteTestPlanTask(id) {
@@ -13276,6 +13420,9 @@ function renderQAQuestion() {
   const content = document.getElementById('outputContent');
   if (!window.qaSession) return;
   const { questions, index, itemName, isWeakPoint } = window.qaSession;
+
+  // 中断ボタンを表示
+  showSessionPauseBtn(true, 'output');
 
   if (index >= questions.length) {
     renderQAComplete();
@@ -14240,6 +14387,7 @@ function showUnitTracker() {
 
 function closeUnitTracker() {
   document.getElementById('unitTrackerModal').classList.remove('show');
+  showSessionPauseBtn(false, 'unit');
 }
 
 function renderUnitTrackerTop() {
