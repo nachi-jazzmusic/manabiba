@@ -37,6 +37,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 .nav-btn.active{background:var(--ink);color:#fff}
 .nav-icon{font-size:14px;flex-shrink:0}
 
+/* スクロールバーを見えやすく */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #C0B8B0; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #A09890; }
+
 /* ポメちゃん */
 .sb-mascot{padding:10px 12px;border-top:1px solid var(--border);display:flex;flex-direction:column;align-items:center;gap:4px}
 .mascot-wrap{cursor:pointer;transition:transform .2s;animation:bob 3s ease-in-out infinite}
@@ -14942,8 +14948,9 @@ function showBulkTestSetup() {
     })),
     ...(AppData.studyCards || []).map(c => ({
       id: c.id, subject: c.subject, unit: c.deck,
-      front: c.front, back: c.back, lastResult: c.lastResult,
-      type: 'word', _source: 'studyCards'
+      front: c.front || c.question || '',
+      back:  c.back  || c.answer   || '',
+      lastResult: c.lastResult, type: 'word', _source: 'studyCards'
     }))
   ];
 
@@ -14954,6 +14961,22 @@ function showBulkTestSetup() {
     if (!units[key]) units[key] = { subject: c.subject, unit: c.unit, count: 0 };
     units[key].count++;
   });
+
+  // 前回の選択を読み込む
+  let lastSelected = new Set();
+  let knownKeys    = new Set();
+  try {
+    const saved = JSON.parse(localStorage.getItem('manabiba_bulk_selection') || '{}');
+    lastSelected = new Set(saved.selected || []);
+    knownKeys    = new Set(saved.allKeys   || []);
+  } catch(e) {}
+
+  // 今回のデッキキー一覧
+  const currentKeys = new Set(Object.keys(units));
+  // 新規追加（前回存在しなかったもの）
+  const newKeys = knownKeys.size > 0
+    ? new Set([...currentKeys].filter(k => !knownKeys.has(k)))
+    : currentKeys; // 初回は全部チェック
 
   const hasCards = Object.keys(units).length > 0;
 
@@ -14982,20 +15005,29 @@ function showBulkTestSetup() {
       </div>
     </div>
 
-    <!-- Unit選択 -->
+    <!-- デッキ選択 -->
     <div style="font-size:12px;font-weight:700;margin-bottom:8px">デッキを選ぶ</div>
     <div id="unitSelectionList">
-      ${Object.values(units).map(u => `
+      ${Object.values(units).map(u => {
+        const key = `${u.subject}__${u.unit}`;
+        const prevSelected = lastSelected.has(key);
+        const isNew = newKeys.has(key);
+        const checked = prevSelected || isNew;
+        return `
         <label style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;
-                      padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer">
+                      padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer"
+               onclick="saveBulkSelection()">
           <input type="checkbox" class="unit-check"
-                 data-subject="${u.subject}" data-unit="${u.unit}" checked
-                 style="width:18px;height:18px">
+                 data-subject="${u.subject}" data-unit="${u.unit}" ${checked?'checked':''}
+                 style="width:18px;height:18px" onchange="saveBulkSelection();updateBulkTestCount()">
           <div>
-            <div style="font-size:13px;font-weight:700">${u.subject}：${u.unit}</div>
+            <div style="font-size:13px;font-weight:700">${u.subject}：${u.unit}
+              ${isNew && !prevSelected ? '<span style="font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;margin-left:6px">NEW</span>' : ''}
+            </div>
             <div style="font-size:11px;color:var(--ink3)">${u.count}枚</div>
           </div>
-        </label>`).join('')}
+        </label>`;
+      }).join('')}
     </div>
 
     <div id="bulkTestCount" style="text-align:center;font-size:13px;color:var(--ink2);margin:12px 0"></div>
@@ -15022,6 +15054,20 @@ function bulkFilterChange(cb) {
   updateBulkTestCount();
 }
 
+function saveBulkSelection() {
+  const checks = document.querySelectorAll('.unit-check');
+  const selected = [];
+  const allKeys  = [];
+  checks.forEach(c => {
+    const key = `${c.dataset.subject}__${c.dataset.unit}`;
+    allKeys.push(key);
+    if (c.checked) selected.push(key);
+  });
+  try {
+    localStorage.setItem('manabiba_bulk_selection', JSON.stringify({ selected, allKeys }));
+  } catch(e) {}
+}
+
 function updateBulkTestCount() {
   const cards = getSelectedBulkCards();
   const el = document.getElementById('bulkTestCount');
@@ -15038,7 +15084,9 @@ function getSelectedBulkCards() {
     ...(AppData.outputCards || []).filter(c => c.type === 'word'),
     ...(AppData.studyCards || []).map(c => ({
       id: c.id, subject: c.subject, unit: c.deck,
-      front: c.front, back: c.back, lastResult: c.lastResult, type: 'word'
+      front: c.front || c.question || '',
+      back:  c.back  || c.answer   || '',
+      lastResult: c.lastResult, type: 'word'
     }))
   ];
 
