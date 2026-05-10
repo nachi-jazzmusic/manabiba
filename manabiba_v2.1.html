@@ -810,7 +810,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <span class="nav-icon">📝</span><span>練習問題</span>
     </button>
     <button class="nav-btn" onclick="showBulkTestSetup()">
-      <span class="nav-icon">📋</span><span>暗記テスト</span>
+      <span class="nav-icon">📋</span><span>暗記カード</span>
     </button>
     <button class="nav-btn" onclick="showUnitLearn()">
       <span class="nav-icon">📖</span><span>単元を学ぶ</span>
@@ -9596,16 +9596,16 @@ function showOutputMenu() {
       </div>`
     }
 
-    <!-- 暗記テスト -->
+    <!-- 暗記カード -->
     ${(AppData.outputCards || []).filter(c => c.type === 'word').length > 0 ? `
     <div class="card">
-      <div class="card-title"><span class="card-icon">📋</span>暗記テスト</div>
+      <div class="card-title"><span class="card-icon">📋</span>暗記カード</div>
       <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">
         範囲を選んで、音読→意味テスト→筆記テストを一気にやろう！
       </div>
       <button class="btn btn-primary" onclick="showBulkTestSetup()"
               style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
-        📋 暗記テストをはじめる
+        📋 暗記カードをはじめる
       </button>
     </div>` : ''}
 
@@ -14925,16 +14925,27 @@ function renderTodayUnitChecks() {
 }
 
 // ═══════════════════════════════════════
-// 暗記テスト機能
+// 暗記カード機能
 // ═══════════════════════════════════════
 
 let bulkTest = {}; // セッション状態
 
 // ① 範囲選択画面
 function showBulkTestSetup() {
-  document.getElementById('outputModalTitle').textContent = '📋 暗記テスト';
+  document.getElementById('outputModalTitle').textContent = '🧠 暗記カード';
   const content = document.getElementById('outputContent');
-  const wordCards = (AppData.outputCards || []).filter(c => c.type === 'word');
+
+  // outputCards（暗記ネタ）とstudyCards（カード管理）を両方統合
+  const wordCards = [
+    ...(AppData.outputCards || []).filter(c => c.type === 'word').map(c => ({
+      ...c, _source: 'outputCards'
+    })),
+    ...(AppData.studyCards || []).map(c => ({
+      id: c.id, subject: c.subject, unit: c.deck,
+      front: c.front, back: c.back, lastResult: c.lastResult,
+      type: 'word', _source: 'studyCards'
+    }))
+  ];
 
   // Unit一覧を取得
   const units = {};
@@ -14944,9 +14955,17 @@ function showBulkTestSetup() {
     units[key].count++;
   });
 
+  const hasCards = Object.keys(units).length > 0;
+
   content.innerHTML = `
     <button class="btn btn-secondary" onclick="showOutputMenu()" style="margin-bottom:16px;padding:8px 16px">← 戻る</button>
-    <div style="font-size:15px;font-weight:700;margin-bottom:4px">テスト範囲を選ぶ</div>
+    ${!hasCards ? `
+      <div style="text-align:center;padding:40px;color:var(--ink3)">
+        <div style="font-size:36px;margin-bottom:12px">🧠</div>
+        <div style="font-size:14px;font-weight:700;margin-bottom:8px">カードがありません</div>
+        <div style="font-size:12px">保護者メニュー→カード管理から<br>単語・用語を登録してください</div>
+      </div>` : `
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">デッキを選ぶ</div>
     <div style="font-size:12px;color:var(--ink3);margin-bottom:20px">複数選択できます</div>
 
     <!-- 絞り込み条件 -->
@@ -14964,17 +14983,17 @@ function showBulkTestSetup() {
     </div>
 
     <!-- Unit選択 -->
-    <div style="font-size:12px;font-weight:700;margin-bottom:8px">単元を選ぶ</div>
+    <div style="font-size:12px;font-weight:700;margin-bottom:8px">デッキを選ぶ</div>
     <div id="unitSelectionList">
       ${Object.values(units).map(u => `
         <label style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;
                       padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer">
-          <input type="checkbox" class="unit-check" 
+          <input type="checkbox" class="unit-check"
                  data-subject="${u.subject}" data-unit="${u.unit}" checked
                  style="width:18px;height:18px">
           <div>
             <div style="font-size:13px;font-weight:700">${u.subject}：${u.unit}</div>
-            <div style="font-size:11px;color:var(--ink3)">${u.count}単語</div>
+            <div style="font-size:11px;color:var(--ink3)">${u.count}枚</div>
           </div>
         </label>`).join('')}
     </div>
@@ -14983,11 +15002,14 @@ function showBulkTestSetup() {
 
     <button class="btn btn-primary" onclick="startBulkTest()"
             style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
-      📋 テストスタート
-    </button>
+      🧠 カードをめくる
+    </button>`}
   `;
 
-  updateBulkTestCount();
+  // カードをwindow変数に保存（getSelectedBulkCardsで参照）
+  window._allBulkCards = wordCards;
+
+  if (hasCards) updateBulkTestCount();
   document.getElementById('outputModal').classList.add('show');
 }
 
@@ -15012,9 +15034,15 @@ function getSelectedBulkCards() {
   checks.forEach(c => selectedKeys.add(`${c.dataset.subject}__${c.dataset.unit}`));
 
   const filterWeak = document.getElementById('filterWeak')?.checked;
+  const allCards = window._allBulkCards || [
+    ...(AppData.outputCards || []).filter(c => c.type === 'word'),
+    ...(AppData.studyCards || []).map(c => ({
+      id: c.id, subject: c.subject, unit: c.deck,
+      front: c.front, back: c.back, lastResult: c.lastResult, type: 'word'
+    }))
+  ];
 
-  return (AppData.outputCards || []).filter(c => {
-    if (c.type !== 'word') return false;
+  return allCards.filter(c => {
     const key = `${c.subject}__${c.unit}`;
     if (!selectedKeys.has(key)) return false;
     if (filterWeak) return !c.lastResult || c.lastResult === '×' || c.lastResult === '△';
@@ -15040,7 +15068,7 @@ function startBulkTest() {
 
 // ② テスト画面のメイン描画
 function renderBulkTest() {
-  document.getElementById('outputModalTitle').textContent = '📋 暗記テスト';
+  document.getElementById('outputModalTitle').textContent = '📋 暗記カード';
   const { phase, cards, retryCards, index } = bulkTest;
   const content = document.getElementById('outputContent');
 
