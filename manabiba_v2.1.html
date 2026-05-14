@@ -9656,6 +9656,10 @@ function showOutputMenu() {
 function closeOutputModal() {
   document.getElementById('outputModal').classList.remove('show');
   showSessionPauseBtn(false, 'output');
+  // セッション状態をリセット（次回は音読から始まるように）
+  if (bulkTest && bulkTest.phase && bulkTest.phase !== 'done') {
+    bulkTest = {};
+  }
 }
 
 function renderOutputCardList() {
@@ -15009,7 +15013,12 @@ function showBulkTestSetup() {
         <div style="font-size:12px">保護者メニュー→カード管理から<br>単語・用語を登録してください</div>
       </div>` : `
     <div style="font-size:15px;font-weight:700;margin-bottom:4px">デッキを選ぶ</div>
-    <div style="font-size:12px;color:var(--ink3);margin-bottom:20px">複数選択できます</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">複数選択できます</div>
+
+    <button class="btn btn-primary" onclick="startBulkTest()"
+            style="width:100%;padding:12px;font-size:14px;background:var(--purple);margin-bottom:16px">
+      🧠 カードをめくる
+    </button>
 
     <!-- 絞り込み条件 -->
     <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:16px">
@@ -15212,26 +15221,25 @@ function renderBulkMeaning(bar, content) {
   const rows = cards.map(c => {
     const answered = c.id in results;
     const ok = results[c.id];
-    // front（英語）を表示して、back（日本語）を答える
     return `
-      <div id="row_m_${c.id}" style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div id="row_meaning_${c.id}" style="padding:10px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;gap:12px;align-items:center;margin-bottom:6px">
           <div style="font-size:16px;font-weight:700;min-width:140px;color:var(--ink)">${c.front}</div>
-          <div id="ans_m_${c.id}" style="display:${answered?'inline':'none'};font-size:13px;color:var(--teal);font-weight:600">${c.back}</div>
-          <button onclick="showBulkAnswer('m','${c.id}')" id="ansBtn_m_${c.id}"
+          <div id="ans_meaning_${c.id}" style="display:${answered?'inline':'none'};font-size:13px;color:var(--teal);font-weight:600">${c.back}</div>
+          <button onclick="showBulkAnswer('meaning','${c.id}')" id="ansBtn_meaning_${c.id}"
                   style="display:${answered?'none':'block'};margin-left:auto;padding:4px 10px;border-radius:8px;
                          border:1px solid var(--border);background:#fff;font-family:var(--font);
                          font-size:11px;cursor:pointer;color:var(--ink2);white-space:nowrap">
             答えを見る
           </button>
         </div>
-        <div id="judge_m_${c.id}" style="display:${answered?'flex':'none'};gap:8px;margin-top:4px">
-          <button onclick="setBulkResultInline('meaning','${c.id}',true,this)"
+        <div id="judge_meaning_${c.id}" style="display:${answered?'flex':'none'};gap:8px;margin-top:4px">
+          <button onclick="setBulkResultInline('meaning','${c.id}',true)"
                   style="flex:1;padding:7px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font);
                          font-size:12px;background:${answered&&ok?'#4A9B5F':'#eee'};color:${answered&&ok?'#fff':'var(--ink2)'}">
             ◎ 言えた
           </button>
-          <button onclick="setBulkResultInline('meaning','${c.id}',false,this)"
+          <button onclick="setBulkResultInline('meaning','${c.id}',false)"
                   style="flex:1;padding:7px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font);
                          font-size:12px;background:${answered&&!ok?'#D94F3D':'#eee'};color:${answered&&!ok?'#fff':'var(--ink2)'}">
             × 言えなかった
@@ -15248,44 +15256,50 @@ function renderBulkMeaning(bar, content) {
     <div style="font-size:14px;font-weight:700;margin-bottom:4px">🧠 意味を言えるかな？</div>
     <div style="font-size:12px;color:var(--ink3);margin-bottom:4px">英語を見て日本語を声に出して→答えを確認して◎×</div>
     <div style="font-size:12px;color:var(--accent);margin-bottom:12px;font-weight:600" id="meaning_count">${doneCount}/${cards.length} 完了</div>
-    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);max-height:50vh;overflow-y:auto" id="meaning_list">
+    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);max-height:50vh;overflow-y:auto">
       ${rows}
     </div>
-    <div id="meaning_next" style="${allDone?'':'display:none'}">
-      <button onclick="bulkTest.phase='writing';bulkTest.results={};bulkTest.index=0;renderBulkTest()"
-              class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
+    <div style="display:flex;gap:8px;margin-bottom:4px">
+      <button onclick="bulkTest.phase='writing';bulkTest.results={};renderBulkTest()"
+              style="flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--purple);
+                     background:#fff;color:var(--purple);font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">
+        スキップして筆記へ
+      </button>
+      <button id="meaning_next" onclick="bulkTest.phase='writing';bulkTest.results={};renderBulkTest()"
+              style="flex:2;padding:11px;border-radius:10px;border:none;
+                     background:${allDone?'var(--purple)':'#ccc'};color:#fff;
+                     font-family:var(--font);font-size:13px;font-weight:700;
+                     cursor:${allDone?'pointer':'default'}">
         ✓ 筆記テストへ
       </button>
     </div>
-    ${!allDone ? '<div style="text-align:center;font-size:12px;color:var(--ink3);padding:8px">全部の◎×を押したら次へ進めます</div>' : ''}`;
+    ${!allDone ? '<div style="text-align:center;font-size:11px;color:var(--ink3);padding:4px">全◎×を押すと筆記テストへボタンが有効になります</div>' : ''}`;
 }
 
-// ⑤ 筆記テスト（back=日本語を見てfront=英語を書く）
 function renderBulkWriting(bar, content) {
   const { cards, results } = bulkTest;
   const rows = cards.map(c => {
     const answered = c.id in results;
     const ok = results[c.id];
-    // back（日本語）を表示して、front（英語）を答える
     return `
-      <div id="row_w_${c.id}" style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div id="row_writing_${c.id}" style="padding:10px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;gap:12px;align-items:center;margin-bottom:6px">
           <div style="font-size:15px;font-weight:700;min-width:140px;color:var(--ink)">${c.back}</div>
-          <div id="ans_w_${c.id}" style="display:${answered?'inline':'none'};font-size:13px;color:var(--teal);font-weight:600">${c.front}</div>
-          <button onclick="showBulkAnswer('w','${c.id}')" id="ansBtn_w_${c.id}"
+          <div id="ans_writing_${c.id}" style="display:${answered?'inline':'none'};font-size:13px;color:var(--teal);font-weight:600">${c.front}</div>
+          <button onclick="showBulkAnswer('writing','${c.id}')" id="ansBtn_writing_${c.id}"
                   style="display:${answered?'none':'block'};margin-left:auto;padding:4px 10px;border-radius:8px;
                          border:1px solid var(--border);background:#fff;font-family:var(--font);
                          font-size:11px;cursor:pointer;color:var(--ink2);white-space:nowrap">
             答えを見る
           </button>
         </div>
-        <div id="judge_w_${c.id}" style="display:${answered?'flex':'none'};gap:8px;margin-top:4px">
-          <button onclick="setBulkResultInline('writing','${c.id}',true,this)"
+        <div id="judge_writing_${c.id}" style="display:${answered?'flex':'none'};gap:8px;margin-top:4px">
+          <button onclick="setBulkResultInline('writing','${c.id}',true)"
                   style="flex:1;padding:7px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font);
                          font-size:12px;background:${answered&&ok?'#4A9B5F':'#eee'};color:${answered&&ok?'#fff':'var(--ink2)'}">
             ◎ 書けた
           </button>
-          <button onclick="setBulkResultInline('writing','${c.id}',false,this)"
+          <button onclick="setBulkResultInline('writing','${c.id}',false)"
                   style="flex:1;padding:7px;border-radius:8px;border:none;cursor:pointer;font-family:var(--font);
                          font-size:12px;background:${answered&&!ok?'#D94F3D':'#eee'};color:${answered&&!ok?'#fff':'var(--ink2)'}">
             × 書けなかった
@@ -15302,31 +15316,28 @@ function renderBulkWriting(bar, content) {
     <div style="font-size:14px;font-weight:700;margin-bottom:4px">✏️ ノートに書いてみよう</div>
     <div style="font-size:12px;color:var(--ink3);margin-bottom:4px">日本語を見て英語をノートに書いて→答えを確認して◎×</div>
     <div style="font-size:12px;color:var(--accent);margin-bottom:12px;font-weight:600" id="writing_count">${doneCount}/${cards.length} 完了</div>
-    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);max-height:50vh;overflow-y:auto" id="writing_list">
+    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);max-height:50vh;overflow-y:auto">
       ${rows}
     </div>
-    <div id="writing_next" style="${allDone?'':'display:none'}">
-      <button onclick="finishBulkWriting()"
-              class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
-        ✓ 結果を見る
-      </button>
-    </div>
-    ${!allDone ? '<div style="text-align:center;font-size:12px;color:var(--ink3);padding:8px">全部の◎×を押したら次へ進めます</div>' : ''}`;
+    <button onclick="finishBulkWriting()"
+            style="width:100%;padding:12px;border-radius:10px;border:none;
+                   background:var(--purple);color:#fff;font-family:var(--font);
+                   font-size:13px;font-weight:700;cursor:pointer">
+      ${allDone ? '✓ 結果を見る' : 'スキップして結果へ'}
+    </button>
+    ${!allDone ? '<div style="text-align:center;font-size:11px;color:var(--ink3);padding:4px">◎×を押さなくても「スキップして結果へ」で終了できます</div>' : ''}`;
 }
 
-// 答えを見る（スクロール位置を維持）
 function showBulkAnswer(phase, id) {
-  document.getElementById(`ans_${phase}_${id}`).style.display = 'inline';
-  document.getElementById(`ansBtn_${phase}_${id}`).style.display = 'none';
-  document.getElementById(`judge_${phase}_${id}`).style.display = 'flex';
+  document.getElementById('ans_' + phase + '_' + id).style.display = 'inline';
+  document.getElementById('ansBtn_' + phase + '_' + id).style.display = 'none';
+  document.getElementById('judge_' + phase + '_' + id).style.display = 'flex';
 }
 
-// ◎×をインラインで反映（スクロール位置を維持）
-function setBulkResultInline(phase, id, ok, btn) {
+function setBulkResultInline(phase, id, ok) {
   bulkTest.results[id] = ok;
 
-  // ボタンの色を更新（その行だけ）
-  const judge = document.getElementById(`judge_${phase}_${id}`);
+  const judge = document.getElementById('judge_' + phase + '_' + id);
   if (judge) {
     const btns = judge.querySelectorAll('button');
     btns[0].style.background = ok  ? '#4A9B5F' : '#eee';
@@ -15335,44 +15346,24 @@ function setBulkResultInline(phase, id, ok, btn) {
     btns[1].style.color      = !ok ? '#fff'    : 'var(--ink2)';
   }
 
-  // カウント更新
   const doneCount = Object.keys(bulkTest.results).length;
   const total = bulkTest.cards.length;
-  const countEl = document.getElementById(`${phase}_count`);
-  if (countEl) countEl.textContent = `${doneCount}/${total} 完了`;
+  const countEl = document.getElementById(phase + '_count');
+  if (countEl) countEl.textContent = doneCount + '/' + total + ' 完了';
 
-  // 全部終わったら「次へ」ボタンを表示
-  if (doneCount === total) {
-    const nextEl = document.getElementById(`${phase}_next`);
-    if (nextEl) nextEl.style.display = 'block';
-    const hintEl = nextEl?.nextElementSibling;
-    if (hintEl) hintEl.style.display = 'none';
-
-    // studyCardsの回数更新
-    _updateBulkCardStats(id, ok, phase);
-  } else {
-    _updateBulkCardStats(id, ok, phase);
+  if (doneCount === total && phase === 'meaning') {
+    const nextBtn = document.getElementById('meaning_next');
+    if (nextBtn) {
+      nextBtn.style.background = 'var(--purple)';
+      nextBtn.style.cursor = 'pointer';
+    }
   }
+
+  _updateBulkCardStats(id, ok, phase);
 }
 
-function _updateBulkCardStats(id, ok, phase) {
-  // studyCardsの場合はlastResultを更新
-  const sc = (AppData.studyCards || []).find(c => c.id === id);
-  if (sc) {
-    sc.lastResult = ok ? '◎' : '×';
-    sc.playCount  = (sc.playCount || 0) + (phase === 'writing' ? 1 : 0);
-    saveData();
-  }
-  // outputCardsの場合
-  const oc = (AppData.outputCards || []).find(c => c.id === id);
-  if (oc) {
-    oc.lastResult = ok ? '◎' : '×';
-    saveData();
-  }
-}
-
-function showMeaningAnswer(id) { showBulkAnswer('m', id); }
-function showWritingAnswer(id) { showBulkAnswer('w', id); }function showWritingAnswer(id) {
+function showMeaningAnswer(id) { showBulkAnswer('meaning', id); }
+function showWritingAnswer(id) { showBulkAnswer('writing', id); }function showWritingAnswer(id) {
   document.getElementById(`ans_w_${id}`).style.display = 'inline';
   document.getElementById(`ansBtn_w_${id}`).style.display = 'none';
   document.getElementById(`judge_w_${id}`).style.display = 'flex';
