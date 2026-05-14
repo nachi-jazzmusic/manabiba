@@ -14942,15 +14942,21 @@ function showBulkTestSetup() {
   const content = document.getElementById('outputContent');
 
   // outputCards（暗記ネタ）とstudyCards（カード管理）を両方統合
+  // studyCards: question=表（覚えたいもの）, answer=裏（意味）
+  // 英語デッキ: question=日本語, answer=英語 → frontに英語(answer)を出す
   const wordCards = [
     ...(AppData.outputCards || []).filter(c => c.type === 'word').map(c => ({
-      ...c, _source: 'outputCards'
+      ...c, _source: 'outputCards',
+      _sortKey: c.id || ''
     })),
     ...(AppData.studyCards || []).map(c => ({
       id: c.id, subject: c.subject, unit: c.deck,
-      front: c.front || c.question || '',
-      back:  c.back  || c.answer   || '',
-      lastResult: c.lastResult, type: 'word', _source: 'studyCards'
+      front: c.answer   || c.back  || '',  // 英語（答え側）を表に
+      back:  c.question || c.front || '',  // 日本語（問い側）を裏に
+      lastResult: c.lastResult,
+      playCount:  c.playCount || 0,
+      type: 'word', _source: 'studyCards',
+      _sortKey: c.id || ''
     }))
   ];
 
@@ -14961,20 +14967,20 @@ function showBulkTestSetup() {
     if (!units[key]) units[key] = {
       subject: c.subject, unit: c.unit, count: 0,
       playCount: 0,
-      lastAdded: c.createdAt || c.id || ''
+      lastAdded: c._sortKey || c.id || ''
     };
     units[key].count++;
     units[key].playCount += (c.playCount || 0);
-    // 最新のcreatedAtを使う
-    if ((c.createdAt || c.id || '') > units[key].lastAdded) {
-      units[key].lastAdded = c.createdAt || c.id || '';
-    }
+    const cKey = c._sortKey || c.id || '';
+    if (cKey > units[key].lastAdded) units[key].lastAdded = cKey;
   });
 
-  // 登録日新しい順でソート
-  const sortedUnits = Object.values(units).sort((a, b) =>
-    b.lastAdded.localeCompare(a.lastAdded)
-  );
+  // 登録日新しい順でソート（IDからタイムスタンプを抽出）
+  const getTs = (u) => {
+    const m = (u.lastAdded || '').match(/(\d{13,})/);
+    return m ? parseInt(m[1]) : 0;
+  };
+  const sortedUnits = Object.values(units).sort((a, b) => getTs(b) - getTs(a));
 
   // 前回の選択を読み込む
   let lastSelected = new Set();
@@ -15101,8 +15107,8 @@ function getSelectedBulkCards() {
     ...(AppData.outputCards || []).filter(c => c.type === 'word'),
     ...(AppData.studyCards || []).map(c => ({
       id: c.id, subject: c.subject, unit: c.deck,
-      front: c.front || c.question || '',
-      back:  c.back  || c.answer   || '',
+      front: c.answer   || c.back  || '',
+      back:  c.question || c.front || '',
       lastResult: c.lastResult, type: 'word'
     }))
   ];
