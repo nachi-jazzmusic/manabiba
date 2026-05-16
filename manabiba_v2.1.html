@@ -3002,21 +3002,21 @@ async function startExamDiagnosis(examId, mode) {
   const modeConfig = {
     initial: {
       label: '初回診断',
-      prompt: '全単元から2〜3問ずつ、合計10問程度',
+      prompt: '【1教科あたり20問】各単元について2〜3問ずつ連続で出題。同じ単元の問題は連続で並べる。全教科で計100問程度（5教科なら）。1単元複数問の理由：たまたま正解した場合に「習得済み」と誤判定しないため。',
       filterWeak: false
     },
     mid: {
       label: '中間診断',
       prompt: weakCategories.length > 0
-        ? '前回❌だった単元（' + weakCategories.join('・') + '）を重点的に、全体から合計8問程度'
-        : '全単元から2〜3問ずつ、合計8問程度',
+        ? '【1教科あたり15問】前回❌だった単元（' + weakCategories.join('・') + '）を各3問ずつ重点的に、他の単元から各1〜2問。'
+        : '【1教科あたり15問】全単元から2〜3問ずつ。',
       filterWeak: false
     },
     final: {
       label: daysLeft <= 1 ? '前日の最終確認' : '直前診断',
       prompt: weakCategories.length > 0
-        ? '前回❌だった単元（' + weakCategories.join('・') + '）から各1問、合計' + Math.min(weakCategories.length, 5) + '問のみ。短時間で終わるよう簡潔に'
-        : '最重要ポイントから各科目1問ずつ、合計5問以内',
+        ? '前回❌だった単元（' + weakCategories.join('・') + '）から各2問、合計' + Math.min(weakCategories.length * 2, 10) + '問。短時間で要点確認。'
+        : '最重要ポイントから各教科3問ずつ、合計15問以内',
       filterWeak: true
     }
   };
@@ -3060,26 +3060,34 @@ async function startExamDiagnosis(examId, mode) {
       },
       body: JSON.stringify({
         model: 'claude-opus-4-5',
-        max_tokens: 2000,
-        system: `あなたは小学校の学習内容を確認するテストを作成します。
-${config.prompt}。
-問題は自己申告ではなく「実際に解ける」かどうかを確認する具体的な問題にする。
-JSONのみ出力（コードブロック不要）。
+        max_tokens: 8000,
+        system: `あなたは中学生のテスト対策のための理解度診断問題を作成します。
+${config.prompt}
 
 【絶対に守ること】
-- 問題はテスト範囲に書かれた内容のみ
-- 中学の内容は絶対に出題しない
-- πを使う問題は禁止（円周率は3.14で計算）
-- 方程式・負の数・文字式（x,yを使う計算）は禁止
-- 平方根・三平方の定理は禁止
-- 出題範囲：問題文に書かれたテスト範囲のみ
+- 問題はユーザーが指定したテスト範囲の内容に厳密に従う
+- 中1の生徒を対象（特に指示がなければ中1レベル）
+- 同じ単元の問題は連続して出題（例：be動詞の問題3問→次の単元へ）
+- 「わかった気になっているだけ」を見破る具体的な出題
+  - ❌「○○について説明せよ」
+  - ✅「次の英文を日本語にしなさい：I am a student.」
+  - ✅「次の計算をしなさい：(-3)+(-7)」
+  - ✅「次の漢字の読みを書きなさい：『憤慨』」
 
+【採点基準を必ず含める（重要）】
+- answer には正解を書く
+- keywords には自己採点用のキーワードを配列で書く（部分点採点も可能に）
+- strict_match: trueなら一字一句一致が必要、falseなら部分一致でOK
+
+JSONのみ出力（コードブロック不要）：
 {"questions":[
   {
     "subject": "科目名",
     "category": "単元名",
-    "question": "具体的な問題文（小学校の学習内容のみ）",
-    "answer": "正解",
+    "question": "具体的な問題文",
+    "answer": "正解（完全版）",
+    "keywords": ["採点に必要なキーワード1", "キーワード2"],
+    "strict_match": false,
     "type": "calc|memo|concept",
     "timeLimit": 60
   }
@@ -3171,22 +3179,37 @@ function renderDiagQuestion() {
 
         <!-- 答えエリア（最初は非表示） -->
         <div id="diag_answer_area" style="display:none">
-          <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:16px">
-            <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">答え</div>
+          <div style="background:var(--bg2);border-radius:12px;padding:16px;margin-bottom:12px">
+            <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">正解</div>
             <div style="font-size:18px;font-weight:700;white-space:pre-wrap">${q.answer}</div>
+            ${q.keywords && q.keywords.length > 0 ? `
+              <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+                <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">採点キーワード（全部書けてた？）</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px">
+                  ${q.keywords.map(k => `<span style="font-size:11px;background:#FFF8EE;color:#C8922A;padding:2px 8px;border-radius:8px;font-weight:600">${k}</span>`).join('')}
+                </div>
+              </div>` : ''}
+            ${q.strict_match ? `
+              <div style="font-size:10px;color:var(--red);margin-top:8px;font-weight:600">⚠️ 一字一句完全に一致した場合のみ「解けた」を選ぶ</div>` : `
+              <div style="font-size:10px;color:var(--ink3);margin-top:8px">💡 キーワードが全部含まれていたら「解けた」</div>`}
           </div>
 
-          <div style="font-size:14px;font-weight:700;text-align:center;margin-bottom:12px">実際に解けた？</div>
-          <div style="display:flex;gap:10px">
+          <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:8px;color:var(--ink2)">正直に判定してね（わかった気になりは×）</div>
+          <div style="display:flex;gap:8px">
             <button onclick="saveDiagResult('ok')"
-                    style="flex:1;padding:16px;background:#4A9B5F;color:#fff;border:none;
-                           border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">
-              ✅ 解けた
+                    style="flex:1;padding:14px 8px;background:#4A9B5F;color:#fff;border:none;
+                           border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3">
+              ✅ 完璧に<br>書けた
+            </button>
+            <button onclick="saveDiagResult('partial')"
+                    style="flex:1;padding:14px 8px;background:#C8922A;color:#fff;border:none;
+                           border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3">
+              △ 一部だけ<br>合ってた
             </button>
             <button onclick="saveDiagResult('ng')"
-                    style="flex:1;padding:16px;background:#D94F3D;color:#fff;border:none;
-                           border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">
-              ❌ 解けなかった
+                    style="flex:1;padding:14px 8px;background:#D94F3D;color:#fff;border:none;
+                           border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3">
+              ❌ 書けな<br>かった
             </button>
           </div>
         </div>
@@ -3299,26 +3322,29 @@ function showDiagResult() {
   const todayD = new Date(); todayD.setHours(0,0,0,0);
   const daysLeft = Math.ceil((new Date(exam.testDate) - todayD)/(1000*60*60*24));
 
-  // 結果集計
-  const okList = results.filter(r => r.result === 'ok');
-  const ngList = results.filter(r => r.result === 'ng');
+  // 結果集計（partial=△も要復習扱い）
+  const okList      = results.filter(r => r.result === 'ok');
+  const partialList = results.filter(r => r.result === 'partial');
+  const ngList      = results.filter(r => r.result === 'ng' || r.result === 'partial');
 
   // 前回診断を取得（比較用）
   const prevDiags = Object.values(AppData.examDiagnosis||{})
     .filter(d => d.examId === examId)
     .sort((a,b) => b.date.localeCompare(a.date));
-  const prevDiag = prevDiags[0]; // 直前の診断（保存前）
-  const prevNgCategories = new Set(prevDiag ? (prevDiag.results||[]).filter(r=>r.result==='ng').map(r=>r.category) : []);
+  const prevDiag = prevDiags[0];
+  const prevNgCategories = new Set(prevDiag ? (prevDiag.results||[]).filter(r => r.result==='ng' || r.result==='partial').map(r=>r.category) : []);
 
-  // カテゴリ別集計
+  // カテゴリ別集計（◎×△を別カウント）
   const categoryMap = {};
   results.forEach(r => {
     const key = r.subject + '：' + r.category;
-    if (!categoryMap[key]) categoryMap[key] = { subject:r.subject, category:r.category, ok:0, ng:0, type:r.type };
-    categoryMap[key][r.result]++;
+    if (!categoryMap[key]) categoryMap[key] = { subject:r.subject, category:r.category, ok:0, ng:0, partial:0, type:r.type };
+    if (r.result === 'ok') categoryMap[key].ok++;
+    else if (r.result === 'partial') categoryMap[key].partial++;
+    else categoryMap[key].ng++;
   });
 
-  // 弱点を自動登録
+  // 弱点を自動登録（×と△の両方）
   ngList.forEach(r => {
     if (!AppData.weakPoints) AppData.weakPoints = [];
     const already = AppData.weakPoints.some(w => w.unit === r.category && w.subject === r.subject && w.active);
@@ -4968,9 +4994,11 @@ function startTestBattleForGroups(groups) {
     allSubjectsText += `\n■ ${g.name}（${g.testDate}、${dueTxt}）\n`;
 
     g.exams.forEach(exam => {
-      const subjList = (exam.subjects||[]).map(s =>
-        `  ・${s.subject}：${s.range||''}${s.points?' / '+s.points:''}`
-      ).join('\n');
+      const subjList = (exam.subjects||[]).map(s => {
+        let line = `  ・${s.subject}：${s.range||''}${s.points?' / '+s.points:''}`;
+        if (s.advice) line += `\n    💡先生のアドバイス：${s.advice}`;
+        return line;
+      }).join('\n');
       if (subjList) allSubjectsText += subjList + '\n';
 
       const diagRecords = Object.values(AppData.examDiagnosis||{})
@@ -4999,34 +5027,72 @@ function startTestBattleForGroups(groups) {
   const earliestDate = groups.map(g => g.testDate).sort()[0];
   const daysToEarliest = Math.ceil((new Date(earliestDate) - today) / (1000*60*60*24));
 
-  // ── コーチング型プロンプト ──
+  // ── 攻略コーチ型プロンプト ──
   const pomePrompt = `あなたはテスト攻略コーチ「ポメ」です。中学1年生の「かりん」と一緒に勝つための作戦を立てます。
+単なる時間配分ではなく、「点を取りに行く」攻略会議を行ってください。
+
+【攻略会議で扱う4つの要素】
+
+①**出題予測・分析（最重要）**
+- 登録されたテスト範囲・先生のアドバイス・配点情報を読み込んで、「ここが出る」「これは捨ててもいい」を具体的に予告する
+- 例：「『時差計算』『都道府県名』が範囲にあるね。先生のアドバイスからすると時差は確実に出る」
+- 例：「英語Unit3の家族・友達は、自己紹介スピーチが課題ってことは、書く問題で出る可能性大」
+- 範囲とアドバイス欄の情報をフル活用して、戦略の根拠にしてください
+
+②**得点戦略**
+- 診断結果（◎○△×）から「捨て問」と「必取問」を明確化
+- 「英語の家族・友達20点中15点、数学の正負の数30点中25点…合計目標◯点」のように積み上げ式で示す
+- テスト本番の時間配分も提案（例：「数学50分なら、計算問題15分・文章題20分・図形15分」）
+
+③**解法テクニック**
+- 科目別の具体的なコツを伝える
+- 数学：「文章題は図を描いてから式を立てる」「計算ミス防止に途中式を残す」
+- 理科：「実験器具は図と名前と用途をセット」
+- 英語：「単語は意味だけでなくスペルも書ける形で覚える」
+- 国語：「漢字の書き取りは前後の文も読んで意味から推測」
+- 社会：「年号は語呂合わせ、地理は地図上の位置とセット」
+
+④**ミス防止策**
+- 診断で△・×だった問題タイプから具体的な見直しポイントを提示
+- 「自己紹介で be 動詞と一般動詞を混ぜちゃうクセがあるね。テスト中は『I am』『I play』って書く前に動詞をチェック」
+- 「これだけは見直す」リストを最後に明示
 
 【絶対に守るルール】
 1. **事実確認を最初にする**
-   - 私（システム）が渡したテスト範囲や診断結果は仮の情報です。実際にテストで出やすい分野はかりんしか知りません。
-   - いきなり作戦を立てず、まずかりんに「ここはテストでよく出るところ？」「配点が高いのはどこ？」「今夜は何時まで勉強できる？」など事実を確認してください。
-   - 質問は1〜2個ずつ、答えやすい形で投げかけてください。
+   - 渡された情報は仮データ。実際にテストに出るかどうかはかりんしか知らない部分もある
+   - 「先生は『時差は出る』って言ってた？」「配点は範囲のどこが多そう？」などを質問する
+   - 質問は1〜2個ずつ、答えやすい形で
 
-2. **勝つための作戦の考え方**
-   - 出題確率が高い × 苦手 → 最優先
-   - 出題確率が高い × 得意 → 確実に取る
-   - 出題確率が低い → 後回し、時間がなければ捨てる
-   - 暗記系は前日〜2日前に寄せる、理解系は早めに
-   - 1日に詰め込みすぎない、1〜2教科に集中
+2. **会議の進め方**
+   ステップ1：出題予測（「ここが出る」を提示・かりんに確認）
+   ステップ2：得点戦略（目標点と内訳）
+   ステップ3：日ごとの学習配分
+   ステップ4：解法テクニック・ミス防止策
+   ステップ5：最後にまとめ表
 
-3. **最後にタスク表を出す**
-   事実確認と作戦合意が終わったら、最後にこの形式で表を出してください（紙に書き写せるように）：
+3. **最後にまとめ表を出す**
+   紙に書き写せる形で：
 
+   【攻略ポイント】
+   ・英語：Unit3スピーチが出る → 自己紹介3パターン暗唱
+   ・数学：正負の数の計算ミス注意 → 必ず途中式
+   ・...
+
+   【学習スケジュール】
    ┌──────┬──────┬───────────────┬──────┐
    │ 日付    │ 教科   │ やること             │ 目安時間 │
    ├──────┼──────┼───────────────┼──────┤
-   │ 5/17 (日) │ 英語   │ Unit3音読＋暗唱        │ 30分    │
-   │ ...   │ ...  │ ...              │ ...   │
+   │ 5/17(日) │ 英語   │ Unit3スピーチ暗唱       │ 60分    │
    └──────┴──────┴───────────────┴──────┘
 
-4. **タスクの自動追加はしない**
-   表を出すだけ。「タスクに追加する」とは言わないでください。
+   【本番の時間配分】
+   ・数学50分：計算15分・文章題20分・図形15分
+
+   【絶対に見直すポイント】
+   ・be動詞と一般動詞の混在チェック
+   ・計算式の符号
+
+4. **タスクの自動追加はしない**：表を出すだけ
 
 【今の状況】
 - 今：${todayStr}
@@ -5034,7 +5100,7 @@ function startTestBattleForGroups(groups) {
 ${allSubjectsText}
 ${hasDiag ? `\n【これまでの診断結果（仮データ）】\n${allDiagSummary}` : '\n※ まだ診断は未実施'}
 
-それでは作戦会議を始めましょう。まずは状況を確認する質問から始めてください。`;
+それでは作戦会議を始めましょう。まずは状況を確認する質問から始めて、出題予測の話に進めてください。`;
 
   showPanel('home');
   setTimeout(() => {
