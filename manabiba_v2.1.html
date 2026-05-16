@@ -720,7 +720,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
 <body>
 
 <!-- グローバル：カメラ入力（どの画面からでも使えるようにbody直下に配置） -->
-<input type="file" id="cameraInput" accept="image/*" capture="environment" 
+<input type="file" id="cameraInput" accept="image/*" capture="environment"
+       style="display:none" onchange="handleImageUpload(event)">
+<input type="file" id="fileInput" accept="image/*"
        style="display:none" onchange="handleImageUpload(event)">
 
 <!-- トリミングモーダル -->
@@ -4567,7 +4569,7 @@ function renderTestBanner() {
       💬 今日何をやればいい？
     </button>
     ${nearExams.length > 0 ? `
-      <button onclick="showTestStudySetup('${nearExams[0].id}')"
+      <button onclick="showTestSelectionForBattle()"
               style="width:100%;padding:9px;border-radius:20px;border:none;background:#6B5FBB;
                      color:#fff;font-family:var(--font);font-size:13px;font-weight:700;
                      cursor:pointer;margin-top:6px">
@@ -4867,6 +4869,183 @@ function startTestAttack(examId) {
 // テスト勉強モード
 // ═══════════════════════════════════════
 
+// ═══════════════════════════════════════
+// テスト作戦会議：複数テスト選択モーダル
+// ═══════════════════════════════════════
+
+function showTestSelectionForBattle() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  // 期限内のテストを取得（過去のテストは除外）
+  const exams = (AppData.examRanges || [])
+    .filter(e => new Date(e.testDate) >= today)
+    .sort((a,b) => (a.testDate||'').localeCompare(b.testDate||''));
+
+  if (exams.length === 0) {
+    pomeQuickSend('テストの作戦会議をしよう！');
+    return;
+  }
+
+  // 同名・同日付でグループ化
+  const groups = {};
+  exams.forEach(e => {
+    const key = `${e.name}__${e.testDate}`;
+    if (!groups[key]) groups[key] = { key, name: e.name, testDate: e.testDate, exams: [] };
+    groups[key].exams.push(e);
+  });
+  const groupList = Object.values(groups);
+
+  const overlay = document.createElement('div');
+  overlay.id = 'testBattleSelectOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:16px;padding:24px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">🎯 ポメとテスト作戦会議</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:16px">
+        作戦を立てたいテストを選んでください（複数選択OK）
+      </div>
+
+      <div style="margin-bottom:16px">
+        ${groupList.map((g, i) => {
+          const daysLeft = Math.ceil((new Date(g.testDate) - today) / (1000*60*60*24));
+          const dueTxt = daysLeft === 0 ? '今日' : daysLeft === 1 ? '明日' : `あと${daysLeft}日`;
+          const subjectCount = g.exams.length;
+          const isDefault = daysLeft <= 7; // 1週間以内はデフォルトでチェック
+          return `
+            <label style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:9px;
+                          padding:12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer">
+              <input type="checkbox" class="tb-exam-group" value="${g.key}" ${isDefault?'checked':''}
+                     style="width:18px;height:18px">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700">${g.name}${subjectCount > 1 ? `（${subjectCount}教科）` : ''}</div>
+                <div style="font-size:11px;color:${daysLeft<=3?'var(--red)':'var(--ink3)'};margin-top:2px">${g.testDate}　${dueTxt}</div>
+              </div>
+            </label>`;
+        }).join('')}
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('testBattleSelectOverlay').remove()"
+                style="flex:1;padding:11px;border-radius:10px;border:1px solid var(--border);
+                       background:#fff;color:var(--ink2);font-family:var(--font);
+                       font-size:13px;cursor:pointer">キャンセル</button>
+        <button onclick="startBattleFromSelection()"
+                class="btn btn-primary" style="flex:2;padding:11px;font-size:14px;background:#6B5FBB">
+          🎯 作戦会議を始める
+        </button>
+      </div>
+      <div style="font-size:11px;color:var(--ink3);margin-top:10px;line-height:1.5">
+        💡 同じテスト名の教科は自動でまとめて作戦を立てます
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  window._battleGroupList = groupList;
+}
+
+function startBattleFromSelection() {
+  const checked = Array.from(document.querySelectorAll('.tb-exam-group:checked')).map(c => c.value);
+  if (checked.length === 0) { alert('テストを1つ以上選んでください'); return; }
+
+  const groupList = window._battleGroupList || [];
+  const selectedGroups = groupList.filter(g => checked.includes(g.key));
+
+  document.getElementById('testBattleSelectOverlay')?.remove();
+  startTestBattleForGroups(selectedGroups);
+}
+
+function startTestBattleForGroups(groups) {
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // すべての教科の範囲・診断結果をまとめる
+  let allSubjectsText = '';
+  let allDiagSummary  = '';
+
+  groups.forEach(g => {
+    const daysLeft = Math.ceil((new Date(g.testDate) - today) / (1000*60*60*24));
+    const dueTxt = daysLeft === 0 ? '今日' : daysLeft === 1 ? '明日' : `あと${daysLeft}日`;
+
+    allSubjectsText += `\n■ ${g.name}（${g.testDate}、${dueTxt}）\n`;
+
+    g.exams.forEach(exam => {
+      const subjList = (exam.subjects||[]).map(s =>
+        `  ・${s.subject}：${s.range||''}${s.points?' / '+s.points:''}`
+      ).join('\n');
+      if (subjList) allSubjectsText += subjList + '\n';
+
+      const diagRecords = Object.values(AppData.examDiagnosis||{})
+        .filter(d => d.examId === exam.id)
+        .sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+      if (diagRecords.length > 0) {
+        const bySubject = {};
+        diagRecords.forEach(d => {
+          const subj = d.subject || '全体';
+          if (!bySubject[subj]) bySubject[subj] = d;
+        });
+        Object.entries(bySubject).forEach(([subj, d]) => {
+          const rate = Math.round(d.okCount / (d.okCount + d.ngCount) * 100);
+          const weakTopics = (d.ngTopics || d.wrongAnswers || []).slice(0, 5).join('、');
+          allDiagSummary += `  ・${g.name} ${subj}：${d.okCount}/${d.okCount+d.ngCount}問（${rate}%）${weakTopics ? '　苦手→' + weakTopics : ''}\n`;
+        });
+      }
+    });
+  });
+
+  const hasDiag = allDiagSummary.length > 0;
+  const now = new Date();
+  const todayStr = `${now.getMonth()+1}月${now.getDate()}日（${'日月火水木金土'[now.getDay()]}）${now.getHours()}時${String(now.getMinutes()).padStart(2,'0')}分`;
+
+  const earliestDate = groups.map(g => g.testDate).sort()[0];
+  const daysToEarliest = Math.ceil((new Date(earliestDate) - today) / (1000*60*60*24));
+
+  // ── コーチング型プロンプト ──
+  const pomePrompt = `あなたはテスト攻略コーチ「ポメ」です。中学1年生の「かりん」と一緒に勝つための作戦を立てます。
+
+【絶対に守るルール】
+1. **事実確認を最初にする**
+   - 私（システム）が渡したテスト範囲や診断結果は仮の情報です。実際にテストで出やすい分野はかりんしか知りません。
+   - いきなり作戦を立てず、まずかりんに「ここはテストでよく出るところ？」「配点が高いのはどこ？」「今夜は何時まで勉強できる？」など事実を確認してください。
+   - 質問は1〜2個ずつ、答えやすい形で投げかけてください。
+
+2. **勝つための作戦の考え方**
+   - 出題確率が高い × 苦手 → 最優先
+   - 出題確率が高い × 得意 → 確実に取る
+   - 出題確率が低い → 後回し、時間がなければ捨てる
+   - 暗記系は前日〜2日前に寄せる、理解系は早めに
+   - 1日に詰め込みすぎない、1〜2教科に集中
+
+3. **最後にタスク表を出す**
+   事実確認と作戦合意が終わったら、最後にこの形式で表を出してください（紙に書き写せるように）：
+
+   ┌──────┬──────┬───────────────┬──────┐
+   │ 日付    │ 教科   │ やること             │ 目安時間 │
+   ├──────┼──────┼───────────────┼──────┤
+   │ 5/17 (日) │ 英語   │ Unit3音読＋暗唱        │ 30分    │
+   │ ...   │ ...  │ ...              │ ...   │
+   └──────┴──────┴───────────────┴──────┘
+
+4. **タスクの自動追加はしない**
+   表を出すだけ。「タスクに追加する」とは言わないでください。
+
+【今の状況】
+- 今：${todayStr}
+- 一番早いテストまで：あと${daysToEarliest}日
+${allSubjectsText}
+${hasDiag ? `\n【これまでの診断結果（仮データ）】\n${allDiagSummary}` : '\n※ まだ診断は未実施'}
+
+それでは作戦会議を始めましょう。まずは状況を確認する質問から始めてください。`;
+
+  showPanel('home');
+  setTimeout(() => {
+    const input = document.getElementById('aiChatInput');
+    if (input) {
+      input.value = pomePrompt;
+      sendAIMessage();
+    }
+  }, 200);
+}
+
 function showTestStudySetup(examId) {
   const exam = (AppData.examRanges||[]).find(e => e.id === examId);
   if (!exam) return;
@@ -4884,7 +5063,6 @@ function showTestStudySetup(examId) {
 
   let diagSummary = '';
   if (diagRecords.length > 0) {
-    // 教科ごとに最新の診断結果を取得
     const bySubject = {};
     diagRecords.forEach(d => {
       const subj = d.subject || '全体';
@@ -16421,27 +16599,101 @@ function openCamera() {
 
   document.getElementById('camChoiceCapture').onclick = () => {
     overlay.remove();
-    // capture属性つきinputを動的生成
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'image/*';
-    inp.capture = 'environment';
-    inp.style.display = 'none';
-    inp.onchange = (e) => { handleImageUpload(e); inp.remove(); };
-    document.body.appendChild(inp);
-    inp.click();
+    openWebcamCapture();
   };
 
   document.getElementById('camChoiceFile').onclick = () => {
     overlay.remove();
-    // capture属性なしinputを動的生成
-    const inp = document.createElement('input');
-    inp.type = 'file';
-    inp.accept = 'image/*';
-    inp.style.display = 'none';
-    inp.onchange = (e) => { handleImageUpload(e); inp.remove(); };
-    document.body.appendChild(inp);
-    inp.click();
+    const inp = document.getElementById('fileInput');
+    if (inp) {
+      inp.value = '';
+      inp.click();
+    }
+  };
+}
+
+// ── PC/モバイルどちらでも動くWebRTCカメラ撮影 ──
+async function openWebcamCapture() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('お使いのブラウザはカメラに対応していません。「ファイルから選ぶ」を使ってください。');
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'webcamOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <video id="webcamVideo" autoplay playsinline
+           style="max-width:95vw;max-height:75vh;background:#000;border-radius:8px"></video>
+    <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center;padding:0 16px">
+      <button id="webcamShoot"
+              style="padding:14px 28px;border-radius:30px;border:none;background:#fff;color:#000;
+                     font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;
+                     box-shadow:0 4px 12px rgba(0,0,0,.3)">
+        📸 撮影
+      </button>
+      <button id="webcamSwitch"
+              style="padding:12px 18px;border-radius:30px;border:1px solid #fff;background:transparent;
+                     color:#fff;font-family:var(--font);font-size:13px;cursor:pointer">
+        🔄 切替
+      </button>
+      <button id="webcamCancel"
+              style="padding:12px 18px;border-radius:30px;border:1px solid #fff;background:transparent;
+                     color:#fff;font-family:var(--font);font-size:13px;cursor:pointer">
+        キャンセル
+      </button>
+    </div>
+    <canvas id="webcamCanvas" style="display:none"></canvas>`;
+  document.body.appendChild(overlay);
+
+  let currentFacing = 'environment';
+  let currentStream = null;
+
+  async function startStream(facing) {
+    if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+    try {
+      currentStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facing },
+        audio: false
+      });
+      document.getElementById('webcamVideo').srcObject = currentStream;
+    } catch (e) {
+      // PCではfacingMode指定するとエラーになるのでフォールバック
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        document.getElementById('webcamVideo').srcObject = currentStream;
+      } catch (e2) {
+        console.error('カメラ起動エラー:', e2);
+        alert('カメラを起動できませんでした。\nブラウザの設定でカメラ許可を確認してください。\n（Edgeの場合：アドレスバー左の鍵アイコン→このサイトのアクセス許可→カメラ→許可）');
+        closeWebcam();
+      }
+    }
+  }
+
+  function closeWebcam() {
+    if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+    overlay.remove();
+  }
+
+  await startStream(currentFacing);
+
+  document.getElementById('webcamCancel').onclick = closeWebcam;
+  document.getElementById('webcamSwitch').onclick = async () => {
+    currentFacing = currentFacing === 'environment' ? 'user' : 'environment';
+    await startStream(currentFacing);
+  };
+  document.getElementById('webcamShoot').onclick = () => {
+    const video = document.getElementById('webcamVideo');
+    const canvas = document.getElementById('webcamCanvas');
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    closeWebcam();
+    // 撮影した画像をトリミング画面へ
+    const img = new Image();
+    img.onload = () => openCropModal(img);
+    img.src = dataUrl;
   };
 }
 
