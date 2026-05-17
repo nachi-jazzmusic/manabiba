@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.45</div>
+  <div class="sb-version">v2.47</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -15301,7 +15301,24 @@ function showBulkTestSetup() {
     const m = (u.lastAdded || '').match(/(\d{13,})/);
     return m ? parseInt(m[1]) : 0;
   };
-  const sortedUnits = Object.values(units).sort((a, b) => getTs(b) - getTs(a));
+
+  // ユーザー定義のデッキ並び順を読み込む
+  let userOrder = [];
+  try { userOrder = JSON.parse(localStorage.getItem('manabiba_deck_order') || '[]'); } catch(e) {}
+
+  const sortedUnits = Object.values(units).sort((a, b) => {
+    const ka = `${a.subject}__${a.unit}`;
+    const kb = `${b.subject}__${b.unit}`;
+    const ia = userOrder.indexOf(ka);
+    const ib = userOrder.indexOf(kb);
+    // 両方ユーザー順にある場合はその順
+    if (ia >= 0 && ib >= 0) return ia - ib;
+    // ユーザー順にあるものを先に
+    if (ia >= 0) return -1;
+    if (ib >= 0) return 1;
+    // 両方未定義（新規追加分）は新しい順
+    return getTs(b) - getTs(a);
+  });
 
   // 前回の選択を読み込む
   let lastSelected = new Set();
@@ -15351,7 +15368,10 @@ function showBulkTestSetup() {
     </div>
 
     <!-- デッキ選択 -->
-    <div style="font-size:12px;font-weight:700;margin-bottom:8px">デッキを選ぶ</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700">デッキを選ぶ</div>
+      <div style="font-size:10px;color:var(--ink3)">≡ をドラッグで並び替え</div>
+    </div>
     <div id="unitSelectionList">
       ${sortedUnits.map(u => {
         const key = `${u.subject}__${u.unit}`;
@@ -15359,12 +15379,15 @@ function showBulkTestSetup() {
         const isNew = newKeys.has(key);
         const checked = prevSelected || isNew;
         return `
-        <label style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;
-                      padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer"
-               onclick="saveBulkSelection()">
+        <label class="deck-row" draggable="true" data-key="${key}"
+               style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;
+                      padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer">
+          <span class="deck-drag-handle" draggable="true"
+                style="cursor:grab;color:var(--ink3);font-size:18px;user-select:none;flex-shrink:0;padding:0 4px"
+                title="ドラッグで並び替え">≡</span>
           <input type="checkbox" class="unit-check"
                  data-subject="${u.subject}" data-unit="${u.unit}" ${checked?'checked':''}
-                 style="width:18px;height:18px" onchange="saveBulkSelection();updateBulkTestCount()">
+                 style="width:18px;height:18px;flex-shrink:0" onchange="saveBulkSelection();updateBulkTestCount()">
           <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:700">${u.subject}：${u.unit}
               ${isNew && !prevSelected ? '<span style="font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;margin-left:6px">NEW</span>' : ''}
@@ -15389,8 +15412,45 @@ function showBulkTestSetup() {
   // カードをwindow変数に保存（getSelectedBulkCardsで参照）
   window._allBulkCards = wordCards;
 
-  if (hasCards) updateBulkTestCount();
+  if (hasCards) {
+    updateBulkTestCount();
+    setupDeckDragDrop();
+  }
   document.getElementById('outputModal').classList.add('show');
+}
+
+// デッキ並び替え（D&D）セットアップ
+function setupDeckDragDrop() {
+  const list = document.getElementById('unitSelectionList');
+  if (!list) return;
+  let draggedEl = null;
+
+  list.querySelectorAll('.deck-row').forEach(row => {
+    row.addEventListener('dragstart', (e) => {
+      draggedEl = row;
+      row.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+      // ラベルのチェック挙動を抑止
+      e.stopPropagation();
+    });
+    row.addEventListener('dragend', () => {
+      row.style.opacity = '1';
+      // 並び順を保存
+      const newOrder = Array.from(list.querySelectorAll('.deck-row')).map(r => r.dataset.key);
+      try { localStorage.setItem('manabiba_deck_order', JSON.stringify(newOrder)); } catch(e) {}
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedEl || draggedEl === row) return;
+      const rect = row.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (e.clientY < midY) {
+        list.insertBefore(draggedEl, row);
+      } else {
+        list.insertBefore(draggedEl, row.nextSibling);
+      }
+    });
+  });
 }
 
 function bulkFilterChange(cb) {
