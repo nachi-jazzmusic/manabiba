@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.47</div>
+  <div class="sb-version">v2.48</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -12119,22 +12119,22 @@ function showStudyCardList() {
   const content = document.getElementById('parentContent');
   const cards = AppData.studyCards || [];
 
-  // デッキ（科目＋名前）でグループ化、各デッキの最古ID（=最初に作られた時刻）も記録
+  // デッキ（科目＋名前）でグループ化、各デッキの最新ID（=最後に追加されたカードの時刻）を記録
   const decks = {};
   cards.forEach(c => {
     const key = c.subject + '：' + c.deck;
-    if (!decks[key]) decks[key] = { subject: c.subject, deck: c.deck, memo: 0, problem: 0, oldestId: c.id };
+    if (!decks[key]) decks[key] = { subject: c.subject, deck: c.deck, memo: 0, problem: 0, latestId: c.id };
     decks[key][c.type]++;
-    // より古いIDがあれば更新
-    if (c.id < decks[key].oldestId) decks[key].oldestId = c.id;
+    // より新しいIDで更新
+    if (c.id > decks[key].latestId) decks[key].latestId = c.id;
   });
 
-  // 古い順（IDからタイムスタンプ抽出して昇順）
+  // 新しい順（IDからタイムスタンプ抽出して降順）
   const getTs = (s) => {
     const m = (s || '').match(/(\d{13,})/);
     return m ? parseInt(m[1]) : 0;
   };
-  const sortedDecks = Object.entries(decks).sort((a, b) => getTs(a[1].oldestId) - getTs(b[1].oldestId));
+  const sortedDecks = Object.entries(decks).sort((a, b) => getTs(b[1].latestId) - getTs(a[1].latestId));
 
   const deckRows = sortedDecks.map(([key, d]) => `
     <div style="background:#fff;border-radius:10px;border:1px solid var(--border);
@@ -12212,6 +12212,14 @@ function editStudyCard(id) {
   const row = document.getElementById('sc_row_' + id);
   if (!row) return;
 
+  // textareaに入れる前にHTMLエスケープ
+  const escapeHtml = (s) => String(s||'')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const safeQ = escapeHtml(card.question);
+  const safeA = escapeHtml(card.answer);
+
   row.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <span style="font-size:11px;padding:1px 7px;border-radius:10px;font-weight:700;
@@ -12223,11 +12231,11 @@ function editStudyCard(id) {
     </div>
     <div style="margin-bottom:6px">
       <label style="font-size:10px;color:var(--ink3);display:block;margin-bottom:2px">表（問題・日本語）</label>
-      <textarea id="sc_edit_q_${id}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:var(--font);font-size:13px;min-height:50px;resize:vertical;box-sizing:border-box">${card.question}</textarea>
+      <textarea id="sc_edit_q_${id}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:var(--font);font-size:13px;min-height:50px;resize:vertical;box-sizing:border-box">${safeQ}</textarea>
     </div>
     <div style="margin-bottom:8px">
       <label style="font-size:10px;color:var(--ink3);display:block;margin-bottom:2px">裏（答え・英語）</label>
-      <textarea id="sc_edit_a_${id}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:var(--font);font-size:13px;min-height:50px;resize:vertical;box-sizing:border-box">${card.answer}</textarea>
+      <textarea id="sc_edit_a_${id}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:var(--font);font-size:13px;min-height:50px;resize:vertical;box-sizing:border-box">${safeA}</textarea>
     </div>
     <div style="display:flex;gap:8px">
       <button onclick="saveStudyCardEdit('${id}')"
