@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.48</div>
+  <div class="sb-version">v2.52</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -12180,19 +12180,21 @@ function showStudyCardDeck(subject, deck) {
                      color:${c.type==='memo'?'#2E8B6E':'#D94F3D'}">
           ${c.type==='memo'?'暗記':'問題'}
         </span>
-        <div style="font-size:13px;font-weight:700;flex:1" id="sc_q_${c.id}">${c.question}</div>
+        <div style="font-size:13px;font-weight:700;flex:1">${c.question}</div>
       </div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px" id="sc_a_${c.id}">${c.answer}</div>
-      <div style="display:flex;gap:8px">
-        <button onclick="editStudyCard('${c.id}')"
-                style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">編集</button>
-        <button onclick="deleteStudyCard('${c.id}')"
-                style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
-      </div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">${c.answer}</div>
     </div>`).join('');
 
   content.innerHTML = `
-    <button class="btn btn-secondary" onclick="showStudyCardList()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+    <button class="btn btn-secondary" onclick="showStudyCardList()" style="margin-bottom:12px;padding:8px 14px">← 戻る</button>
+
+    <button onclick="editDeckAsText('${subject.replace(/'/g,"\\'")}','${deck.replace(/'/g,"\\'")}' )"
+            style="width:100%;padding:12px;border-radius:10px;border:1.5px solid var(--teal);
+                   background:#fff;color:var(--teal);font-family:var(--font);font-size:13px;
+                   font-weight:700;cursor:pointer;margin-bottom:12px">
+      📝 テキストで一括編集（メモ帳形式）
+    </button>
+
     <button onclick="startStudyCardSession('${subject}','${deck}')" class="btn btn-primary"
             style="width:100%;padding:13px;font-size:14px;margin-bottom:16px">
       ▶ このデッキを練習する
@@ -12203,6 +12205,91 @@ function showStudyCardDeck(subject, deck) {
       ＋ このデッキにカードを追加
     </button>
   `;
+}
+
+// デッキ全体をテキストで一括編集（メモ帳形式）
+function editDeckAsText(subject, deck) {
+  document.getElementById('parentModalTitle').textContent = '📝 テキスト編集';
+  const content = document.getElementById('parentContent');
+  const cards = (AppData.studyCards || []).filter(c => c.subject === subject && c.deck === deck);
+
+  // 現在のカードを「表＝裏」形式でテキスト化
+  const currentText = cards.map(c => `${c.question}＝${c.answer}`).join('\n');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showStudyCardDeck('${subject.replace(/'/g,"\\'")}','${deck.replace(/'/g,"\\'")}' )"
+            style="margin-bottom:12px;padding:8px 14px">← 戻る（保存せず）</button>
+
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px">${subject}：${deck}</div>
+    <div style="font-size:11px;color:var(--ink3);margin-bottom:4px;line-height:1.6">
+      ・1行に1枚「表＝裏」の形式<br>
+      ・行を追加→カードが増える、行を削除→カードが消える<br>
+      ・コピペして外部で編集→貼り直しもOK
+    </div>
+
+    <textarea id="deck_edit_text"
+              style="width:100%;min-height:50vh;padding:12px;border-radius:10px;
+                     border:1.5px solid var(--border);font-family:var(--font);
+                     font-size:13px;line-height:1.9;resize:vertical;box-sizing:border-box;
+                     margin-bottom:12px">${currentText}</textarea>
+
+    <div style="font-size:10px;color:var(--ink3);margin-bottom:12px">
+      現在 ${cards.length}枚 → 保存後は入力内容で上書きされます
+    </div>
+
+    <button onclick="saveDeckText('${subject.replace(/'/g,"\\'")}','${deck.replace(/'/g,"\\'")}' )"
+            class="btn btn-primary" style="width:100%;padding:14px;font-size:14px">
+      💾 保存する
+    </button>
+  `;
+}
+
+// テキスト編集の内容を保存
+function saveDeckText(subject, deck) {
+  const text = document.getElementById('deck_edit_text')?.value || '';
+  const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
+
+  const newCards = [];
+  const errors = [];
+  lines.forEach((line, i) => {
+    const match = line.match(/^(.+?)[=＝](.+)$/);
+    if (match) {
+      newCards.push({
+        question: match[1].trim(),
+        answer:   match[2].trim()
+      });
+    } else {
+      errors.push(`${i+1}行目：「${line}」（＝がない）`);
+    }
+  });
+
+  if (errors.length > 0) {
+    if (!confirm(`以下の行は無視されます：\n${errors.join('\n')}\n\n続けて保存しますか？`)) return;
+  }
+
+  if (newCards.length === 0) {
+    showToast('カードが1枚もありません。内容を確認してください');
+    return;
+  }
+
+  // 既存カードを削除して新規で差し替え
+  AppData.studyCards = (AppData.studyCards || []).filter(c => !(c.subject === subject && c.deck === deck));
+
+  const baseId = Date.now();
+  newCards.forEach((p, i) => {
+    AppData.studyCards.push({
+      id: `sc_${baseId}_${i}`,
+      type: 'memo', subject, deck,
+      question: p.question,
+      answer:   p.answer,
+      streak: 0, lastResult: null,
+      nextDate: getTodayString()
+    });
+  });
+
+  saveData();
+  showToast(`✓ ${newCards.length}枚を保存しました`);
+  showStudyCardDeck(subject, deck);
 }
 
 // カード編集（インライン）
@@ -12301,12 +12388,14 @@ function showAddStudyCard(prefSubject, prefDeck) {
       <div class="input-group">
         <label class="input-label">単語リストを貼り付け</label>
         <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">
-          「日本語＝英語」または「英語＝日本語」の形式で<br>
-          読点（、）や改行で区切ってそのまま貼り付けてOK
+          「表＝裏」の形式で<strong>1行に1枚ずつ</strong>。<br>
+          長い問題文（読点や記号を含む）もそのまま貼り付けOK
         </div>
         <textarea class="input-field" id="sc_bulk_text" rows="8"
-                  placeholder="例：家族＝family、祖父＝grandfather、祖母＝grandmother
-父＝father、母＝mother、兄（弟）＝brother"
+                  placeholder="例：
+家族＝family
+祖父＝grandfather
+「カマキリりゅうじ」さんの様子は？＝④元気いっぱい"
                   style="resize:vertical;font-size:13px;line-height:1.8"></textarea>
       </div>
       <div id="sc_bulk_preview" style="margin-bottom:12px"></div>
@@ -12380,12 +12469,11 @@ function switchCardTab(tab) {
 }
 
 function parseBulkText(text) {
-  // 「＝」「=」で区切り、「、」「,」「\n」で分割
+  // 改行のみで区切る（「、」「,」は問題文の一部として扱う）
   const pairs = [];
-  const separators = /[、,\n]/;
-  const items = text.split(separators).map(s => s.trim()).filter(Boolean);
+  const items = text.split(/\n/).map(s => s.trim()).filter(Boolean);
   items.forEach(item => {
-    // 全角＝または半角=で分割
+    // 全角＝または半角=で分割（最初の=で分割）
     const match = item.match(/^(.+?)[=＝](.+)$/);
     if (match) {
       const front = match[1].trim();
@@ -15362,15 +15450,41 @@ function showBulkTestSetup() {
     <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">複数選択できます</div>
 
     <!-- 絞り込み条件 -->
-    <div style="background:var(--bg2);border-radius:10px;padding:14px;margin-bottom:16px">
-      <div style="font-size:12px;font-weight:700;margin-bottom:10px">理解度で絞り込む</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-          <input type="checkbox" id="filterAll" checked onchange="bulkFilterChange(this)">全部
+    <div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px">出題するカード</div>
+      <div style="display:flex;gap:6px">
+        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+                      padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;
+                      font-size:12px;cursor:pointer">
+          <input type="radio" name="filterMode" id="filterAll" value="all" checked
+                 onchange="updateBulkTestCount()" style="margin:0">
+          選択中デッキの全カード
         </label>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer">
-          <input type="checkbox" id="filterWeak" onchange="bulkFilterChange(this)">
-          <span style="color:#D94F3D">× と △ だけ（弱点集中）</span>
+        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+                      padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;
+                      font-size:12px;cursor:pointer">
+          <input type="radio" name="filterMode" id="filterWeak" value="weak"
+                 onchange="updateBulkTestCount()" style="margin:0">
+          <span style="color:#D94F3D">×だけ</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- 出題順 -->
+    <div style="background:var(--bg2);border-radius:10px;padding:12px 14px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px">出題順</div>
+      <div style="display:flex;gap:6px">
+        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+                      padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;
+                      font-size:12px;cursor:pointer">
+          <input type="radio" name="cardOrderMode" value="order" checked style="margin:0">
+          順番通り
+        </label>
+        <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+                      padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;
+                      font-size:12px;cursor:pointer">
+          <input type="radio" name="cardOrderMode" value="random" style="margin:0">
+          ランダム
         </label>
       </div>
     </div>
@@ -15512,23 +15626,30 @@ function getSelectedBulkCards() {
   return allCards.filter(c => {
     const key = `${c.subject}__${c.unit}`;
     if (!selectedKeys.has(key)) return false;
-    if (filterWeak) return !c.lastResult || c.lastResult === '×' || c.lastResult === '△';
+    if (filterWeak) {
+      // ×だけ（間違えたものだけ集中、未練習・正解は除外）
+      return c.lastResult === '×';
+    }
     return true;
   });
 }
 
 function startBulkTest() {
   const cards = getSelectedBulkCards();
-  if (cards.length === 0) { showToast('単語が選ばれていません'); return; }
+  if (cards.length === 0) { showToast('カードが選ばれていません'); return; }
 
-  // シャッフル
-  const shuffled = [...cards].sort(() => Math.random() - 0.5);
+  // 順番/ランダムを選択
+  const orderMode = document.querySelector('input[name="cardOrderMode"]:checked')?.value || 'order';
+  const finalCards = orderMode === 'random'
+    ? [...cards].sort(() => Math.random() - 0.5)
+    : [...cards];
+
   bulkTest = {
-    cards: shuffled,
-    phase: 'reading',      // reading → meaning → writing → retry → done
-    results: {},           // {id: true/false}
-    retryCards: [],
-    index: 0
+    cards: finalCards,
+    phase: 'both',         // both（両面）→ frontOnly（表）→ backOnly（裏）→ done
+    index: 0,              // 現在のカード番号
+    flipped: false,        // めくられているか
+    results: {},           // フェーズごとの結果
   };
   renderBulkTest();
 }
@@ -15536,19 +15657,22 @@ function startBulkTest() {
 // ② テスト画面のメイン描画
 function renderBulkTest() {
   document.getElementById('outputModalTitle').textContent = '🧠 暗記カード';
-  const { phase, cards, retryCards, index } = bulkTest;
+  const { phase, cards, index } = bulkTest;
   const content = document.getElementById('outputContent');
 
+  if (phase === 'done') { renderBulkDone(content); return; }
+
+  // フェーズステップバー
   const phaseList = [
-    { key: 'reading', label: '音読' },
-    { key: 'meaning', label: '意味テスト' },
-    { key: 'writing', label: '筆記テスト' },
+    { key: 'both',      label: '両面' },
+    { key: 'frontOnly', label: '表クイズ' },
+    { key: 'backOnly',  label: '裏クイズ' },
   ];
-  const stepsHtml = phaseList.map(p => {
-    const done = (phase === 'meaning' && p.key === 'reading') ||
-                 (phase === 'writing' && p.key !== 'writing') ||
-                 (phase === 'retry'   && p.key !== 'retry') ||
-                 (phase === 'done');
+  const order = ['both','frontOnly','backOnly'];
+  const currentIdx = order.indexOf(phase);
+
+  const stepsHtml = phaseList.map((p, i) => {
+    const done = i < currentIdx;
     const current = phase === p.key;
     const color = done ? 'var(--green)' : current ? 'var(--purple)' : 'var(--bg3)';
     const tc = (done || current) ? '#fff' : 'var(--ink3)';
@@ -15561,321 +15685,272 @@ function renderBulkTest() {
     </div>`;
   }).join(`<div style="height:2px;background:var(--bg3);flex:1;margin:14px 4px 0"></div>`);
 
-  const barHtml = `
-    <div style="margin-bottom:20px">
-      <div style="display:flex;align-items:flex-start;margin-bottom:10px">${stepsHtml}</div>
-    </div>`;
+  const barHtml = `<div style="margin-bottom:14px">
+    <div style="display:flex;align-items:flex-start;margin-bottom:8px">${stepsHtml}</div>
+  </div>`;
 
-  if (phase === 'reading')  renderBulkReading(barHtml, content);
-  else if (phase === 'meaning') renderBulkMeaning(barHtml, content);
-  else if (phase === 'writing') renderBulkWriting(barHtml, content);
-  else if (phase === 'retry')   renderBulkRetry(barHtml, content);
-  else renderBulkDone(content);
+  renderFlipCard(barHtml, content);
 }
 
-// ③ 音読フェーズ（front=英語 大きく、back=日本語 小さく）
-function renderBulkReading(bar, content) {
-  const { cards } = bulkTest;
-  const rows = cards.map(c => `
-    <div style="display:flex;gap:16px;padding:9px 0;border-bottom:1px solid var(--border);align-items:baseline">
-      <div style="font-size:15px;font-weight:700;min-width:140px;color:var(--ink)">${c.front}</div>
-      <div style="font-size:13px;color:var(--ink3)">${c.back}</div>
-    </div>`).join('');
+// ── 「めくる」式のカード描画（両面/表のみ/裏のみ） ──
+function renderFlipCard(bar, content) {
+  const { phase, cards, index, flipped } = bulkTest;
+  const card = cards[index];
+  if (!card) { bulkTest.phase = nextPhase(phase); bulkTest.index = 0; bulkTest.flipped = false; renderBulkTest(); return; }
 
-  content.innerHTML = `
-    ${bar}
-    <div style="font-size:14px;font-weight:700;margin-bottom:4px">📖 声に出して読もう</div>
-    <div style="font-size:12px;color:var(--ink3);margin-bottom:16px">全${cards.length}枚。読み終わったら次へ！</div>
-    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);max-height:50vh;overflow-y:auto">
-      ${rows}
-    </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="bulkTest.phase='writing';bulkTest.results={};bulkTest.index=0;renderBulkTest()"
-              style="flex:1;padding:12px;border-radius:10px;border:1.5px solid var(--purple);
-                     background:#fff;color:var(--purple);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
-        筆記テストだけやる
-      </button>
-      <button onclick="bulkTest.phase='meaning';bulkTest.index=0;renderBulkTest()"
-              class="btn btn-primary" style="flex:2;padding:12px;font-size:13px;background:var(--purple)">
-        ✓ 読み終わった！意味テストへ
-      </button>
-    </div>`;
-}
+  // フェーズに応じて表示内容を決める
+  let title, hint, mainContent;
 
-// ④ 意味テスト・⑤ 筆記テスト（イベント委任方式）
-function _renderBulkPhase(bar, content, phase) {
-  const isWriting = phase === 'writing';
-  const { cards, results } = bulkTest;
-
-  const rows = cards.map((c, i) => {
-    const answered = c.id in results;
-    const ok = results[c.id];
-    const showText = isWriting ? c.back  : c.front; // 問題側
-    const ansText  = isWriting ? c.front : c.back;  // 答え側
-    return `<div class="bc-row" data-idx="${i}" data-phase="${phase}"
-                 style="padding:10px 0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-        <div style="font-size:15px;font-weight:700;flex:1;color:var(--ink)">${showText}</div>
-        <div class="bc-ans" style="display:${answered?'block':'none'};font-size:13px;color:var(--teal);font-weight:600">${ansText}</div>
-        <button class="bc-show-btn" style="display:${answered?'none':'block'};padding:4px 10px;border-radius:8px;
-                border:1px solid var(--border);background:#fff;font-family:var(--font);
-                font-size:11px;cursor:pointer;color:var(--ink2);white-space:nowrap">
-          答えを見る
-        </button>
-      </div>
-      <div class="bc-judge" style="display:${answered?'flex':'none'};gap:8px;margin-top:4px">
-        <button class="bc-ok" style="flex:1;padding:8px;border-radius:8px;border:none;cursor:pointer;
-                font-family:var(--font);font-size:13px;font-weight:700;
-                background:${answered&&ok?'#4A9B5F':'#eee'};color:${answered&&ok?'#fff':'var(--ink2)'}">
-          ◎ ${isWriting ? '書けた' : '言えた'}
-        </button>
-        <button class="bc-ng" style="flex:1;padding:8px;border-radius:8px;border:none;cursor:pointer;
-                font-family:var(--font);font-size:13px;font-weight:700;
-                background:${answered&&!ok?'#D94F3D':'#eee'};color:${answered&&!ok?'#fff':'var(--ink2)'}">
-          × ${isWriting ? '書けなかった' : '言えなかった'}
-        </button>
-      </div>
-    </div>`;
-  }).join('');
-
-  const doneCount = Object.keys(results).length;
-  const label = isWriting ? 'writing' : 'meaning';
-  const skipLabel = isWriting ? 'スキップして結果へ' : 'スキップして筆記へ';
-
-  content.innerHTML = `
-    ${bar}
-    <div style="font-size:14px;font-weight:700;margin-bottom:4px">${isWriting ? '✏️ ノートに書いてみよう' : '🧠 意味を言えるかな？'}</div>
-    <div style="font-size:12px;color:var(--ink3);margin-bottom:4px">${isWriting ? '日本語→英語をノートに書いて→◎×' : '英語を見て日本語を声に出して→◎×'}</div>
-    <div style="font-size:12px;color:var(--accent);margin-bottom:12px;font-weight:600" id="${label}_count">${doneCount}/${cards.length} 完了</div>
-    <div id="bc-list" style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;
-                              border:1px solid var(--border);max-height:50vh;overflow-y:auto">
-      ${rows}
-    </div>
-    <div style="display:flex;gap:8px">
-      <button id="bc-skip" style="flex:1;padding:12px;border-radius:10px;border:1.5px solid var(--purple);
-              background:#fff;color:var(--purple);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
-        ${skipLabel}
-      </button>
-      ${!isWriting ? `<button id="bc-next" style="flex:2;padding:12px;border-radius:10px;border:none;
-              background:#ccc;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:default">
-        ✓ 筆記テストへ
-      </button>` : ''}
-    </div>`;
-
-  // ── イベント委任（innerHTML後に安全にバインド）──
-  const list = document.getElementById('bc-list');
-  list.addEventListener('click', function(e) {
-    const row = e.target.closest('.bc-row');
-    if (!row) return;
-    const idx = parseInt(row.dataset.idx);
-    const ph  = row.dataset.phase;
-    const card = bulkTest.cards[idx];
-
-    if (e.target.closest('.bc-show-btn')) {
-      row.querySelector('.bc-ans').style.display = 'block';
-      row.querySelector('.bc-show-btn').style.display = 'none';
-      row.querySelector('.bc-judge').style.display = 'flex';
-      return;
-    }
-    const isOk = !!e.target.closest('.bc-ok');
-    const isNg = !!e.target.closest('.bc-ng');
-    if (!isOk && !isNg) return;
-
-    const ok = isOk;
-    bulkTest.results[card.id] = ok;
-    row.querySelector('.bc-ok').style.background = ok  ? '#4A9B5F' : '#eee';
-    row.querySelector('.bc-ok').style.color      = ok  ? '#fff'    : 'var(--ink2)';
-    row.querySelector('.bc-ng').style.background = !ok ? '#D94F3D' : '#eee';
-    row.querySelector('.bc-ng').style.color      = !ok ? '#fff'    : 'var(--ink2)';
-
-    const done  = Object.keys(bulkTest.results).length;
-    const total = bulkTest.cards.length;
-    const countEl = document.getElementById(ph + '_count');
-    if (countEl) countEl.textContent = done + '/' + total + ' 完了';
-
-    if (done === total && ph === 'meaning') {
-      const nextBtn = document.getElementById('bc-next');
-      if (nextBtn) { nextBtn.style.background='var(--purple)'; nextBtn.style.cursor='pointer'; }
-    }
-    _updateBulkCardStats(card.id, ok, ph);
-  });
-
-  document.getElementById('bc-skip').addEventListener('click', function() {
-    if (isWriting) { finishBulkWriting(); }
-    else { bulkTest.phase='writing'; bulkTest.results={}; renderBulkTest(); }
-  });
-  const nextBtn = document.getElementById('bc-next');
-  if (nextBtn) nextBtn.addEventListener('click', function() {
-    if (Object.keys(bulkTest.results).length === bulkTest.cards.length) {
-      bulkTest.phase='writing'; bulkTest.results={}; renderBulkTest();
-    }
-  });
-}
-
-function renderBulkMeaning(bar, content) { _renderBulkPhase(bar, content, 'meaning'); }
-function renderBulkWriting(bar, content) { _renderBulkPhase(bar, content, 'writing'); }
-
-function showBulkAnswer(phase, id) {}   // 後方互換用（未使用）
-function setBulkResultInline(phase, id, ok) {}  // 後方互換用（未使用）
-function showMeaningAnswer(id) {}
-function showWritingAnswer(id) {}function showWritingAnswer(id) {
-  document.getElementById(`ans_w_${id}`).style.display = 'inline';
-  document.getElementById(`ansBtn_w_${id}`).style.display = 'none';
-  document.getElementById(`judge_w_${id}`).style.display = 'flex';
-}
-
-function setBulkResult(phase, id, ok) {
-  bulkTest.results[id] = ok;
-  if (!ok && !bulkTest.retryCards.find(c => c.id === id)) {
-    const card = bulkTest.cards.find(c => c.id === id);
-    if (card) bulkTest.retryCards.push(card);
-  }
-  if (ok) {
-    bulkTest.retryCards = bulkTest.retryCards.filter(c => c.id !== id);
-  }
-  // スクロール位置を保持して再描画
-  const container = document.getElementById('outputContent');
-  const scrollPos = container?.scrollTop || 0;
-  const bar = container?.querySelector('div:first-child')?.outerHTML || '';
-  if (phase === 'meaning') renderBulkMeaning(bar, container);
-  else renderBulkWriting(bar, container);
-  if (container) container.scrollTop = scrollPos;
-}
-
-function finishBulkWriting() {
-  const wrong = bulkTest.retryCards;
-  if (wrong.length > 0) {
-    // ×があった→再出題フェーズへ
-    bulkTest.phase = 'retry';
-    bulkTest.retryRound = [...wrong].sort(() => Math.random() - 0.5);
-    bulkTest.results = {};
-    renderBulkTest();
-  } else {
-    bulkTest.phase = 'done';
-    renderBulkTest();
-  }
-}
-
-// ⑥ 再出題フェーズ（×だけもう一度）
-function renderBulkRetry(bar, content) {
-  const { retryRound, results } = bulkTest;
-  const rows = retryRound.map(c => {
-    const answered = c.id in results;
-    const ok = results[c.id];
-    return `
-      <div style="padding:10px 0;border-bottom:1px solid var(--border)">
-        <div style="display:flex;gap:12px;align-items:center;margin-bottom:6px">
-          <div style="flex:1">
-            <div style="font-size:16px;font-weight:700">${c.front}</div>
-            <div style="font-size:12px;color:var(--ink3)">${c.back}</div>
-          </div>
-          <div id="ans_r_${c.id}" style="display:none;font-size:13px;color:var(--teal);font-weight:600">✓ ${c.back}</div>
-          <button onclick="showRetryAnswer('${c.id}')" id="ansBtn_r_${c.id}"
-                  class="btn btn-secondary" style="padding:4px 10px;font-size:11px">
-            確認
-          </button>
-        </div>
-        <div id="judge_r_${c.id}" style="display:${answered?'flex':'none'};gap:8px">
-          <button onclick="setBulkRetryResult('${c.id}',true)" class="btn"
-                  style="flex:1;padding:8px;font-size:12px;background:${answered&&ok?'#4A9B5F':'#eee'};color:${answered&&ok?'#fff':'var(--ink2)'}">
-            ◎ 覚えた！
-          </button>
-          <button onclick="setBulkRetryResult('${c.id}',false)" class="btn"
-                  style="flex:1;padding:8px;font-size:12px;background:${answered&&!ok?'#D94F3D':'#eee'};color:${answered&&!ok?'#fff':'var(--ink2)'}">
-            × まだ
-          </button>
-        </div>
+  if (phase === 'both') {
+    // 両面表示（音読フェーズの代わり）
+    title = '📖 カードを読もう';
+    hint = '両面を見て声に出して読んでね';
+    mainContent = `
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">表</div>
+      <div style="font-size:18px;font-weight:700;line-height:1.6;margin-bottom:20px;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.front)}</div>
+      <div style="border-top:1px dashed var(--border);padding-top:16px">
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">裏</div>
+        <div style="font-size:16px;line-height:1.6;color:var(--ink2);white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.back)}</div>
       </div>`;
-  }).join('');
+  } else if (phase === 'frontOnly') {
+    // 表だけ見せて、めくって裏を確認
+    title = '🧠 表を見て、裏を思い出そう';
+    hint = 'タップしてめくる';
+    if (!flipped) {
+      mainContent = `
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">表</div>
+        <div style="font-size:20px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.front)}</div>
+        <div style="text-align:center;margin-top:30px;font-size:13px;color:var(--purple);font-weight:700">↓ タップしてめくる ↓</div>`;
+    } else {
+      mainContent = `
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">表</div>
+        <div style="font-size:16px;line-height:1.6;color:var(--ink2);margin-bottom:16px;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.front)}</div>
+        <div style="border-top:1px dashed var(--border);padding-top:16px">
+          <div style="font-size:13px;color:var(--teal);margin-bottom:6px;font-weight:700">裏（答え）</div>
+          <div style="font-size:18px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.back)}</div>
+        </div>`;
+    }
+  } else if (phase === 'backOnly') {
+    // 裏だけ見せて、めくって表を確認
+    title = '✏️ 裏を見て、表を思い出そう';
+    hint = 'タップしてめくる';
+    if (!flipped) {
+      mainContent = `
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">裏</div>
+        <div style="font-size:20px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.back)}</div>
+        <div style="text-align:center;margin-top:30px;font-size:13px;color:var(--purple);font-weight:700">↓ タップしてめくる ↓</div>`;
+    } else {
+      mainContent = `
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">裏</div>
+        <div style="font-size:16px;line-height:1.6;color:var(--ink2);margin-bottom:16px;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.back)}</div>
+        <div style="border-top:1px dashed var(--border);padding-top:16px">
+          <div style="font-size:13px;color:var(--teal);margin-bottom:6px;font-weight:700">表（答え）</div>
+          <div style="font-size:18px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.front)}</div>
+        </div>`;
+    }
+  }
 
-  const doneCount = Object.keys(results).length;
-  const allDone = doneCount === retryRound.length;
+  // ボタン表示の条件
+  const totalCards = cards.length;
+  const needFlipFirst = (phase === 'frontOnly' || phase === 'backOnly') && !flipped;
 
   content.innerHTML = `
     ${bar}
-    <div style="background:#FEF2F0;border-radius:9px;padding:10px;text-align:center;margin-bottom:16px">
-      <div style="font-size:13px;font-weight:700;color:var(--red)">もう一度！×だった${retryRound.length}単語</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">${title}</div>
+    <div style="font-size:11px;color:var(--ink3);margin-bottom:8px">${hint}</div>
+    <div style="font-size:11px;color:var(--accent);margin-bottom:10px;font-weight:600">${index + 1}/${totalCards} 枚目</div>
+
+    <div id="bc-card" style="background:#fff;border-radius:12px;padding:24px;margin-bottom:14px;
+                              border:1px solid var(--border);min-height:200px;
+                              cursor:${needFlipFirst ? 'pointer' : 'default'}">
+      ${mainContent}
     </div>
-    <div style="background:#fff;border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid var(--border);max-height:52vh;overflow-y:auto">
-      ${rows}
-    </div>
-    ${allDone ? `
-    <button onclick="finishBulkRetry()"
-            class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;background:var(--purple)">
-      ✓ 完了！
-    </button>` : ''}`;
+
+    ${needFlipFirst ? '' : `
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      ${phase === 'both' ? `
+        <button onclick="bulkPrev()" ${index===0?'disabled':''}
+                style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);
+                       background:#fff;color:${index===0?'var(--ink3)':'var(--ink2)'};
+                       font-family:var(--font);font-size:13px;cursor:${index===0?'default':'pointer'}">
+          ← 前
+        </button>
+        <button onclick="bulkNext()"
+                class="btn btn-primary" style="flex:2;padding:12px;font-size:14px;background:var(--purple)">
+          ${index===totalCards-1 ? '次のフェーズへ →' : '次へ →'}
+        </button>` : `
+        <button onclick="bulkResultNG()"
+                style="flex:1;padding:12px;border-radius:10px;border:none;
+                       background:#D94F3D;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+          × できなかった
+        </button>
+        <button onclick="bulkResultOK()"
+                style="flex:1;padding:12px;border-radius:10px;border:none;
+                       background:#4A9B5F;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+          ◎ できた
+        </button>`}
+    </div>`}
+
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button onclick="bulkSkipPhase()"
+              style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
+                     background:#fff;color:var(--ink3);font-family:var(--font);font-size:12px;cursor:pointer">
+        このフェーズをスキップ
+      </button>
+      <button onclick="bulkExit()"
+              style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
+                     background:#fff;color:var(--ink3);font-family:var(--font);font-size:12px;cursor:pointer">
+        終了して結果を見る
+      </button>
+    </div>`;
+
+  // タップでめくる
+  if (needFlipFirst) {
+    document.getElementById('bc-card').addEventListener('click', function() {
+      bulkTest.flipped = true;
+      renderBulkTest();
+    });
+  }
 }
 
-function showRetryAnswer(id) {
-  document.getElementById(`ans_r_${id}`).style.display = 'inline';
-  document.getElementById(`ansBtn_r_${id}`).style.display = 'none';
-  document.getElementById(`judge_r_${id}`).style.display = 'flex';
+function escapeHtmlSafe(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-function setBulkRetryResult(id, ok) {
-  bulkTest.results[id] = ok;
-  const bar = document.querySelector('#outputContent > div:first-child')?.outerHTML || '';
-  renderBulkRetry(bar, document.getElementById('outputContent'));
+function nextPhase(current) {
+  if (current === 'both') return 'frontOnly';
+  if (current === 'frontOnly') return 'backOnly';
+  return 'done';
 }
 
-function finishBulkRetry() {
-  // 結果をAppDataに反映
-  saveBulkTestResults();
+// 両面フェーズの「次へ」
+function bulkNext() {
+  if (bulkTest.index < bulkTest.cards.length - 1) {
+    bulkTest.index++;
+  } else {
+    bulkTest.phase = nextPhase(bulkTest.phase);
+    bulkTest.index = 0;
+    bulkTest.flipped = false;
+  }
+  renderBulkTest();
+}
+
+function bulkPrev() {
+  if (bulkTest.index > 0) { bulkTest.index--; renderBulkTest(); }
+}
+
+// クイズフェーズの◎/×
+function bulkResultOK() { _bulkResult(true); }
+function bulkResultNG() { _bulkResult(false); }
+function _bulkResult(ok) {
+  const card = bulkTest.cards[bulkTest.index];
+  if (!bulkTest.results[bulkTest.phase]) bulkTest.results[bulkTest.phase] = {};
+  bulkTest.results[bulkTest.phase][card.id] = ok;
+  _updateBulkCardStats(card.id, ok, bulkTest.phase);
+
+  // 次のカードへ
+  if (bulkTest.index < bulkTest.cards.length - 1) {
+    bulkTest.index++;
+    bulkTest.flipped = false;
+  } else {
+    bulkTest.phase = nextPhase(bulkTest.phase);
+    bulkTest.index = 0;
+    bulkTest.flipped = false;
+  }
+  renderBulkTest();
+}
+
+function bulkSkipPhase() {
+  bulkTest.phase = nextPhase(bulkTest.phase);
+  bulkTest.index = 0;
+  bulkTest.flipped = false;
+  renderBulkTest();
+}
+
+function bulkExit() {
   bulkTest.phase = 'done';
   renderBulkTest();
 }
 
-function saveBulkTestResults() {
-  const today = getTodayString();
-  bulkTest.cards.forEach(card => {
-    const retryResult = bulkTest.retryRound?.find ? bulkTest.results[card.id] : null;
-    const target = AppData.outputCards.find(c => c.id === card.id);
-    if (!target) return;
-    const ok = retryResult !== null ? retryResult : !bulkTest.retryCards.find(c => c.id === card.id);
-    const result = ok ? '◎' : '×';
-    const daysLater = ok ? 3 : 1;
-    const next = new Date(today);
-    next.setDate(next.getDate() + daysLater);
-    target.lastResult = result;
-    target.nextDate = next.toISOString().split('T')[0];
-    if (ok) target.correctCount = (target.correctCount || 0) + 1;
-    else target.wrongCount = (target.wrongCount || 0) + 1;
-  });
-  saveData();
+// 結果をstudyCards/outputCardsに保存
+function _updateBulkCardStats(id, ok, phase) {
+  const sc = (AppData.studyCards || []).find(c => c.id === id);
+  if (sc) {
+    sc.lastResult = ok ? '◎' : '×';
+    sc.playCount  = (sc.playCount || 0) + 1;
+    saveData();
+  }
+  const oc = (AppData.outputCards || []).find(c => c.id === id);
+  if (oc) {
+    oc.lastResult = ok ? '◎' : '×';
+    saveData();
+  }
 }
 
-// ⑦ 完了画面
+// 結果画面
 function renderBulkDone(content) {
-  const total = bulkTest.cards.length;
-  const wrong = bulkTest.retryCards.length;
-  const correct = total - wrong;
-  saveBulkTestResults();
+  const { cards, results } = bulkTest;
+  const total = cards.length;
+
+  // 各フェーズの結果を集計
+  const phases = [
+    { key: 'frontOnly', label: '表→裏' },
+    { key: 'backOnly',  label: '裏→表' },
+  ];
+  const phaseStats = phases.map(p => {
+    const r = results[p.key] || {};
+    const ok = Object.values(r).filter(v => v).length;
+    const ng = Object.values(r).filter(v => !v).length;
+    return { ...p, ok, ng, done: ok + ng };
+  });
+
+  // ×だったカード一覧
+  const ngCards = [];
+  Object.entries(results).forEach(([phase, res]) => {
+    Object.entries(res).forEach(([cardId, ok]) => {
+      if (!ok) {
+        const card = cards.find(c => c.id === cardId);
+        if (card && !ngCards.find(n => n.id === card.id)) {
+          ngCards.push(card);
+        }
+      }
+    });
+  });
 
   content.innerHTML = `
-    <div style="text-align:center;padding:32px 16px">
-      <div style="font-size:48px;margin-bottom:12px">${wrong === 0 ? '🎉' : '💪'}</div>
-      <div style="font-size:20px;font-weight:700;margin-bottom:8px">
-        ${wrong === 0 ? 'パーフェクト！' : 'テスト完了！'}
-      </div>
-      <div style="font-size:32px;font-weight:700;color:var(--purple);margin-bottom:4px">
-        ${correct} / ${total}
-      </div>
-      <div style="font-size:13px;color:var(--ink3);margin-bottom:24px">
-        ${wrong > 0 ? `×が${wrong}単語あったよ。次回また出てくるよ！` : '全部できた！すごい！'}
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px;max-width:280px;margin:0 auto">
-        ${wrong > 0 ? `
-        <button onclick="startBulkTest()" class="btn btn-primary"
-                style="padding:14px;font-size:13px;background:var(--purple)">
-          🔄 もう一度（×だけ）
-        </button>` : ''}
-        <button onclick="showOutputMenu()" class="btn btn-secondary"
-                style="padding:14px;font-size:13px">
-          トップに戻る
-        </button>
-      </div>
-    </div>`;
+    <div style="text-align:center;font-size:36px;margin-bottom:8px">🎉</div>
+    <div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:20px">おつかれさま！</div>
+
+    ${phaseStats.filter(p => p.done > 0).map(p => `
+      <div style="background:#fff;border-radius:10px;padding:14px;margin-bottom:10px;border:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px">${p.label}</div>
+        <div style="font-size:12px;color:var(--ink3)">◎ ${p.ok} 枚 / × ${p.ng} 枚</div>
+      </div>`).join('')}
+
+    ${ngCards.length > 0 ? `
+      <div style="background:#FFF5F2;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #F5C2B5">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#C44A33">📝 もう一度やりたいカード（${ngCards.length}枚）</div>
+        ${ngCards.slice(0,10).map(c => `
+          <div style="font-size:12px;padding:4px 0;border-bottom:1px solid #F5C2B5">
+            <div style="font-weight:600">${escapeHtmlSafe(c.front).slice(0,40)}</div>
+          </div>`).join('')}
+        ${ngCards.length > 10 ? `<div style="font-size:11px;color:var(--ink3);margin-top:6px">他 ${ngCards.length-10} 枚</div>` : ''}
+      </div>` : `
+      <div style="background:#E8F5E9;border-radius:10px;padding:14px;margin-bottom:14px;text-align:center">
+        <div style="font-size:14px;font-weight:700;color:#2E7D32">全部できた！すごい💪</div>
+      </div>`}
+
+    <button onclick="bulkTest={};showBulkTestSetup()"
+            class="btn btn-primary" style="width:100%;padding:13px;font-size:14px;background:var(--purple);margin-bottom:8px">
+      🔄 もう一度カードを選ぶ
+    </button>
+    <button onclick="bulkTest={};closeOutputModal()"
+            style="width:100%;padding:11px;border-radius:10px;border:1px solid var(--border);
+                   background:#fff;color:var(--ink2);font-family:var(--font);font-size:13px;cursor:pointer">
+      ホームに戻る
+    </button>`;
 }
+
 
 function mascotTalk() {
   openAIChat();
@@ -16692,7 +16767,10 @@ function startVoiceInput() {
   recognition.continuous = false;
   recognition.interimResults = true;  // 途中結果も表示
 
-  let finalTranscript = '';
+  // 既存の入力欄テキストを継承（2回目以降の追記対応）
+  const inputEl = document.getElementById('aiChatInput');
+  const existingText = (inputEl?.value || '').trim();
+  let finalTranscript = existingText ? existingText + ' ' : '';
 
   recognition.onstart = () => {
     voiceBtn.innerHTML = '🔴';
