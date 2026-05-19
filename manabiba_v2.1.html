@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.52</div>
+  <div class="sb-version">v2.53</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -15638,22 +15638,60 @@ function startBulkTest() {
   const cards = getSelectedBulkCards();
   if (cards.length === 0) { showToast('カードが選ばれていません'); return; }
 
-  // 順番/ランダムを選択
+  // 中断データがあれば確認
+  const paused = loadBulkPause();
+  if (paused && paused.cards && paused.cards.length > 0) {
+    const savedAt = new Date(paused.savedAt);
+    const timeStr = `${savedAt.getMonth()+1}/${savedAt.getDate()} ${savedAt.getHours()}:${String(savedAt.getMinutes()).padStart(2,'0')}`;
+    const overlay = document.createElement('div');
+    overlay.id = 'bulkResumeOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.innerHTML = `
+      <div style="background:var(--bg);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">📂 途中のデータがあります</div>
+        <div style="font-size:12px;color:var(--ink3);margin-bottom:4px">${paused.cards.length}枚・${timeStr}に中断</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
+          <button id="bulkResume" class="btn btn-primary" style="padding:13px;font-size:14px">▶ 続きからやる</button>
+          <button id="bulkRestart" style="padding:12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--ink2)">🔄 最初からやる</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    document.getElementById('bulkResume').onclick = () => {
+      overlay.remove();
+      bulkTest = { cards: paused.cards, phase: paused.phase, index: paused.index, results: paused.results, flipped: false };
+      clearBulkPause();
+      renderBulkTest();
+    };
+    document.getElementById('bulkRestart').onclick = () => {
+      overlay.remove();
+      clearBulkPause();
+      _startFreshBulkTest(cards);
+    };
+    return;
+  }
+
+  _startFreshBulkTest(cards);
+}
+
+function _startFreshBulkTest(cards) {
   const orderMode = document.querySelector('input[name="cardOrderMode"]:checked')?.value || 'order';
   const finalCards = orderMode === 'random'
     ? [...cards].sort(() => Math.random() - 0.5)
     : [...cards];
 
-  bulkTest = {
-    cards: finalCards,
-    phase: 'both',         // both（両面）→ frontOnly（表）→ backOnly（裏）→ done
-    index: 0,              // 現在のカード番号
-    flipped: false,        // めくられているか
-    results: {},           // フェーズごとの結果
-  };
+  bulkTest = { cards: finalCards, phase: 'both', index: 0, flipped: false, results: {} };
   renderBulkTest();
 }
 
+function bulkExit() {
+  // 途中終了なら中断データを保存
+  if (bulkTest.phase && bulkTest.phase !== 'done') {
+    saveBulkPause();
+  }
+  bulkTest.phase = 'done';
+  renderBulkTest();
+}
 // ② テスト画面のメイン描画
 function renderBulkTest() {
   document.getElementById('outputModalTitle').textContent = '🧠 暗記カード';
@@ -15687,6 +15725,13 @@ function renderBulkTest() {
 
   const barHtml = `<div style="margin-bottom:14px">
     <div style="display:flex;align-items:flex-start;margin-bottom:8px">${stepsHtml}</div>
+    <div style="text-align:right">
+      <a href="${location.href}" target="_blank"
+         style="font-size:11px;color:var(--purple);text-decoration:none;
+                background:#F0EEF9;padding:4px 10px;border-radius:8px;font-weight:700">
+        🐾 ポメを別タブで開く
+      </a>
+    </div>
   </div>`;
 
   renderFlipCard(barHtml, content);
@@ -15872,12 +15917,11 @@ function bulkExit() {
   renderBulkTest();
 }
 
-// 結果をstudyCards/outputCardsに保存
+// 結果をstudyCards/outputCardsに保存（◎×のみ、カウントはセッション終了時に行う）
 function _updateBulkCardStats(id, ok, phase) {
   const sc = (AppData.studyCards || []).find(c => c.id === id);
   if (sc) {
     sc.lastResult = ok ? '◎' : '×';
-    sc.playCount  = (sc.playCount || 0) + 1;
     saveData();
   }
   const oc = (AppData.outputCards || []).find(c => c.id === id);
@@ -15887,10 +15931,61 @@ function _updateBulkCardStats(id, ok, phase) {
   }
 }
 
+// セッション終了時にデッキ単位で1カウント加算
+function _incrementDeckPlayCount() {
+  const cards = bulkTest.cards || [];
+  const counted = new Set();
+  cards.forEach(c => {
+    const sc = (AppData.studyCards || []).find(s => s.id === c.id);
+    if (sc) {
+      const key = sc.subject + '__' + sc.deck;
+      if (!counted.has(key)) {
+        // デッキ内の全カードのplayCountを+1（デッキの練習回数として使用）
+        (AppData.studyCards || []).filter(s => s.subject === sc.subject && s.deck === sc.deck)
+          .forEach(s => { s.playCount = (s.playCount || 0) + 1; });
+        counted.add(key);
+      }
+    }
+  });
+  saveData();
+}
+
+// 途中中断の保存
+function saveBulkPause() {
+  try {
+    const saved = {
+      cards:   bulkTest.cards,
+      phase:   bulkTest.phase,
+      index:   bulkTest.index,
+      results: bulkTest.results,
+      savedAt: new Date().toISOString()
+    };
+    localStorage.setItem('manabiba_bulk_pause', JSON.stringify(saved));
+  } catch(e) {}
+}
+
+// 途中中断データの読み込み
+function loadBulkPause() {
+  try {
+    const s = localStorage.getItem('manabiba_bulk_pause');
+    return s ? JSON.parse(s) : null;
+  } catch(e) { return null; }
+}
+
+// 途中中断データを消去
+function clearBulkPause() {
+  localStorage.removeItem('manabiba_bulk_pause');
+}
+
 // 結果画面
 function renderBulkDone(content) {
   const { cards, results } = bulkTest;
   const total = cards.length;
+
+  // セッション終了→デッキカウント+1
+  _incrementDeckPlayCount();
+  // 中断データも消去
+  clearBulkPause();
 
   // 各フェーズの結果を集計
   const phases = [
@@ -15910,9 +16005,7 @@ function renderBulkDone(content) {
     Object.entries(res).forEach(([cardId, ok]) => {
       if (!ok) {
         const card = cards.find(c => c.id === cardId);
-        if (card && !ngCards.find(n => n.id === card.id)) {
-          ngCards.push(card);
-        }
+        if (card && !ngCards.find(n => n.id === card.id)) ngCards.push(card);
       }
     });
   });
