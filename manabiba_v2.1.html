@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.53</div>
+  <div class="sb-version">v2.58</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -4599,13 +4599,19 @@ function renderTestBanner() {
               style="width:100%;padding:9px;border-radius:20px;border:none;background:#6B5FBB;
                      color:#fff;font-family:var(--font);font-size:13px;font-weight:700;
                      cursor:pointer;margin-top:6px">
-        🎯 ポメとテスト作戦会議
+        🎯 ポメと作戦を立てる
+      </button>
+      <button onclick="startEveningReview()"
+              style="width:100%;padding:9px;border-radius:20px;border:1.5px solid #6B5FBB;
+                     background:#fff;color:#6B5FBB;font-family:var(--font);font-size:13px;font-weight:700;
+                     cursor:pointer;margin-top:6px">
+        📊 ポメと振り返る
       </button>` : `
       <button onclick="pomeQuickSend('テストの作戦会議をしよう！')"
               style="width:100%;padding:9px;border-radius:20px;border:none;background:#6B5FBB;
                      color:#fff;font-family:var(--font);font-size:13px;font-weight:700;
                      cursor:pointer;margin-top:6px">
-        🎯 ポメとテスト作戦会議
+        🎯 ポメと作戦を立てる
       </button>`}
     ${trapBtn}
   </div>`;
@@ -4899,6 +4905,46 @@ function startTestAttack(examId) {
 // テスト作戦会議：複数テスト選択モーダル
 // ═══════════════════════════════════════
 
+// 夜の振り返り
+function startEveningReview() {
+  const today = new Date();
+  const todayStr = `${today.getMonth()+1}月${today.getDate()}日（${'日月火水木金土'[today.getDay()]}）`;
+  const nearExams = (AppData.examRanges||[])
+    .filter(e => { const d=Math.ceil((new Date(e.testDate)-today)/(1000*60*60*24)); return d>=0&&d<=14; })
+    .sort((a,b)=>a.testDate.localeCompare(b.testDate));
+
+  const examInfo = nearExams.length > 0
+    ? nearExams.map(e => {
+        const d = Math.ceil((new Date(e.testDate)-today)/(1000*60*60*24));
+        return `${e.name}（あと${d}日）`;
+      }).join('、')
+    : '（テスト情報なし）';
+
+  const prompt = `あなたはテスト攻略コーチ「ポメ」です。今は${todayStr}です。
+かりんの今日の勉強の振り返りをして、次にやることを一緒に決めてください。
+
+【近いテスト】${examInfo}
+
+【振り返りの進め方】
+1. まず「今日は何ができた？」と聞く（やった量・内容）
+2. 「できなかったこと・詰まったことはあった？」と聞く
+3. 今日の進み具合をもとに「次にやること3つ」を具体的に提案する
+4. 次の目標は数量で出す（「暗記カードを1周」「ワークP◯〜◯」など）
+
+【注意】
+- ねぎらいの言葉は一言だけ。説教はしない。
+- 「できなかった」ことを責めない。次をどうするかだけ話す。
+- 短く・具体的に。長々と話さない。
+
+「今日の勉強、どこまでできた？」から始めてください。`;
+
+  showPanel('home');
+  setTimeout(() => {
+    const input = document.getElementById('aiChatInput');
+    if (input) { input.value = prompt; sendAIMessage(); }
+  }, 200);
+}
+
 function showTestSelectionForBattle() {
   const today = new Date(); today.setHours(0,0,0,0);
   // 期限内のテストを取得（過去のテストは除外）
@@ -5027,80 +5073,72 @@ function startTestBattleForGroups(groups) {
   const earliestDate = groups.map(g => g.testDate).sort()[0];
   const daysToEarliest = Math.ceil((new Date(earliestDate) - today) / (1000*60*60*24));
 
-  // ── 攻略コーチ型プロンプト ──
-  const pomePrompt = `あなたはテスト攻略コーチ「ポメ」です。中学1年生の「かりん」と一緒に勝つための作戦を立てます。
-単なる時間配分ではなく、「点を取りに行く」攻略会議を行ってください。
+  // ── 攻略コーチ型プロンプト（強化版）──
+  const pomePrompt = `あなたはテスト攻略コーチ「ポメ」です。中学1年生の「かりん」と一緒に、効率よく・効果的にテストで点を取るための作戦を立てます。
 
-【攻略会議で扱う4つの要素】
+【かりんについての重要な特性】
+- 「わかった気になる」ことが多い。本を読んで「そうだな」と思っても、実際には覚えていなかったり書けなかったりする。自覚がない。
+- なので「わかった気」ではなく「実際に書けるか」「問題が解けるか」を基準に話を進めること。
+- 自信を聞いても意味がない。客観的なデータ（診断結果・暗記カード◎×）だけを信じる。
 
-①**出題予測・分析（最重要）**
-- 登録されたテスト範囲・先生のアドバイス・配点情報を読み込んで、「ここが出る」「これは捨ててもいい」を具体的に予告する
-- 例：「『時差計算』『都道府県名』が範囲にあるね。先生のアドバイスからすると時差は確実に出る」
-- 例：「英語Unit3の家族・友達は、自己紹介スピーチが課題ってことは、書く問題で出る可能性大」
-- 範囲とアドバイス欄の情報をフル活用して、戦略の根拠にしてください
+【会議の進め方（この順番で必ず進める）】
 
-②**得点戦略**
-- 診断結果（◎○△×）から「捨て問」と「必取問」を明確化
-- 「英語の家族・友達20点中15点、数学の正負の数30点中25点…合計目標◯点」のように積み上げ式で示す
-- テスト本番の時間配分も提案（例：「数学50分なら、計算問題15分・文章題20分・図形15分」）
+**STEP 1：現状確認（最初に必ずやる）**
+以下を1〜2問ずつかりんに確認する：
+- 学校のワークは終わっているか？（提出物として重要）
+- 終わっていない場合、何ページ残っているか？
+- ワークでわからなかった問題はどの分野か？
+- 塾の宿題や提出物で残っているものはあるか？
 
-③**解法テクニック**
-- 科目別の具体的なコツを伝える
-- 数学：「文章題は図を描いてから式を立てる」「計算ミス防止に途中式を残す」
-- 理科：「実験器具は図と名前と用途をセット」
-- 英語：「単語は意味だけでなくスペルも書ける形で覚える」
-- 国語：「漢字の書き取りは前後の文も読んで意味から推測」
-- 社会：「年号は語呂合わせ、地理は地図上の位置とセット」
+**STEP 2：苦手の解像度を上げる**
+診断結果で×が出た分野について、なぜわかっていないかを1つずつ確認する：
+- 「理科の実験器具が×だったけど、器具の名前がわからない？それとも使い方？」
+- 「英語の三単現が×だったけど、ルール自体わかってない？書くときにミスる？」
+- かりんの答えをもとに、本当の苦手の原因を特定してから対策を決める
 
-④**ミス防止策**
-- 診断で△・×だった問題タイプから具体的な見直しポイントを提示
-- 「自己紹介で be 動詞と一般動詞を混ぜちゃうクセがあるね。テスト中は『I am』『I play』って書く前に動詞をチェック」
-- 「これだけは見直す」リストを最後に明示
+**STEP 3：数量的な攻略プランを作る**
+残り日数と苦手に応じて、以下のような**数量目標**を必ず出す：
+
+暗記系（単語・用語・年号）：
+→「暗記カードをテストまでに最低3回通す」
+→「毎日寝る前に10分、◎になるまで繰り返す」
+
+理解系（計算・文章題・記述）：
+→「類似問題を5問解く → 全問正解するまで繰り返す」
+→「間違えた問題は翌日もう一度解く」
+
+提出物：
+→「ワーク残りXページは○日までに終わらせる（提出が評価に直結）」
+
+**STEP 4：「今日やること」を3つ以内に絞る**
+最後に必ず「今日だけ」のタスクを3つ以内で出す：
+例：
+「今日やること：
+① 国語ワーク P28〜30 を終わらせる（30分）
+② 英語の暗記カードを1周する（20分）
+③ 理科の実験器具の名前を暗記カードで確認（15分）」
+
+※ タスク管理への自動追加はしない。紙に書き写してもらう。
+
+**STEP 5：まとめ表を出す（最後）**
+【攻略ポイント】（なぜわかっていないかの原因と対策）
+【テスト全体でやること】（数量目標付き）
+【今日やること3つ】
 
 【絶対に守るルール】
-1. **事実確認を最初にする**
-   - 渡された情報は仮データ。実際にテストに出るかどうかはかりんしか知らない部分もある
-   - 「先生は『時差は出る』って言ってた？」「配点は範囲のどこが多そう？」などを質問する
-   - 質問は1〜2個ずつ、答えやすい形で
-
-2. **会議の進め方**
-   ステップ1：出題予測（「ここが出る」を提示・かりんに確認）
-   ステップ2：得点戦略（目標点と内訳）
-   ステップ3：日ごとの学習配分
-   ステップ4：解法テクニック・ミス防止策
-   ステップ5：最後にまとめ表
-
-3. **最後にまとめ表を出す**
-   紙に書き写せる形で：
-
-   【攻略ポイント】
-   ・英語：Unit3スピーチが出る → 自己紹介3パターン暗唱
-   ・数学：正負の数の計算ミス注意 → 必ず途中式
-   ・...
-
-   【学習スケジュール】
-   ┌──────┬──────┬───────────────┬──────┐
-   │ 日付    │ 教科   │ やること             │ 目安時間 │
-   ├──────┼──────┼───────────────┼──────┤
-   │ 5/17(日) │ 英語   │ Unit3スピーチ暗唱       │ 60分    │
-   └──────┴──────┴───────────────┴──────┘
-
-   【本番の時間配分】
-   ・数学50分：計算15分・文章題20分・図形15分
-
-   【絶対に見直すポイント】
-   ・be動詞と一般動詞の混在チェック
-   ・計算式の符号
-
-4. **タスクの自動追加はしない**：表を出すだけ
+- 質問は1〜2個ずつ。まとめて聞かない。
+- 「自信ある？」は絶対に聞かない（意味がないため）
+- 診断データがあればそれを根拠にする。なければワークの詰まり情報を使う
+- 数量目標のない精神論（「がんばろう」「しっかりやろう」）は言わない
+- かりんは中1なので、難しい言葉は使わない
 
 【今の状況】
 - 今：${todayStr}
 - 一番早いテストまで：あと${daysToEarliest}日
 ${allSubjectsText}
-${hasDiag ? `\n【これまでの診断結果（仮データ）】\n${allDiagSummary}` : '\n※ まだ診断は未実施'}
+${hasDiag ? `\n【診断結果】\n${allDiagSummary}` : '\n【診断】まだ未実施 → 先に診断をすすめるか、ワークの状況から弱点を把握する'}
 
-それでは作戦会議を始めましょう。まずは状況を確認する質問から始めて、出題予測の話に進めてください。`;
+それでは作戦会議を始めましょう。まずSTEP 1の現状確認から、ワークが終わっているか聞いてください。`;
 
   showPanel('home');
   setTimeout(() => {
@@ -12182,29 +12220,87 @@ function showStudyCardDeck(subject, deck) {
         </span>
         <div style="font-size:13px;font-weight:700;flex:1">${c.question}</div>
       </div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">${c.answer}</div>
+      <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">${c.answer || ''}${c.image?'　📷画像あり':''}</div>
+      <div style="display:flex;gap:8px">
+        <button onclick="editStudyCard('${c.id}')"
+                style="border:none;background:none;color:var(--teal);font-size:11px;cursor:pointer;font-weight:700">編集</button>
+        <button onclick="deleteStudyCard('${c.id}')"
+                style="border:none;background:none;color:var(--ink3);font-size:11px;cursor:pointer">削除</button>
+      </div>
     </div>`).join('');
+
+  const safeSubject = subject.replace(/'/g, "\\'");
+  const safeDeck    = deck.replace(/'/g, "\\'");
 
   content.innerHTML = `
     <button class="btn btn-secondary" onclick="showStudyCardList()" style="margin-bottom:12px;padding:8px 14px">← 戻る</button>
 
-    <button onclick="editDeckAsText('${subject.replace(/'/g,"\\'")}','${deck.replace(/'/g,"\\'")}' )"
+    <!-- デッキ名変更 -->
+    <div style="background:var(--bg2);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">デッキ名を変更</div>
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <input id="deck_rename_subject" value="${subject}"
+               style="flex:1;padding:7px 10px;border-radius:8px;border:1px solid var(--border);
+                      font-family:var(--font);font-size:13px;box-sizing:border-box"
+               placeholder="科目">
+        <input id="deck_rename_deck" value="${deck}"
+               style="flex:2;padding:7px 10px;border-radius:8px;border:1px solid var(--border);
+                      font-family:var(--font);font-size:13px;box-sizing:border-box"
+               placeholder="デッキ名">
+      </div>
+      <button onclick="renameDeck('${safeSubject}','${safeDeck}')"
+              style="width:100%;padding:8px;border-radius:8px;border:none;background:var(--accent);
+                     color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">
+        ✓ 名前を変更する
+      </button>
+    </div>
+
+    <button onclick="editDeckAsText('${safeSubject}','${safeDeck}')"
             style="width:100%;padding:12px;border-radius:10px;border:1.5px solid var(--teal);
                    background:#fff;color:var(--teal);font-family:var(--font);font-size:13px;
                    font-weight:700;cursor:pointer;margin-bottom:12px">
       📝 テキストで一括編集（メモ帳形式）
     </button>
 
-    <button onclick="startStudyCardSession('${subject}','${deck}')" class="btn btn-primary"
+    <button onclick="startStudyCardSession('${safeSubject}','${safeDeck}')" class="btn btn-primary"
             style="width:100%;padding:13px;font-size:14px;margin-bottom:16px">
       ▶ このデッキを練習する
     </button>
     ${rows}
-    <button onclick="showAddStudyCard('${subject}','${deck}')" class="btn btn-secondary"
+    <button onclick="showAddStudyCard('${safeSubject}','${safeDeck}')" class="btn btn-secondary"
             style="width:100%;padding:12px;font-size:13px;margin-top:8px">
       ＋ このデッキにカードを追加
     </button>
   `;
+}
+
+// デッキ名（科目＋タイトル）を変更
+function renameDeck(oldSubject, oldDeck) {
+  const newSubject = document.getElementById('deck_rename_subject')?.value.trim();
+  const newDeck    = document.getElementById('deck_rename_deck')?.value.trim();
+  if (!newSubject || !newDeck) { showToast('科目とデッキ名を入力してください'); return; }
+  if (newSubject === oldSubject && newDeck === oldDeck) { showToast('変更がありません'); return; }
+
+  // 重複チェック
+  const conflict = (AppData.studyCards || []).some(c =>
+    c.subject === newSubject && c.deck === newDeck &&
+    !(c.subject === oldSubject && c.deck === oldDeck)
+  );
+  if (conflict) {
+    if (!confirm(`「${newSubject}：${newDeck}」は既に存在します。\n同じデッキに統合しますか？`)) return;
+  }
+
+  // 全カードの科目・デッキを更新
+  (AppData.studyCards || []).forEach(c => {
+    if (c.subject === oldSubject && c.deck === oldDeck) {
+      c.subject = newSubject;
+      c.deck    = newDeck;
+    }
+  });
+
+  saveData();
+  showToast(`✓ デッキ名を変更しました`);
+  showStudyCardDeck(newSubject, newDeck);
 }
 
 // デッキ全体をテキストで一括編集（メモ帳形式）
@@ -12292,54 +12388,89 @@ function saveDeckText(subject, deck) {
   showStudyCardDeck(subject, deck);
 }
 
-// カード編集（インライン）
+// カード編集（インライン・画像対応）
 function editStudyCard(id) {
   const card = (AppData.studyCards || []).find(c => c.id === id);
   if (!card) return;
   const row = document.getElementById('sc_row_' + id);
   if (!row) return;
 
-  // textareaに入れる前にHTMLエスケープ
-  const escapeHtml = (s) => String(s||'')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-  const safeQ = escapeHtml(card.question);
-  const safeA = escapeHtml(card.answer);
+  const esc = (s) => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  const imgSection = (side, label, existingImg) => {
+    const wrapId = `sc_edit_imgwrap_${side}_${id}`;
+    const inputId = `sc_edit_imgdata_${side}_${id}`;
+    return `
+    <div style="font-size:10px;color:var(--ink3);margin:4px 0 3px">${label}の画像（任意）</div>
+    <div id="${wrapId}" style="margin-bottom:4px">
+      ${existingImg ? `<div style="position:relative">
+        <img id="sc_edit_img_${side}_${id}" src="${existingImg}" style="max-width:100%;max-height:150px;object-fit:contain;border-radius:6px;border:1px solid var(--border)">
+        <button onclick="removeEditImage('${side}','${id}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px">×</button>
+      </div>` : ''}
+    </div>
+    <input type="hidden" id="${inputId}" value="${existingImg||''}">
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <button onclick="editCardImage('camera','${side}','${id}')" style="flex:1;padding:5px;border-radius:6px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:11px;cursor:pointer;color:var(--ink2)">📸 カメラ</button>
+      <button onclick="editCardImage('file','${side}','${id}')" style="flex:1;padding:5px;border-radius:6px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:11px;cursor:pointer;color:var(--ink2)">🖼️ ファイル</button>
+    </div>`;
+  };
 
   row.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-      <span style="font-size:11px;padding:1px 7px;border-radius:10px;font-weight:700;
-                   background:${card.type==='memo'?'#E8F5F2':'#FEF2F0'};
-                   color:${card.type==='memo'?'#2E8B6E':'#D94F3D'}">
-        ${card.type==='memo'?'暗記':'問題'}
-      </span>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-size:11px;padding:1px 7px;border-radius:10px;font-weight:700;background:${card.type==='memo'?'#E8F5F2':'#FEF2F0'};color:${card.type==='memo'?'#2E8B6E':'#D94F3D'}">${card.type==='memo'?'暗記':'問題'}</span>
       <div style="font-size:11px;color:var(--ink3)">編集中</div>
     </div>
-    <div style="margin-bottom:6px">
-      <label style="font-size:10px;color:var(--ink3);display:block;margin-bottom:2px">表（問題・日本語）</label>
-      <textarea id="sc_edit_q_${id}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:var(--font);font-size:13px;min-height:50px;resize:vertical;box-sizing:border-box">${safeQ}</textarea>
-    </div>
-    <div style="margin-bottom:8px">
-      <label style="font-size:10px;color:var(--ink3);display:block;margin-bottom:2px">裏（答え・英語）</label>
-      <textarea id="sc_edit_a_${id}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:var(--font);font-size:13px;min-height:50px;resize:vertical;box-sizing:border-box">${safeA}</textarea>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button onclick="saveStudyCardEdit('${id}')"
-              style="flex:1;padding:8px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">保存</button>
-      <button onclick="showStudyCardDeck('${card.subject}','${card.deck}')"
-              style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:12px;cursor:pointer;color:var(--ink3)">キャンセル</button>
+    <label style="font-size:10px;color:var(--ink3);display:block;margin-bottom:2px">表（問題）</label>
+    <textarea id="sc_edit_q_${id}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:var(--font);font-size:13px;min-height:50px;resize:vertical;box-sizing:border-box;margin-bottom:4px">${esc(card.question)}</textarea>
+    ${imgSection('front', '表', card.image)}
+    <label style="font-size:10px;color:var(--ink3);display:block;margin-bottom:2px">裏（答え）</label>
+    <textarea id="sc_edit_a_${id}" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border);font-family:var(--font);font-size:13px;min-height:50px;resize:vertical;box-sizing:border-box;margin-bottom:4px">${esc(card.answer)}</textarea>
+    ${imgSection('back', '裏', card.imageBack)}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button onclick="saveStudyCardEdit('${id}')" style="flex:1;padding:8px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">保存</button>
+      <button onclick="showStudyCardDeck('${card.subject.replace(/'/g,"\'")}','${card.deck.replace(/'/g,"\'")}' )" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:12px;cursor:pointer;color:var(--ink3)">キャンセル</button>
     </div>`;
+}
+
+function editCardImage(mode, side, id) {
+  const callback = (dataUrl) => {
+    const inputId = `sc_edit_imgdata_${side}_${id}`;
+    const wrapId  = `sc_edit_imgwrap_${side}_${id}`;
+    document.getElementById(inputId).value = dataUrl;
+    const wrap = document.getElementById(wrapId);
+    if (wrap) wrap.innerHTML = `<div style="position:relative">
+      <img id="sc_edit_img_${side}_${id}" src="${dataUrl}" style="max-width:100%;max-height:150px;object-fit:contain;border-radius:6px;border:1px solid var(--border)">
+      <button onclick="removeEditImage('${side}','${id}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:12px">×</button>
+    </div>`;
+  };
+  if (mode === 'camera') { window._cardImageCallback = callback; openWebcamCaptureForCard(); }
+  else {
+    const inp = document.createElement('input');
+    inp.type='file'; inp.accept='image/*'; inp.style.display='none';
+    inp.onchange = (e) => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=(ev)=>callback(ev.target.result); r.readAsDataURL(f); inp.remove(); };
+    document.body.appendChild(inp); inp.click();
+  }
+}
+
+function removeEditImage(side, id) {
+  document.getElementById(`sc_edit_imgdata_${side}_${id}`).value = '';
+  const wrap = document.getElementById(`sc_edit_imgwrap_${side}_${id}`);
+  if (wrap) wrap.innerHTML = '';
 }
 
 function saveStudyCardEdit(id) {
   const card = (AppData.studyCards || []).find(c => c.id === id);
   if (!card) return;
-  const newQ = document.getElementById('sc_edit_q_' + id)?.value.trim();
-  const newA = document.getElementById('sc_edit_a_' + id)?.value.trim();
-  if (!newQ || !newA) { showToast('表と裏を入力してください'); return; }
-  card.question = newQ;
-  card.answer   = newA;
+  const newQ    = document.getElementById('sc_edit_q_' + id)?.value.trim();
+  const newA    = document.getElementById('sc_edit_a_' + id)?.value.trim();
+  const newImgF = document.getElementById(`sc_edit_imgdata_front_${id}`)?.value || '';
+  const newImgB = document.getElementById(`sc_edit_imgdata_back_${id}`)?.value || '';
+  if (!newQ)             { showToast('表を入力してください'); return; }
+  if (!newA && !newImgB) { showToast('裏を入力してください（テキストか画像）'); return; }
+  card.question  = newQ;
+  card.answer    = newA;
+  card.image     = newImgF || null;
+  card.imageBack = newImgB || null;
   saveData();
   showToast('✓ カードを更新しました');
   showStudyCardDeck(card.subject, card.deck);
@@ -12428,8 +12559,56 @@ function showAddStudyCard(prefSubject, prefDeck) {
       <div class="input-group">
         <label class="input-label" id="sc_q_label">問題・表</label>
         <textarea class="input-field" id="sc_question" rows="3"
-                  placeholder="問題文や覚えたいことを書く"
-                  style="resize:none;font-size:14px"></textarea>
+                  placeholder="問題文を書く（必須）"
+                  style="resize:none;font-size:14px;margin-bottom:6px"></textarea>
+        <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">画像を追加する場合（任意）</div>
+        <div id="sc_img_preview" style="display:none;margin-bottom:6px;position:relative">
+          <img id="sc_img_preview_el" src="" style="max-width:100%;border-radius:8px;border:1px solid var(--border)">
+          <button onclick="removeCardImage('front')"
+                  style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;
+                         border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;
+                         font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center">×</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="openCardImagePicker('camera','front')"
+                  style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--border);
+                         background:#fff;font-family:var(--font);font-size:12px;cursor:pointer;color:var(--ink2)">
+            📸 カメラ（表）
+          </button>
+          <button onclick="openCardImagePicker('file','front')"
+                  style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--border);
+                         background:#fff;font-family:var(--font);font-size:12px;cursor:pointer;color:var(--ink2)">
+            🖼️ ファイル（表）
+          </button>
+        </div>
+        <input type="hidden" id="sc_image_data" value="">
+      </div>
+      <div class="input-group">
+        <label class="input-label" id="sc_a_label">答え・裏</label>
+        <textarea class="input-field" id="sc_answer" rows="2"
+                  placeholder="答えを書く（画像のみの場合は空白可）"
+                  style="resize:none;font-size:14px;margin-bottom:6px"></textarea>
+        <div style="font-size:10px;color:var(--ink3);margin-bottom:4px">画像を追加する場合（任意）</div>
+        <div id="sc_img_preview_back" style="display:none;margin-bottom:6px;position:relative">
+          <img id="sc_img_preview_back_el" src="" style="max-width:100%;border-radius:8px;border:1px solid var(--border)">
+          <button onclick="removeCardImage('back')"
+                  style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;
+                         border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;
+                         font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center">×</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="openCardImagePicker('camera','back')"
+                  style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--border);
+                         background:#fff;font-family:var(--font);font-size:12px;cursor:pointer;color:var(--ink2)">
+            📸 カメラ（裏）
+          </button>
+          <button onclick="openCardImagePicker('file','back')"
+                  style="flex:1;padding:7px;border-radius:8px;border:1.5px solid var(--border);
+                         background:#fff;font-family:var(--font);font-size:12px;cursor:pointer;color:var(--ink2)">
+            🖼️ ファイル（裏）
+          </button>
+        </div>
+        <input type="hidden" id="sc_image_data_back" value="">
       </div>
       <div class="input-group">
         <label class="input-label" id="sc_a_label">答え・裏</label>
@@ -12562,28 +12741,36 @@ function selectCardSubject(subject, btn) {
 }
 
 function saveStudyCard() {
-  const subject  = document.getElementById('sc_subject')?.value;
-  const deck     = document.getElementById('sc_deck')?.value.trim();
-  const question = document.getElementById('sc_question')?.value.trim();
-  const answer   = document.getElementById('sc_answer')?.value.trim();
-  const hint     = document.getElementById('sc_hint')?.value.trim() || '';
-  const type     = window._scType || 'memo';
+  const subject    = document.getElementById('sc_subject')?.value;
+  const deck       = document.getElementById('sc_deck')?.value.trim();
+  const question   = document.getElementById('sc_question')?.value.trim();
+  const answer     = document.getElementById('sc_answer')?.value.trim();
+  const hint       = document.getElementById('sc_hint')?.value.trim() || '';
+  const imageFront = document.getElementById('sc_image_data')?.value || '';
+  const imageBack  = document.getElementById('sc_image_data_back')?.value || '';
+  const type       = window._scType || 'memo';
 
-  if (!subject) { showToast('科目を選んでください'); return; }
-  if (!deck)    { showToast('デッキ名を入力してください'); return; }
-  if (!question){ showToast('問題・表を入力してください'); return; }
-  if (!answer)  { showToast('答え・裏を入力してください'); return; }
+  if (!subject)              { showToast('科目を選んでください'); return; }
+  if (!deck)                 { showToast('デッキ名を入力してください'); return; }
+  if (!question)             { showToast('問題・表を入力してください'); return; }
+  if (!answer && !imageBack) { showToast('答え・裏を入力してください（テキストか画像）'); return; }
 
   if (!AppData.studyCards) AppData.studyCards = [];
   AppData.studyCards.push({
     id: 'sc_' + Date.now(),
     type, subject, deck, question, answer, hint,
+    image:     imageFront || null,
+    imageBack: imageBack  || null,
     streak: 0, lastResult: null, nextDate: getTodayString()
   });
 
   saveData();
   showToast('✓ カードを登録しました');
-  showAddStudyCard(subject, deck);
+  document.getElementById('sc_question').value = '';
+  document.getElementById('sc_answer').value   = '';
+  document.getElementById('sc_hint').value     = '';
+  removeCardImage('front');
+  removeCardImage('back');
 }
 
 function deleteStudyCard(id) {
@@ -15369,6 +15556,7 @@ function showBulkTestSetup() {
         id: c.id, subject: c.subject, unit: c.deck,
         front: isEnglish ? (c.answer   || c.back  || '') : (c.question || c.front || ''),
         back:  isEnglish ? (c.question || c.front || '') : (c.answer   || c.back  || ''),
+        image: isEnglish ? null : (c.image || null),  // 英語以外で画像を表に
         lastResult: c.lastResult,
         playCount:  c.playCount || 0,
         type: 'word', _source: 'studyCards',
@@ -15746,51 +15934,85 @@ function renderFlipCard(bar, content) {
   // フェーズに応じて表示内容を決める
   let title, hint, mainContent;
 
+  const renderFront = (c) => {
+    const imgHtml = c.image
+      ? `<img src="${c.image}" style="max-width:100%;border-radius:8px;margin-bottom:10px;display:block">`
+      : '';
+    const textHtml = c.front
+      ? `<div style="font-size:${c.image?'15px':'18px'};font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(c.front)}</div>`
+      : '';
+    return imgHtml + textHtml;
+  };
+  const renderFrontSmall = (c) => {
+    const imgHtml = c.image
+      ? `<img src="${c.image}" style="max-width:100%;border-radius:6px;margin-bottom:6px;display:block;max-height:120px;object-fit:contain">`
+      : '';
+    const textHtml = c.front
+      ? `<div style="font-size:14px;line-height:1.6;color:var(--ink2);white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(c.front)}</div>`
+      : '';
+    return imgHtml + textHtml;
+  };
+  const renderBack = (c) => {
+    const imgHtml = c.imageBack
+      ? `<img src="${c.imageBack}" style="max-width:100%;border-radius:8px;margin-bottom:10px;display:block">`
+      : '';
+    const textHtml = c.back
+      ? `<div style="font-size:18px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(c.back)}</div>`
+      : '';
+    return imgHtml + textHtml;
+  };
+  const renderBackSmall = (c) => {
+    const imgHtml = c.imageBack
+      ? `<img src="${c.imageBack}" style="max-width:100%;border-radius:6px;margin-bottom:6px;display:block;max-height:120px;object-fit:contain">`
+      : '';
+    const textHtml = c.back
+      ? `<div style="font-size:14px;line-height:1.6;color:var(--ink2);white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(c.back)}</div>`
+      : '';
+    return imgHtml + textHtml;
+  };
+
   if (phase === 'both') {
-    // 両面表示（音読フェーズの代わり）
     title = '📖 カードを読もう';
     hint = '両面を見て声に出して読んでね';
     mainContent = `
       <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">表</div>
-      <div style="font-size:18px;font-weight:700;line-height:1.6;margin-bottom:20px;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.front)}</div>
-      <div style="border-top:1px dashed var(--border);padding-top:16px">
+      ${renderFront(card)}
+      <div style="border-top:1px dashed var(--border);padding-top:16px;margin-top:16px">
         <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">裏</div>
-        <div style="font-size:16px;line-height:1.6;color:var(--ink2);white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.back)}</div>
+        ${renderBack(card)}
       </div>`;
   } else if (phase === 'frontOnly') {
-    // 表だけ見せて、めくって裏を確認
     title = '🧠 表を見て、裏を思い出そう';
     hint = 'タップしてめくる';
     if (!flipped) {
       mainContent = `
         <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">表</div>
-        <div style="font-size:20px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.front)}</div>
+        ${renderFront(card)}
         <div style="text-align:center;margin-top:30px;font-size:13px;color:var(--purple);font-weight:700">↓ タップしてめくる ↓</div>`;
     } else {
       mainContent = `
         <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">表</div>
-        <div style="font-size:16px;line-height:1.6;color:var(--ink2);margin-bottom:16px;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.front)}</div>
-        <div style="border-top:1px dashed var(--border);padding-top:16px">
+        ${renderFrontSmall(card)}
+        <div style="border-top:1px dashed var(--border);padding-top:16px;margin-top:12px">
           <div style="font-size:13px;color:var(--teal);margin-bottom:6px;font-weight:700">裏（答え）</div>
-          <div style="font-size:18px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.back)}</div>
+          ${renderBack(card)}
         </div>`;
     }
   } else if (phase === 'backOnly') {
-    // 裏だけ見せて、めくって表を確認
     title = '✏️ 裏を見て、表を思い出そう';
     hint = 'タップしてめくる';
     if (!flipped) {
       mainContent = `
         <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">裏</div>
-        <div style="font-size:20px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.back)}</div>
+        ${renderBack(card)}
         <div style="text-align:center;margin-top:30px;font-size:13px;color:var(--purple);font-weight:700">↓ タップしてめくる ↓</div>`;
     } else {
       mainContent = `
         <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">裏</div>
-        <div style="font-size:16px;line-height:1.6;color:var(--ink2);margin-bottom:16px;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.back)}</div>
-        <div style="border-top:1px dashed var(--border);padding-top:16px">
+        ${renderBackSmall(card)}
+        <div style="border-top:1px dashed var(--border);padding-top:16px;margin-top:12px">
           <div style="font-size:13px;color:var(--teal);margin-bottom:6px;font-weight:700">表（答え）</div>
-          <div style="font-size:18px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(card.front)}</div>
+          ${renderFront(card)}
         </div>`;
     }
   }
@@ -16045,8 +16267,111 @@ function renderBulkDone(content) {
 }
 
 
-function mascotTalk() {
-  openAIChat();
+// カード登録時の画像操作
+function openCardImagePicker(mode, side) {
+  side = side || 'front';
+  const callback = (dataUrl) => {
+    const inputId   = side === 'back' ? 'sc_image_data_back' : 'sc_image_data';
+    const previewId = side === 'back' ? 'sc_img_preview_back' : 'sc_img_preview';
+    const imgId     = side === 'back' ? 'sc_img_preview_back_el' : 'sc_img_preview_el';
+    const elInput = document.getElementById(inputId);
+    const elPrev  = document.getElementById(previewId);
+    const elImg   = document.getElementById(imgId);
+    if (elInput) elInput.value = dataUrl;
+    if (elImg)   elImg.src = dataUrl;
+    if (elPrev)  elPrev.style.display = 'block';
+  };
+
+  if (mode === 'camera') {
+    window._cardImageCallback = callback;
+    openWebcamCaptureForCard();
+  } else {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.style.display = 'none';
+    inp.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => callback(ev.target.result);
+      reader.readAsDataURL(file);
+      inp.remove();
+    };
+    document.body.appendChild(inp);
+    inp.click();
+  }
+}
+
+function removeCardImage(side) {
+  side = side || 'front';
+  const inputId   = side === 'back' ? 'sc_image_data_back' : 'sc_image_data';
+  const previewId = side === 'back' ? 'sc_img_preview_back' : 'sc_img_preview';
+  const imgId     = side === 'back' ? 'sc_img_preview_back_el' : 'sc_img_preview_el';
+  const el = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+  const img = document.getElementById(imgId);
+  if (el)      el.value = '';
+  if (img)     img.src = '';
+  if (preview) preview.style.display = 'none';
+}
+
+// カード用のWebRTCカメラ（撮影後にカード画像として使用）
+async function openWebcamCaptureForCard() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    // フォールバック：ファイル選択
+    openCardImagePicker('file');
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'webcamCardOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#000;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <video id="webcamCardVideo" autoplay playsinline
+           style="max-width:95vw;max-height:75vh;background:#000;border-radius:8px"></video>
+    <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center;padding:0 16px">
+      <button id="webcamCardShoot"
+              style="padding:14px 28px;border-radius:30px;border:none;background:#fff;color:#000;
+                     font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer">
+        📸 撮影
+      </button>
+      <button id="webcamCardCancel"
+              style="padding:12px 18px;border-radius:30px;border:1px solid #fff;background:transparent;
+                     color:#fff;font-family:var(--font);font-size:13px;cursor:pointer">
+        キャンセル
+      </button>
+    </div>
+    <canvas id="webcamCardCanvas" style="display:none"></canvas>`;
+  document.body.appendChild(overlay);
+
+  let stream = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    document.getElementById('webcamCardVideo').srcObject = stream;
+  } catch(e) {
+    overlay.remove();
+    openCardImagePicker('file');
+    return;
+  }
+
+  document.getElementById('webcamCardCancel').onclick = () => {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    overlay.remove();
+  };
+
+  document.getElementById('webcamCardShoot').onclick = () => {
+    const video  = document.getElementById('webcamCardVideo');
+    const canvas = document.getElementById('webcamCardCanvas');
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    overlay.remove();
+    // コールバックで画像を設定
+    window._cardImageCallback?.(dataUrl);
+  };
 }
 
 let aiChatHistory = [];
