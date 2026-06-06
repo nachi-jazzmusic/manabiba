@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.61</div>
+  <div class="sb-version">v2.63</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -1948,14 +1948,82 @@ function loadData() {
   if (stored) {
     try { AppData = JSON.parse(stored); } catch(e) { console.error('データ読み込みエラー:', e); }
   }
+  // 分離保存された画像を復元
+  loadDataWithImages();
 }
 
 function saveData() {
   AppData.updatedAt = Date.now();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(AppData));
-  // GitHubにも非同期保存
-  if (getGithubToken()) {
-    saveToGitHub(AppData).then(() => showSyncStatus('☁ 同期完了')).catch(() => showSyncStatus('⚠ 同期失敗', 'var(--red)'));
+  try {
+    // 画像データをメインデータから分離して保存
+    const imageStore = {};
+    const appDataClean = JSON.parse(JSON.stringify(AppData));
+
+    // studyCardsの画像を分離
+    (appDataClean.studyCards || []).forEach(c => {
+      if (c.image) {
+        imageStore[`img_front_${c.id}`] = c.image;
+        c.image = `__img:${c.id}__`;
+      }
+      if (c.imageBack) {
+        imageStore[`img_back_${c.id}`] = c.imageBack;
+        c.imageBack = `__imgback:${c.id}__`;
+      }
+    });
+
+    // 画像データを別キーに保存
+    if (Object.keys(imageStore).length > 0) {
+      try {
+        localStorage.setItem('manabiba_images', JSON.stringify(imageStore));
+      } catch(e) {
+        // 画像ストレージも溢れた場合、古い画像を削除
+        console.warn('画像ストレージ容量超過。一部の画像を削除します。');
+        localStorage.removeItem('manabiba_images');
+        localStorage.setItem('manabiba_images', JSON.stringify(imageStore));
+      }
+    }
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appDataClean));
+
+    // GitHubにも非同期保存（画像なしデータ）
+    if (getGithubToken()) {
+      saveToGitHub(appDataClean).then(() => showSyncStatus('☁ 同期完了')).catch(() => showSyncStatus('⚠ 同期失敗', 'var(--red)'));
+    }
+  } catch(e) {
+    if (e.name === 'QuotaExceededError') {
+      // 容量オーバー時：画像なしで保存を試みる
+      console.error('ストレージ容量超過:', e);
+      showToast('⚠ ストレージ容量が不足しています。保護者メニュー→データ管理から画像を削除してください。', 5000);
+      try {
+        // 画像を全部除去してでも保存
+        const emergency = JSON.parse(JSON.stringify(AppData));
+        (emergency.studyCards || []).forEach(c => { c.image = null; c.imageBack = null; });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(emergency));
+      } catch(e2) {
+        alert('データの保存に失敗しました。画像付きカードを削減してください。');
+      }
+    } else {
+      throw e;
+    }
+  }
+}
+
+// 保存時に分離した画像をAppDataに復元
+function loadDataWithImages() {
+  try {
+    const imageStore = JSON.parse(localStorage.getItem('manabiba_images') || '{}');
+    (AppData.studyCards || []).forEach(c => {
+      if (c.image && c.image.startsWith('__img:')) {
+        const id = c.image.replace('__img:', '').replace('__', '');
+        c.image = imageStore[`img_front_${id}`] || null;
+      }
+      if (c.imageBack && c.imageBack.startsWith('__imgback:')) {
+        const id = c.imageBack.replace('__imgback:', '').replace('__', '');
+        c.imageBack = imageStore[`img_back_${id}`] || null;
+      }
+    });
+  } catch(e) {
+    console.warn('画像復元エラー:', e);
   }
 }
 
@@ -14699,6 +14767,121 @@ function renderWeakPointComplete(questions) {
     </div>`;
 }
 
+function showStorageManager() {
+  document.getElementById('parentModalTitle').textContent = '💾 データ管理';
+  const content = document.getElementById('parentContent');
+
+  const totalBytes = JSON.stringify(localStorage).length;
+  const mainBytes  = (localStorage.getItem(STORAGE_KEY) || '').length;
+  const imgBytes   = (localStorage.getItem('manabiba_images') || '').length;
+  const otherBytes = totalBytes - mainBytes - imgBytes;
+  const maxBytes   = 5 * 1024 * 1024; // 5MB
+  const pct = Math.min(100, Math.round(totalBytes / maxBytes * 100));
+
+  const imgCards = (AppData.studyCards || []).filter(c => c.image || c.imageBack);
+  const imgCount = imgCards.length;
+
+  const barColor = pct > 80 ? 'var(--red)' : pct > 60 ? '#C8922A' : 'var(--teal)';
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <!-- 使用量バー -->
+    <div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:16px;border:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">ストレージ使用量</div>
+      <div style="background:var(--bg2);border-radius:6px;height:12px;margin-bottom:8px;overflow:hidden">
+        <div style="background:${barColor};width:${pct}%;height:100%;border-radius:6px;transition:width 0.3s"></div>
+      </div>
+      <div style="font-size:12px;color:var(--ink3)">
+        ${Math.round(totalBytes/1024)}KB / 5120KB（${pct}%使用中）
+      </div>
+      <div style="font-size:11px;color:var(--ink3);margin-top:6px;line-height:1.7">
+        📱 メインデータ：${Math.round(mainBytes/1024)}KB<br>
+        🖼️ 画像データ：${Math.round(imgBytes/1024)}KB（${imgCount}枚の画像カード）<br>
+        📦 その他：${Math.round(otherBytes/1024)}KB
+      </div>
+    </div>
+
+    ${pct > 70 ? `
+    <div style="background:#FFF5F2;border-radius:10px;padding:12px;margin-bottom:16px;border:1px solid #F5C2B5">
+      <div style="font-size:13px;font-weight:700;color:#C44A33;margin-bottom:4px">⚠️ 容量が${pct}%に達しています</div>
+      <div style="font-size:11px;color:var(--ink3);line-height:1.6">
+        画像付きカードを削減するか、不要なデータを削除してください。
+      </div>
+    </div>` : ''}
+
+    <!-- 画像カードの一括削除 -->
+    <div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;border:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">🖼️ 画像データの管理</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:12px">
+        現在 ${imgCount}枚の画像付きカードがあります。<br>
+        画像を削除してもテキストは残ります。
+      </div>
+      <button onclick="clearAllCardImages()"
+              style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--red);
+                     background:#fff;color:var(--red);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+        🗑 全カードの画像を削除（テキストは残る）
+      </button>
+    </div>
+
+    <!-- 不要データの削除 -->
+    <div style="background:#fff;border-radius:12px;padding:16px;border:1px solid var(--border)">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px">🧹 不要データの削除</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:12px">
+        診断結果・完了済みタスクなどの古いデータを削除して容量を確保します。
+      </div>
+      <button onclick="cleanupOldData()"
+              style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--accent);
+                     background:#fff;color:var(--accent);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+        🧹 古いデータを削除して容量を確保
+      </button>
+    </div>
+  `;
+}
+
+function clearAllCardImages() {
+  if (!confirm(`全カードの画像を削除しますか？\nテキストは残ります。`)) return;
+  (AppData.studyCards || []).forEach(c => { c.image = null; c.imageBack = null; });
+  localStorage.removeItem('manabiba_images');
+  saveData();
+  showToast('✓ 画像を削除しました');
+  showStorageManager();
+}
+
+function cleanupOldData() {
+  const today = getTodayString();
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffStr = cutoff.toISOString().split('T')[0];
+
+  // 30日以上前の診断結果を削除
+  if (AppData.examDiagnosis) {
+    Object.keys(AppData.examDiagnosis).forEach(k => {
+      if ((AppData.examDiagnosis[k].date || '') < cutoffStr) {
+        delete AppData.examDiagnosis[k];
+      }
+    });
+  }
+  // 完了済みの古いタスクを削除
+  if (AppData.testPlan) {
+    AppData.testPlan = AppData.testPlan.filter(t => !t.done || t.date >= cutoffStr);
+  }
+  // 古いdailyDoneLogを削除
+  if (AppData.dailyDoneLog) {
+    Object.keys(AppData.dailyDoneLog).forEach(k => {
+      if (k < cutoffStr) delete AppData.dailyDoneLog[k];
+    });
+  }
+  if (AppData.routineDoneLog) {
+    Object.keys(AppData.routineDoneLog).forEach(k => {
+      if (k < cutoffStr) delete AppData.routineDoneLog[k];
+    });
+  }
+
+  saveData();
+  showToast('✓ 古いデータを削除しました');
+  showStorageManager();
+}
+
 function showParentMenu(section) {
   document.getElementById('parentModalTitle').textContent = '👨‍👩‍👧 保護者メニュー';
   const content = document.getElementById('parentContent');
@@ -14832,6 +15015,26 @@ function showParentMenu(section) {
 
       <!-- 仕切り線 -->
       <div style="border-top:1.5px solid var(--border);margin:4px 0"></div>
+
+      <!-- ストレージ管理 -->
+      <button onclick="showStorageManager()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">💾</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">データ管理・容量確認</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px" id="storage_usage_hint">
+            ${(() => {
+              try {
+                const total = JSON.stringify(localStorage).length;
+                const kb = Math.round(total / 1024);
+                const pct = Math.round(kb / 5120 * 100);
+                return `ストレージ使用量：約${kb}KB / 5120KB（${pct}%）`;
+              } catch(e) { return 'ストレージ使用量を確認'; }
+            })()}
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
 
       <!-- 埼玉県学力調査 ON/OFF -->
       ${(() => {
@@ -15889,7 +16092,13 @@ function showBulkTestSetup() {
     <!-- デッキ選択 -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="font-size:12px;font-weight:700">デッキを選ぶ</div>
-      <div style="font-size:10px;color:var(--ink3)">≡ をドラッグで並び替え</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="localStorage.removeItem('manabiba_deck_order');showBulkTestSetup()"
+                style="font-size:10px;color:var(--ink3);border:none;background:none;cursor:pointer;text-decoration:underline">
+          並び順をリセット
+        </button>
+        <div style="font-size:10px;color:var(--ink3)">≡ をドラッグで並び替え</div>
+      </div>
     </div>
     <div id="unitSelectionList">
       ${sortedUnits.map(u => {
