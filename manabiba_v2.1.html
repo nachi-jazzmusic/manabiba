@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.63</div>
+  <div class="sb-version">v2.68</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -12480,20 +12480,21 @@ function editDeckAsText(subject, deck) {
 
   // 現在のカードを「表＝裏」形式でテキスト化
   const currentText = cards.map(c => `${c.question}＝${c.answer}`).join('\n');
+  const safeSubject = subject.replace(/'/g, "\\'");
+  const safeDeck    = deck.replace(/'/g, "\\'");
 
   content.innerHTML = `
-    <button class="btn btn-secondary" onclick="showStudyCardDeck('${subject.replace(/'/g,"\\'")}','${deck.replace(/'/g,"\\'")}' )"
+    <button class="btn btn-secondary" onclick="showStudyCardDeck('${safeSubject}','${safeDeck}')"
             style="margin-bottom:12px;padding:8px 14px">← 戻る（保存せず）</button>
 
     <div style="font-size:14px;font-weight:700;margin-bottom:6px">${subject}：${deck}</div>
     <div style="font-size:11px;color:var(--ink3);margin-bottom:4px;line-height:1.6">
-      ・1行に1枚「表＝裏」の形式<br>
-      ・行を追加→カードが増える、行を削除→カードが消える<br>
-      ・コピペして外部で編集→貼り直しもOK
+      ・1行に1枚「表＝裏」の形式で入力<br>
+      ・テキスト入力後に各カードへ画像を貼り付けできます
     </div>
 
     <textarea id="deck_edit_text"
-              style="width:100%;min-height:50vh;padding:12px;border-radius:10px;
+              style="width:100%;min-height:40vh;padding:12px;border-radius:10px;
                      border:1.5px solid var(--border);font-family:var(--font);
                      font-size:13px;line-height:1.9;resize:vertical;box-sizing:border-box;
                      margin-bottom:12px">${currentText}</textarea>
@@ -12502,14 +12503,166 @@ function editDeckAsText(subject, deck) {
       現在 ${cards.length}枚 → 保存後は入力内容で上書きされます
     </div>
 
-    <button onclick="saveDeckText('${subject.replace(/'/g,"\\'")}','${deck.replace(/'/g,"\\'")}' )"
-            class="btn btn-primary" style="width:100%;padding:14px;font-size:14px">
-      💾 保存する
+    <div style="display:flex;gap:8px">
+      <button onclick="saveDeckText('${safeSubject}','${safeDeck}')"
+              class="btn btn-primary" style="flex:1;padding:14px;font-size:14px">
+        💾 テキストのみ保存
+      </button>
+      <button onclick="previewDeckForImages('${safeSubject}','${safeDeck}')"
+              style="flex:1;padding:14px;border-radius:10px;border:none;background:#6B5FBB;
+                     color:#fff;font-family:var(--font);font-size:14px;font-weight:700;cursor:pointer">
+        📷 画像も貼り付ける →
+      </button>
+    </div>
+  `;
+}
+
+// STEP2: 各カードに画像を貼り付ける画面
+function previewDeckForImages(subject, deck) {
+  const text = document.getElementById('deck_edit_text')?.value || '';
+  const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
+
+  const newCards = [];
+  const errors = [];
+  lines.forEach((line, i) => {
+    const match = line.match(/^(.+?)[=＝](.+)$/);
+    if (match) {
+      newCards.push({ question: match[1].trim(), answer: match[2].trim(), image: null, imageBack: null });
+    } else if (line) {
+      errors.push(`${i+1}行目：「${line.slice(0,20)}」（＝がない）`);
+    }
+  });
+
+  if (errors.length > 0 && !confirm(`以下の行は無視されます：\n${errors.join('\n')}\n\n続けますか？`)) return;
+  if (newCards.length === 0) { showToast('カードが1枚もありません'); return; }
+
+  // 既存カードの画像を引き継ぐ
+  const existing = (AppData.studyCards||[]).filter(c => c.subject===subject && c.deck===deck);
+  newCards.forEach((nc, i) => {
+    const found = existing.find(e => e.question === nc.question);
+    if (found) { nc.image = found.image || null; nc.imageBack = found.imageBack || null; }
+  });
+
+  // 一時保存
+  window._deckImageCards = newCards;
+  window._deckImageSubject = subject;
+  window._deckImageDeck = deck;
+
+  const content = document.getElementById('parentContent');
+  const safeSubject = subject.replace(/'/g, "\\'");
+  const safeDeck    = deck.replace(/'/g, "\\'");
+
+  const rows = newCards.map((c, i) => `
+    <div style="background:#fff;border-radius:10px;border:1px solid var(--border);padding:12px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:4px;color:var(--ink)">${c.question}</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px">→ ${c.answer}</div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">
+          <div style="font-size:10px;color:var(--ink3);margin-bottom:3px">表の画像</div>
+          <div id="di_front_wrap_${i}" style="margin-bottom:4px">
+            ${c.image ? `<div style="position:relative"><img src="${c.image}" style="max-width:100%;max-height:80px;object-fit:contain;border-radius:4px;border:1px solid var(--border)">
+              <button onclick="clearDeckImage(${i},'front')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px">×</button></div>` : ''}
+          </div>
+          <button onclick="pasteDeckImage(${i},'front')"
+                  style="width:100%;padding:5px;border-radius:6px;border:1px solid var(--purple);
+                         background:#fff;font-family:var(--font);font-size:11px;cursor:pointer;color:var(--purple)">
+            📋 貼付
+          </button>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:10px;color:var(--ink3);margin-bottom:3px">裏の画像</div>
+          <div id="di_back_wrap_${i}" style="margin-bottom:4px">
+            ${c.imageBack ? `<div style="position:relative"><img src="${c.imageBack}" style="max-width:100%;max-height:80px;object-fit:contain;border-radius:4px;border:1px solid var(--border)">
+              <button onclick="clearDeckImage(${i},'back')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px">×</button></div>` : ''}
+          </div>
+          <button onclick="pasteDeckImage(${i},'back')"
+                  style="width:100%;padding:5px;border-radius:6px;border:1px solid var(--purple);
+                         background:#fff;font-family:var(--font);font-size:11px;cursor:pointer;color:var(--purple)">
+            📋 貼付
+          </button>
+        </div>
+      </div>
+    </div>`).join('');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="editDeckAsText('${safeSubject}','${safeDeck}')"
+            style="margin-bottom:12px;padding:8px 14px">← テキスト編集に戻る</button>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">${subject}：${deck}（${newCards.length}枚）</div>
+    <div style="font-size:11px;color:var(--ink3);margin-bottom:12px">
+      📋 貼付ボタンを押す前にスクショをコピー（Win+Shift+S）してください
+    </div>
+    ${rows}
+    <button onclick="saveDeckWithImages()"
+            class="btn btn-primary" style="width:100%;padding:14px;font-size:14px;margin-top:8px">
+      💾 画像込みで保存する
     </button>
   `;
 }
 
-// テキスト編集の内容を保存
+async function pasteDeckImage(idx, side) {
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const imageType = item.types.find(t => t.startsWith('image/'));
+      if (imageType) {
+        const blob = await item.getType(imageType);
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target.result;
+          window._deckImageCards[idx][side === 'front' ? 'image' : 'imageBack'] = dataUrl;
+          const wrapId = `di_${side}_wrap_${idx}`;
+          const wrap = document.getElementById(wrapId);
+          if (wrap) wrap.innerHTML = `<div style="position:relative">
+            <img src="${dataUrl}" style="max-width:100%;max-height:80px;object-fit:contain;border-radius:4px;border:1px solid var(--border)">
+            <button onclick="clearDeckImage(${idx},'${side}')" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:18px;height:18px;cursor:pointer;font-size:10px">×</button>
+          </div>`;
+          showToast('✓ 貼り付けました');
+        };
+        reader.readAsDataURL(blob);
+        return;
+      }
+    }
+    showToast('クリップボードに画像がありません');
+  } catch(e) {
+    showToast('クリップボードへのアクセスを許可してください');
+  }
+}
+
+function clearDeckImage(idx, side) {
+  if (window._deckImageCards?.[idx]) {
+    window._deckImageCards[idx][side === 'front' ? 'image' : 'imageBack'] = null;
+  }
+  const wrap = document.getElementById(`di_${side}_wrap_${idx}`);
+  if (wrap) wrap.innerHTML = '';
+}
+
+function saveDeckWithImages() {
+  const cards  = window._deckImageCards || [];
+  const subject = window._deckImageSubject;
+  const deck    = window._deckImageDeck;
+  if (!cards.length || !subject || !deck) { showToast('データがありません'); return; }
+
+  AppData.studyCards = (AppData.studyCards||[]).filter(c => !(c.subject===subject && c.deck===deck));
+  const baseId = Date.now();
+  cards.forEach((p, i) => {
+    AppData.studyCards.push({
+      id: `sc_${baseId}_${i}`,
+      type: 'memo', subject, deck,
+      question:  p.question,
+      answer:    p.answer,
+      image:     p.image     || null,
+      imageBack: p.imageBack || null,
+      streak: 0, lastResult: null, nextDate: getTodayString()
+    });
+  });
+
+  saveData();
+  showToast(`✓ ${cards.length}枚を保存しました`);
+  window._deckImageCards = null;
+  showStudyCardDeck(subject, deck);
+}
+
+// テキスト編集の内容を保存（画像なし）
 function saveDeckText(subject, deck) {
   const text = document.getElementById('deck_edit_text')?.value || '';
   const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
@@ -12519,10 +12672,7 @@ function saveDeckText(subject, deck) {
   lines.forEach((line, i) => {
     const match = line.match(/^(.+?)[=＝](.+)$/);
     if (match) {
-      newCards.push({
-        question: match[1].trim(),
-        answer:   match[2].trim()
-      });
+      newCards.push({ question: match[1].trim(), answer: match[2].trim() });
     } else {
       errors.push(`${i+1}行目：「${line}」（＝がない）`);
     }
@@ -12531,24 +12681,23 @@ function saveDeckText(subject, deck) {
   if (errors.length > 0) {
     if (!confirm(`以下の行は無視されます：\n${errors.join('\n')}\n\n続けて保存しますか？`)) return;
   }
+  if (newCards.length === 0) { showToast('カードが1枚もありません'); return; }
 
-  if (newCards.length === 0) {
-    showToast('カードが1枚もありません。内容を確認してください');
-    return;
-  }
-
-  // 既存カードを削除して新規で差し替え
-  AppData.studyCards = (AppData.studyCards || []).filter(c => !(c.subject === subject && c.deck === deck));
+  // 既存カードの画像を引き継ぐ
+  const existing = (AppData.studyCards||[]).filter(c => c.subject===subject && c.deck===deck);
+  AppData.studyCards = (AppData.studyCards||[]).filter(c => !(c.subject===subject && c.deck===deck));
 
   const baseId = Date.now();
   newCards.forEach((p, i) => {
+    const found = existing.find(e => e.question === p.question);
     AppData.studyCards.push({
       id: `sc_${baseId}_${i}`,
       type: 'memo', subject, deck,
       question: p.question,
       answer:   p.answer,
-      streak: 0, lastResult: null,
-      nextDate: getTodayString()
+      image:     found?.image     || null,
+      imageBack: found?.imageBack || null,
+      streak: 0, lastResult: null, nextDate: getTodayString()
     });
   });
 
