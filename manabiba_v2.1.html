@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.68</div>
+  <div class="sb-version">v2.70</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -12607,8 +12607,8 @@ async function pasteDeckImage(idx, side) {
       if (imageType) {
         const blob = await item.getType(imageType);
         const reader = new FileReader();
-        reader.onload = (ev) => {
-          const dataUrl = ev.target.result;
+        reader.onload = async (ev) => {
+          const dataUrl = await compressImage(ev.target.result);
           window._deckImageCards[idx][side === 'front' ? 'image' : 'imageBack'] = dataUrl;
           const wrapId = `di_${side}_wrap_${idx}`;
           const wrap = document.getElementById(wrapId);
@@ -16331,9 +16331,10 @@ function showBulkTestSetup() {
         const masteryLabel = untried === total ? '未練習' : `習熟${masteryPct}%`;
 
         return `
-        <label class="deck-row" draggable="true" data-key="${key}"
-               style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;
-                      padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer">
+        <div class="deck-row" draggable="true" data-key="${key}"
+             onclick="if(event.target.tagName!=='INPUT'){const cb=this.querySelector('.unit-check');cb.checked=!cb.checked;saveBulkSelection();updateBulkTestCount();}"
+             style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;
+                    padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer">
           <span class="deck-drag-handle" style="cursor:grab;color:var(--ink3);font-size:18px;user-select:none;flex-shrink:0;padding:0 4px">≡</span>
           <input type="checkbox" class="unit-check"
                  data-subject="${u.subject}" data-unit="${u.unit}" ${checked?'checked':''}
@@ -16349,7 +16350,7 @@ function showBulkTestSetup() {
             <div style="font-size:10px;color:var(--ink3)">${masteryLabel}</div>
             ${u.playCount > 0 ? `<div style="font-size:10px;color:var(--ink3)">${u.playCount}回練習</div>` : ''}
           </div>
-        </label>`;
+        </div>`;
       }).join('')}
     </div>
 
@@ -16955,6 +16956,35 @@ function renderBulkDone(content) {
 
 
 // カード登録時の画像操作
+// 画像を圧縮してbase64を返す（最大幅800px、JPEG品質0.6、目標50KB以下）
+function compressImage(dataUrl, maxWidth, quality) {
+  return new Promise((resolve) => {
+    maxWidth = maxWidth || 800;
+    quality  = quality  || 0.6;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      // まず0.6品質で試す
+      let result = canvas.toDataURL('image/jpeg', quality);
+      // それでも100KB超えたらさらに下げる
+      if (result.length > 100 * 1024) result = canvas.toDataURL('image/jpeg', 0.4);
+      if (result.length > 100 * 1024) {
+        // 幅を半分にして再試行
+        const c2 = document.createElement('canvas');
+        c2.width = Math.round(w/2); c2.height = Math.round(h/2);
+        c2.getContext('2d').drawImage(img, 0, 0, c2.width, c2.height);
+        result = c2.toDataURL('image/jpeg', 0.5);
+      }
+      resolve(result);
+    };
+    img.src = dataUrl;
+  });
+}
+
 // クリップボードから画像を貼り付け
 async function pasteImageFromClipboard(side) {
   side = side || 'front';
@@ -16966,8 +16996,8 @@ async function pasteImageFromClipboard(side) {
       if (imageType) {
         const blob = await item.getType(imageType);
         const reader = new FileReader();
-        reader.onload = (ev) => {
-          const dataUrl = ev.target.result;
+        reader.onload = async (ev) => {
+          const dataUrl = await compressImage(ev.target.result);
           const inputId   = side === 'back' ? 'sc_image_data_back' : 'sc_image_data';
           const previewId = side === 'back' ? 'sc_img_preview_back' : 'sc_img_preview';
           const imgId     = side === 'back' ? 'sc_img_preview_back_el' : 'sc_img_preview_el';
@@ -17003,8 +17033,8 @@ async function pasteEditImageFromClipboard(side, id) {
       if (imageType) {
         const blob = await item.getType(imageType);
         const reader = new FileReader();
-        reader.onload = (ev) => {
-          const dataUrl = ev.target.result;
+        reader.onload = async (ev) => {
+          const dataUrl = await compressImage(ev.target.result);
           const inputId = `sc_edit_imgdata_${side}_${id}`;
           const wrapId  = `sc_edit_imgwrap_${side}_${id}`;
           const el = document.getElementById(inputId);
@@ -17054,7 +17084,7 @@ function openCardImagePicker(mode, side) {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => callback(ev.target.result);
+      reader.onload = async (ev) => callback(await compressImage(ev.target.result));
       reader.readAsDataURL(file);
       inp.remove();
     };
