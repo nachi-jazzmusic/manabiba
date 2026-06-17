@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.70</div>
+  <div class="sb-version">v2.71</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -3208,7 +3208,7 @@ async function startExamDiagnosis(examId, mode) {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-5',
+        model: 'claude-sonnet-4-6',
         max_tokens: 8000,
         system: `あなたは中学生のテスト対策のための理解度診断問題を作成します。
 ${config.prompt}
@@ -3392,7 +3392,7 @@ async function showTrapGuide(examId) {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({
-        model: 'claude-opus-4-5',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1500,
         system: `中学1年生のテスト対策として、よくあるひっかけ問題のパターンと頻出ミスポイントを教えてください。
 JSONのみ出力（コードブロック不要）。
@@ -3693,7 +3693,7 @@ async function startKanjiPractice() {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1200,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -8639,7 +8639,7 @@ async function generateQuestions(records) {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2048,
         messages: [{
           role: 'user',
@@ -9029,7 +9029,7 @@ async function startPracticeQuiz() {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 3000,
         messages: [{
           role: 'user',
@@ -9325,7 +9325,7 @@ async function analyzeTest(imagesConfig) {
       'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 4096,
       messages: [{
         role: 'user',
@@ -9538,7 +9538,7 @@ async function startFundamentalReview() {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 3000,
         messages: [{
           role: 'user',
@@ -9868,7 +9868,7 @@ ${subjectNote}
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: isPoints ? 1200 : 3000,
         messages: [{ role: 'user', content: isPoints ? pointsPrompt : explainPrompt }],
         system: '中学生向けの学習サポートAIとして、わかりやすく丁寧に回答してください。'
@@ -10226,7 +10226,7 @@ async function generateOutputCardsAI() {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -10337,7 +10337,7 @@ ${text}
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -11166,7 +11166,7 @@ async function startEikenPractice(unit, typeId) {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         messages: [{ role: 'user', content: prompts[typeId] }]
       })
@@ -13042,7 +13042,7 @@ async function generateCardsFromDrillImage(base64Image) {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         messages: [{
           role: 'user',
@@ -13359,7 +13359,7 @@ async function showSimilarProblem(cardId) {
       method: 'POST',
       headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({
-        model: 'claude-opus-4-5',
+        model: 'claude-sonnet-4-6',
         max_tokens: 500,
         system: '中学1年生向けの類似問題を1問だけ作ってください。JSONのみ出力（コードブロック不要）。\n{"question":"問題文","answer":"答え（計算過程も）","hint":"解説1文"}',
         messages: [{ role: 'user', content: `以下の問題と同じ単元の類似問題を1問作ってください。\n\n元の問題：${card.question}\n答え：${card.answer}\n科目：${card.subject}` }]
@@ -14131,7 +14131,7 @@ ${isMath ? '- 数学は必ず検算してから出力する（計算ミス厳禁
           'anthropic-dangerous-direct-browser-access': 'true'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 1000,
           messages: [{ role: 'user', content: prompt }]
         })
@@ -14418,7 +14418,7 @@ ${isMath ? `- 数学は必ず2回検算し、2回とも同じ答えになった�
           'anthropic-dangerous-direct-browser-access': 'true'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-6',
           max_tokens: 800,
           messages: [{ role: 'user', content: prompt }]
         })
@@ -15884,7 +15884,7 @@ ${profileNote || '特記事項なし'}
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 600,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -17545,7 +17545,7 @@ async function sendAIMessage() {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1024,
         messages: aiChatHistory.map(msg => ({
           role: msg.role,
@@ -17916,7 +17916,7 @@ async function hwSend() {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: `あなたはポメちゃんです。中学生（かりん）の勉強を手伝うアシスタントです。
 手書きの数式・文章・図を読み取って、わかりやすく解説してください。
@@ -18435,7 +18435,7 @@ async function sendImageToAI(base64Image) {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 2000,
         messages: [
           {
