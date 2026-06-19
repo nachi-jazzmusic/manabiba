@@ -16233,6 +16233,9 @@ function showBulkTestSetup() {
       if (nearExams.length === 0) return '';
       return `<div style="background:#F0EEF9;border-radius:10px;padding:12px;margin-bottom:12px;border:1px solid #C9C0E8">
         <div style="font-size:11px;font-weight:700;color:var(--purple);margin-bottom:8px">📋 テストセットから選ぶ</div>
+        <div id="examSetBadge" style="display:none;font-size:12px;font-weight:700;color:var(--purple);
+             background:#fff;border-radius:8px;padding:6px 10px;margin-bottom:8px;
+             border:1.5px solid var(--purple)"></div>
         ${nearExams.map(e => {
           const d = Math.ceil((new Date(e.testDate) - today) / (1000*60*60*24));
           return `<button onclick="selectExamDecks('${e.id}')"
@@ -16426,25 +16429,37 @@ function selectExamDecks(examId) {
     return;
   }
 
-  // チェックボックスを全部外してから、対象デッキだけチェック
+  let checkedCount = 0;
   document.querySelectorAll('.unit-check').forEach(cb => {
     const key = `${cb.dataset.subject}__${cb.dataset.unit}`;
-    cb.checked = exam.decks.includes(key);
-    // フィルターで非表示になっていた行も表示に戻す
+    const isSelected = exam.decks.includes(key);
+    cb.checked = isSelected;
+    // 行の見た目を変える
     const row = cb.closest('.deck-row');
-    if (row) row.style.display = '';
+    if (row) {
+      row.style.display = '';
+      row.style.background    = isSelected ? '#F0EEF9' : '#fff';
+      row.style.border        = isSelected ? '1.5px solid var(--purple)' : '1px solid var(--border)';
+    }
+    if (isSelected) checkedCount++;
   });
 
-  // 全部タブをアクティブに戻す
+  // 全部タブをアクティブに
   document.querySelectorAll('[data-subject-tab]').forEach(btn => {
     const isAll = btn.dataset.subjectTab === '全部';
     btn.style.background = isAll ? 'var(--purple)' : '#fff';
     btn.style.color      = isAll ? '#fff' : 'var(--ink2)';
   });
 
+  // テストセット選択中バッジを表示
+  const badge = document.getElementById('examSetBadge');
+  if (badge) {
+    badge.textContent = `📋 ${exam.name}（${checkedCount}デッキ選択中）`;
+    badge.style.display = 'block';
+  }
+
   saveBulkSelection();
   updateBulkTestCount();
-  showToast(`✓ 「${exam.name}」のデッキを選択しました（${exam.decks.length}デッキ）`);
 }
 
 function filterBulkBySubject(subject) {
@@ -16487,28 +16502,27 @@ function getSelectedBulkCards() {
   const selectedKeys = new Set();
   checks.forEach(c => selectedKeys.add(`${c.dataset.subject}__${c.dataset.unit}`));
 
+  if (selectedKeys.size === 0) return [];
+
   const filterWeak = document.getElementById('filterWeak')?.checked;
 
-  // _allBulkCardsがあればそれを使う（showBulkTestSetupで生成済み）
-  // なければstudyCardsから生成（outputCardsは除外）
-  const allCards = window._allBulkCards || (AppData.studyCards || []).map(c => {
-    const isEnglish = (c.subject || '').includes('英');
-    return {
-      id: c.id, subject: c.subject, unit: c.deck,
-      front: isEnglish ? (c.answer || '') : (c.question || ''),
-      back:  isEnglish ? (c.question || '') : (c.answer || ''),
-      image:      isEnglish ? null : (c.image || null),
-      imageBack:  c.imageBack || null,
-      lastResult: c.lastResult, type: 'word'
-    };
-  });
+  // studyCardsから選択中デッキのカードだけを取得（outputCardsは使わない）
+  const allCards = (AppData.studyCards || [])
+    .filter(c => selectedKeys.has(`${c.subject}__${c.deck}`))
+    .map(c => {
+      const isEnglish = (c.subject || '').includes('英');
+      return {
+        id: c.id, subject: c.subject, unit: c.deck,
+        front: isEnglish ? (c.answer || '') : (c.question || ''),
+        back:  isEnglish ? (c.question || '') : (c.answer || ''),
+        image:     isEnglish ? null : (c.image || null),
+        imageBack: c.imageBack || null,
+        lastResult: c.lastResult, type: 'word'
+      };
+    });
 
-  return allCards.filter(c => {
-    const key = `${c.subject}__${c.unit}`;
-    if (!selectedKeys.has(key)) return false;
-    if (filterWeak) return c.lastResult === '×';
-    return true;
-  });
+  if (filterWeak) return allCards.filter(c => c.lastResult === '×');
+  return allCards;
 }
 
 function startBulkTest() {
