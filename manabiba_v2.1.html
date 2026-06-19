@@ -3171,7 +3171,7 @@ async function startExamDiagnosis(examId, mode) {
   };
   const config = modeConfig[mode];
 
-  // ローディング表示
+  // ローディング表示（教科ごと進捗付き）
   const overlay = document.createElement('div');
   overlay.id = 'diagOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
@@ -3179,85 +3179,88 @@ async function startExamDiagnosis(examId, mode) {
     <div style="background:#fff;border-radius:16px;padding:32px;text-align:center;max-width:400px;width:100%">
       <div style="font-size:32px;margin-bottom:12px">🔍</div>
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">${config.label}</div>
-      <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">テスト範囲から問題を作っています...</div>
-      <div style="background:#F0F0F0;border-radius:20px;height:6px;overflow:hidden">
-        <div style="background:var(--accent);height:100%;border-radius:20px;
-                    animation:diagProgress 12s linear forwards"
+      <div id="diagStatusText" style="font-size:12px;color:var(--ink3);margin-bottom:12px">問題を作っています...</div>
+      <div style="background:#F0F0F0;border-radius:20px;height:8px;overflow:hidden;margin-bottom:8px">
+        <div style="background:var(--accent);height:100%;border-radius:20px;width:0%;transition:width 0.5s"
              id="diagProgressBar"></div>
       </div>
-      <div style="font-size:11px;color:var(--ink3);margin-top:8px">
-        ${daysLeft <= 1 ? '5問だけなのですぐ終わるよ' : '10問程度・15秒ほどお待ちください'}
-      </div>
-    </div>
-    <style>
-      @keyframes diagProgress { from{width:0%} to{width:90%} }
-    </style>`;
+      <div id="diagProgressLabel" style="font-size:11px;color:var(--ink3)">0 / ${exam.subjects.length} 教科</div>
+    </div>`;
   document.body.appendChild(overlay);
 
   try {
-    const subjectList = exam.subjects.map(s =>
-      s.subject + '（範囲：' + s.range + '）'
-    ).join('\n');
+    // 教科ごとに1回ずつAPIを呼ぶ（タイムアウト防止）
+    const allQuestions = [];
+    const subjects = exam.subjects;
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': AppData.settings.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8000,
-        system: `あなたは中学生のテスト対策のための理解度診断問題を作成します。
-${config.prompt}
+    for (let i = 0; i < subjects.length; i++) {
+      const s = subjects[i];
+      const pct = Math.round(i / subjects.length * 100);
+      const statusEl = document.getElementById('diagStatusText');
+      const barEl    = document.getElementById('diagProgressBar');
+      const labelEl  = document.getElementById('diagProgressLabel');
+      if (statusEl) statusEl.textContent = s.subject + 'の問題を生成中...';
+      if (barEl)    barEl.style.width = pct + '%';
+      if (labelEl)  labelEl.textContent = i + ' / ' + subjects.length + ' 教科完了';
 
-【絶対に守ること】
-- 問題はユーザーが指定したテスト範囲の内容に厳密に従う
-- 中1の生徒を対象（特に指示がなければ中1レベル）
-- 同じ単元の問題は連続して出題（例：be動詞の問題3問→次の単元へ）
-- 「わかった気になっているだけ」を見破る具体的な出題
-  - ❌「○○について説明せよ」
-  - ✅「次の英文を日本語にしなさい：I am a student.」
-  - ✅「次の計算をしなさい：(-3)+(-7)」
-  - ✅「次の漢字の読みを書きなさい：『憤慨』」
+      const perSubjectPrompt = mode === 'final'
+        ? 'この教科から5問。' + (weakCategories.length > 0 ? '特に苦手単元（' + weakCategories.join('・') + '）を優先。' : '')
+        : 'この教科から10問。各単元について2〜3問ずつ連続で出題。';
 
-【採点基準を必ず含める（重要）】
-- answer には正解を書く
-- keywords には自己採点用のキーワードを配列で書く（部分点採点も可能に）
-- strict_match: trueなら一字一句一致が必要、falseなら部分一致でOK
-
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': AppData.settings.apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 3000,
+            system: `あなたは中学生のテスト対策の理解度診断問題を作成します。
+${perSubjectPrompt}
+中1レベル。実際に書けるかを確認する具体的な問題（穴埋め・計算・書き取り）。
 JSONのみ出力（コードブロック不要）：
-{"questions":[
-  {
-    "subject": "科目名",
-    "category": "単元名",
-    "question": "具体的な問題文",
-    "answer": "正解（完全版）",
-    "keywords": ["採点に必要なキーワード1", "キーワード2"],
-    "strict_match": false,
-    "type": "calc|memo|concept",
-    "timeLimit": 60
-  }
-]}`,
-        messages: [{
-          role: 'user',
-          content: 'テスト名：' + exam.name + '\n残り日数：' + daysLeft + '日\n\n' + subjectList
-        }]
-      })
-    });
+{"questions":[{"subject":"科目名","category":"単元名","question":"問題文","answer":"正解","keywords":["キーワード"],"strict_match":false,"type":"calc|memo|concept","timeLimit":60}]}`,
+            messages: [{
+              role: 'user',
+              content: 'テスト名：' + exam.name + '\n教科：' + s.subject + '\n範囲：' + s.range + (s.advice ? '\n先生のアドバイス：' + s.advice : '')
+            }]
+          })
+        });
 
-    const data = await res.json();
-    const text = data.content?.[0]?.text || '';
-    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.content?.[0]?.text || '';
+          const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+          allQuestions.push(...(parsed.questions || []));
+        }
+      } catch(subErr) {
+        console.warn(s.subject + 'の生成スキップ:', subErr);
+      }
+    }
 
+    const barEl2   = document.getElementById('diagProgressBar');
+    const statusEl2 = document.getElementById('diagStatusText');
+    if (barEl2)    barEl2.style.width = '100%';
+    if (statusEl2) statusEl2.textContent = '完了！';
+
+    await new Promise(r => setTimeout(r, 400));
     overlay.remove();
-    runDiagnosisSession(examId, exam, parsed.questions || [], mode);
+
+    if (allQuestions.length === 0) {
+      showToast('問題の生成に失敗しました。APIキーとネット接続を確認してください');
+      return;
+    }
+
+    runDiagnosisSession(examId, exam, allQuestions, mode);
 
   } catch(e) {
     overlay.remove();
     showToast('診断問題の生成に失敗しました');
+    console.error(e);
   }
 }
 
