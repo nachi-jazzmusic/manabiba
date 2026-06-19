@@ -12140,7 +12140,7 @@ function getAvailableDecks() {
   const cards = AppData.studyCards || [];
   const map = {};
   cards.forEach(c => {
-    const key = c.subject + '::' + c.deck;
+    const key = c.subject + '__' + c.deck;  // __ に統一（selectExamDecks・unit-checkと同形式）
     if (!map[key]) map[key] = { subject: c.subject, deck: c.deck, key, count: 0 };
     map[key].count++;
   });
@@ -16129,29 +16129,21 @@ function showBulkTestSetup() {
   document.getElementById('outputModalTitle').textContent = '🧠 暗記カード';
   const content = document.getElementById('outputContent');
 
-  // outputCards（暗記ネタ）とstudyCards（カード管理）を両方統合
-  // studyCards: question=入力時の左、answer=入力時の右
-  // 英語デッキは「日本語=英語」で登録するため、英語(answer)を表に出す
-  // それ以外は左（question）を問題として表に出す
-  const wordCards = [
-    ...(AppData.outputCards || []).filter(c => c.type === 'word').map(c => ({
-      ...c, _source: 'outputCards',
+  // studyCardsのみを使用（outputCardsは除外）
+  const wordCards = (AppData.studyCards || []).map(c => {
+    const isEnglish = (c.subject || '').includes('英');
+    return {
+      id: c.id, subject: c.subject, unit: c.deck,
+      front: isEnglish ? (c.answer || '') : (c.question || ''),
+      back:  isEnglish ? (c.question || '') : (c.answer || ''),
+      image:     isEnglish ? null : (c.image || null),
+      imageBack: c.imageBack || null,
+      lastResult: c.lastResult,
+      playCount:  c.playCount || 0,
+      type: 'word',
       _sortKey: c.id || ''
-    })),
-    ...(AppData.studyCards || []).map(c => {
-      const isEnglish = (c.subject || '').includes('英');
-      return {
-        id: c.id, subject: c.subject, unit: c.deck,
-        front: isEnglish ? (c.answer   || c.back  || '') : (c.question || c.front || ''),
-        back:  isEnglish ? (c.question || c.front || '') : (c.answer   || c.back  || ''),
-        image: isEnglish ? null : (c.image || null),  // 英語以外で画像を表に
-        lastResult: c.lastResult,
-        playCount:  c.playCount || 0,
-        type: 'word', _source: 'studyCards',
-        _sortKey: c.id || ''
-      };
-    })
-  ];
+    };
+  });
 
   // Unit一覧を取得（登録日新しい順）
   const units = {};
@@ -16429,17 +16421,19 @@ function selectExamDecks(examId) {
     return;
   }
 
+  // 旧形式（::）を新形式（__）に変換して統一
+  const examDeckKeys = exam.decks.map(k => k.replace('::', '__'));
+
   let checkedCount = 0;
   document.querySelectorAll('.unit-check').forEach(cb => {
     const key = `${cb.dataset.subject}__${cb.dataset.unit}`;
-    const isSelected = exam.decks.includes(key);
+    const isSelected = examDeckKeys.includes(key);
     cb.checked = isSelected;
-    // 行の見た目を変える
     const row = cb.closest('.deck-row');
     if (row) {
-      row.style.display = '';
-      row.style.background    = isSelected ? '#F0EEF9' : '#fff';
-      row.style.border        = isSelected ? '1.5px solid var(--purple)' : '1px solid var(--border)';
+      row.style.display    = '';
+      row.style.background = isSelected ? '#F0EEF9' : '#fff';
+      row.style.border     = isSelected ? '1.5px solid var(--purple)' : '1px solid var(--border)';
     }
     if (isSelected) checkedCount++;
   });
@@ -16451,10 +16445,10 @@ function selectExamDecks(examId) {
     btn.style.color      = isAll ? '#fff' : 'var(--ink2)';
   });
 
-  // テストセット選択中バッジを表示
+  // バッジ表示
   const badge = document.getElementById('examSetBadge');
   if (badge) {
-    badge.textContent = `📋 ${exam.name}（${checkedCount}デッキ選択中）`;
+    badge.textContent = `✓ ${exam.name}（${checkedCount}デッキ選択中）`;
     badge.style.display = 'block';
   }
 
