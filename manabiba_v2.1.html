@@ -16292,7 +16292,7 @@ function showBulkTestSetup() {
       const subjects = [...new Set(sortedUnits.map(u => u.subject))].sort();
       if (subjects.length <= 1) return '';
       const tabs = ['全部', ...subjects].map(s => `
-        <button onclick="filterBulkBySubject('${s}')" id="subjectTab_${s.replace(/[^a-zA-Z0-9]/g,'_')}"
+        <button onclick="filterBulkBySubject('${s.replace(/'/g,"\\'")}')" data-subject-tab="${s}"
                 style="padding:6px 12px;border-radius:16px;border:1px solid var(--border);
                        background:${s==='全部'?'var(--purple)':'#fff'};
                        color:${s==='全部'?'#fff':'var(--ink2)'};
@@ -16421,26 +16421,36 @@ function bulkFilterChange(cb) {
 // テストセットからデッキを自動選択
 function selectExamDecks(examId) {
   const exam = (AppData.examRanges||[]).find(e => e.id === examId);
-  if (!exam || !exam.decks || exam.decks.length === 0) return;
+  if (!exam || !exam.decks || exam.decks.length === 0) {
+    showToast('このテストにデッキが紐づいていません。テスト情報でデッキを登録してください');
+    return;
+  }
 
   // チェックボックスを全部外してから、対象デッキだけチェック
   document.querySelectorAll('.unit-check').forEach(cb => {
     const key = `${cb.dataset.subject}__${cb.dataset.unit}`;
     cb.checked = exam.decks.includes(key);
-    // フィルター非表示の行は表示に戻す
+    // フィルターで非表示になっていた行も表示に戻す
     const row = cb.closest('.deck-row');
     if (row) row.style.display = '';
   });
 
+  // 全部タブをアクティブに戻す
+  document.querySelectorAll('[data-subject-tab]').forEach(btn => {
+    const isAll = btn.dataset.subjectTab === '全部';
+    btn.style.background = isAll ? 'var(--purple)' : '#fff';
+    btn.style.color      = isAll ? '#fff' : 'var(--ink2)';
+  });
+
   saveBulkSelection();
   updateBulkTestCount();
-  showToast(`✓ 「${exam.name}」のデッキを選択しました`);
+  showToast(`✓ 「${exam.name}」のデッキを選択しました（${exam.decks.length}デッキ）`);
 }
 
 function filterBulkBySubject(subject) {
-  // タブのスタイル更新
-  document.querySelectorAll('[id^="subjectTab_"]').forEach(btn => {
-    const isActive = btn.id === `subjectTab_${subject.replace(/[^a-zA-Z0-9]/g,'_')}`;
+  // タブのスタイル更新（data属性で管理）
+  document.querySelectorAll('[data-subject-tab]').forEach(btn => {
+    const isActive = btn.dataset.subjectTab === subject;
     btn.style.background = isActive ? 'var(--purple)' : '#fff';
     btn.style.color      = isActive ? '#fff' : 'var(--ink2)';
   });
@@ -16478,26 +16488,25 @@ function getSelectedBulkCards() {
   checks.forEach(c => selectedKeys.add(`${c.dataset.subject}__${c.dataset.unit}`));
 
   const filterWeak = document.getElementById('filterWeak')?.checked;
-  const allCards = window._allBulkCards || [
-    ...(AppData.outputCards || []).filter(c => c.type === 'word'),
-    ...(AppData.studyCards || []).map(c => {
-      const isEnglish = (c.subject || '').includes('英');
-      return {
-        id: c.id, subject: c.subject, unit: c.deck,
-        front: isEnglish ? (c.answer   || c.back  || '') : (c.question || c.front || ''),
-        back:  isEnglish ? (c.question || c.front || '') : (c.answer   || c.back  || ''),
-        lastResult: c.lastResult, type: 'word'
-      };
-    })
-  ];
+
+  // _allBulkCardsがあればそれを使う（showBulkTestSetupで生成済み）
+  // なければstudyCardsから生成（outputCardsは除外）
+  const allCards = window._allBulkCards || (AppData.studyCards || []).map(c => {
+    const isEnglish = (c.subject || '').includes('英');
+    return {
+      id: c.id, subject: c.subject, unit: c.deck,
+      front: isEnglish ? (c.answer || '') : (c.question || ''),
+      back:  isEnglish ? (c.question || '') : (c.answer || ''),
+      image:      isEnglish ? null : (c.image || null),
+      imageBack:  c.imageBack || null,
+      lastResult: c.lastResult, type: 'word'
+    };
+  });
 
   return allCards.filter(c => {
     const key = `${c.subject}__${c.unit}`;
     if (!selectedKeys.has(key)) return false;
-    if (filterWeak) {
-      // ×だけ（間違えたものだけ集中、未練習・正解は除外）
-      return c.lastResult === '×';
-    }
+    if (filterWeak) return c.lastResult === '×';
     return true;
   });
 }
