@@ -16302,8 +16302,13 @@ function showBulkTestSetup() {
 
     <!-- デッキ選択 -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div style="font-size:12px;font-weight:700">デッキを選ぶ</div>
+      <div style="font-size:12px;font-weight:700">デッキを選ぶ　<span style="font-size:10px;color:var(--purple);font-weight:400">▶ デッキ名をクリックで単体練習</span></div>
       <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="uncheckAllDecks()"
+                style="font-size:10px;color:var(--red);border:1px solid var(--red);background:#fff;
+                       border-radius:8px;padding:3px 8px;cursor:pointer;font-family:var(--font)">
+          全解除
+        </button>
         <button onclick="localStorage.removeItem('manabiba_deck_order');showBulkTestSetup()"
                 style="font-size:10px;color:var(--ink3);border:none;background:none;cursor:pointer;text-decoration:underline">
           並び順をリセット
@@ -16330,16 +16335,18 @@ function showBulkTestSetup() {
 
         return `
         <div class="deck-row" draggable="true" data-key="${key}"
-             onclick="if(event.target.tagName!=='INPUT'){const cb=this.querySelector('.unit-check');cb.checked=!cb.checked;saveBulkSelection();updateBulkTestCount();}"
              style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;
-                    padding:10px 12px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer">
+                    padding:10px 12px;margin-bottom:8px;border:1px solid var(--border)">
           <span class="deck-drag-handle" style="cursor:grab;color:var(--ink3);font-size:18px;user-select:none;flex-shrink:0;padding:0 4px">≡</span>
           <input type="checkbox" class="unit-check"
                  data-subject="${u.subject}" data-unit="${u.unit}" ${checked?'checked':''}
-                 style="width:18px;height:18px;flex-shrink:0" onchange="saveBulkSelection();updateBulkTestCount()">
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:700">${u.subject}：${u.unit}
+                 style="width:18px;height:18px;flex-shrink:0;cursor:pointer" onchange="saveBulkSelection();updateBulkTestCount()">
+          <div style="flex:1;min-width:0;cursor:pointer"
+               onclick="startSingleDeck('${u.subject.replace(/'/g,"\\'").replace(/\\/g,'\\\\').replace(/"/g,'&quot;')}','${u.unit.replace(/'/g,"\\'").replace(/\\/g,'\\\\').replace(/"/g,'&quot;')}')"
+               title="クリックでこのデッキだけ練習">
+            <div style="font-size:13px;font-weight:700;color:var(--purple)">${u.subject}：${u.unit}
               ${isNew && !prevSelected ? '<span style="font-size:10px;background:var(--accent);color:#fff;padding:1px 6px;border-radius:8px;margin-left:6px">NEW</span>' : ''}
+              <span style="font-size:10px;color:var(--ink3);font-weight:400">▶ このデッキだけ練習</span>
             </div>
             <div style="font-size:11px;color:var(--ink3)">${u.count}枚</div>
           </div>
@@ -16454,6 +16461,39 @@ function selectExamDecks(examId) {
 
   saveBulkSelection();
   updateBulkTestCount();
+}
+
+// デッキ名クリックでそのデッキだけ即練習
+function startSingleDeck(subject, deck) {
+  const cards = (AppData.studyCards || [])
+    .filter(c => c.subject === subject && c.deck === deck)
+    .map(c => {
+      const isEnglish = (c.subject || '').includes('英');
+      return {
+        id: c.id, subject: c.subject, unit: c.deck,
+        front: isEnglish ? (c.answer || '') : (c.question || ''),
+        back:  isEnglish ? (c.question || '') : (c.answer || ''),
+        image:     isEnglish ? null : (c.image || null),
+        imageBack: c.imageBack || null,
+        lastResult: c.lastResult, type: 'word'
+      };
+    });
+  if (cards.length === 0) { showToast('カードがありません'); return; }
+  clearBulkPause();
+  _startFreshBulkTest(cards);
+}
+
+// 全チェックを外す
+function uncheckAllDecks() {
+  document.querySelectorAll('.unit-check').forEach(cb => {
+    cb.checked = false;
+    const row = cb.closest('.deck-row');
+    if (row) { row.style.background = '#fff'; row.style.border = '1px solid var(--border)'; }
+  });
+  saveBulkSelection();
+  updateBulkTestCount();
+  const badge = document.getElementById('examSetBadge');
+  if (badge) badge.style.display = 'none';
 }
 
 function filterBulkBySubject(subject) {
