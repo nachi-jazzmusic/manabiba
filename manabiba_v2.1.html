@@ -16528,6 +16528,12 @@ function startBulkTest() {
   if (paused && paused.cards && paused.cards.length > 0) {
     const savedAt = new Date(paused.savedAt);
     const timeStr = `${savedAt.getMonth()+1}/${savedAt.getDate()} ${savedAt.getHours()}:${String(savedAt.getMinutes()).padStart(2,'0')}`;
+
+    // 現在の選択と中断データの教科が一致するか確認
+    const pausedSubjects = [...new Set((paused.cards||[]).map(c => c.subject))].join('・');
+    const currentSubjects = [...new Set(cards.map(c => c.subject))].join('・');
+    const isSameSelection = pausedSubjects === currentSubjects;
+
     const overlay = document.createElement('div');
     overlay.id = 'bulkResumeOverlay';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
@@ -16535,24 +16541,30 @@ function startBulkTest() {
       <div style="background:var(--bg);border-radius:16px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 32px rgba(0,0,0,.3)">
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">📂 途中のデータがあります</div>
         <div style="font-size:12px;color:var(--ink3);margin-bottom:4px">${paused.cards.length}枚・${timeStr}に中断</div>
-        <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
-          <button id="bulkResume" class="btn btn-primary" style="padding:13px;font-size:14px">▶ 続きからやる</button>
-          <button id="bulkRestart" style="padding:12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-family:var(--font);font-size:13px;cursor:pointer;color:var(--ink2)">🔄 最初からやる</button>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">中断時：${pausedSubjects}</div>
+        <div style="font-size:11px;color:var(--teal);margin-bottom:12px">現在の選択：${currentSubjects}</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          ${isSameSelection ? `<button id="bulkResume" class="btn btn-primary" style="padding:13px;font-size:14px">▶ 続きからやる</button>` : ''}
+          <button id="bulkRestart" style="padding:12px;border-radius:10px;border:1.5px solid var(--accent);background:var(--accent);color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">🔄 今の選択で最初からやる（${currentSubjects}）</button>
+          <button id="bulkCancel" style="padding:10px;border-radius:10px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:12px;cursor:pointer;color:var(--ink3)">キャンセル</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
 
-    document.getElementById('bulkResume').onclick = () => {
-      overlay.remove();
-      bulkTest = { cards: paused.cards, phase: paused.phase, index: paused.index, results: paused.results, flipped: false };
-      clearBulkPause();
-      renderBulkTest();
-    };
+    if (isSameSelection) {
+      document.getElementById('bulkResume').onclick = () => {
+        overlay.remove();
+        bulkTest = { cards: paused.cards, phase: paused.phase, index: paused.index, results: paused.results, flipped: false };
+        clearBulkPause();
+        renderBulkTest();
+      };
+    }
     document.getElementById('bulkRestart').onclick = () => {
       overlay.remove();
       clearBulkPause();
       _startFreshBulkTest(cards);
     };
+    document.getElementById('bulkCancel').onclick = () => overlay.remove();
     return;
   }
 
