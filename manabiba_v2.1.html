@@ -12678,6 +12678,7 @@ function saveDeckWithImages() {
       answer:    p.answer,
       explanation: p.explanation || '',
       hint: p.explanation || '',
+      isRuleType: p.isRuleType || false, ruleKeys: p.ruleKeys || [],
       image:     p.image     || null,
       imageBack: p.imageBack || null,
       streak: 0, lastResult: null, nextDate: getTodayString()
@@ -12711,6 +12712,7 @@ function saveDeckText(subject, deck) {
       answer:   p.answer,
       explanation: p.explanation || '',
       hint: p.explanation || '',
+      isRuleType: p.isRuleType || false, ruleKeys: p.ruleKeys || [],
       image:     found?.image     || null,
       imageBack: found?.imageBack || null,
       streak: 0, lastResult: null, nextDate: getTodayString()
@@ -13220,6 +13222,7 @@ function saveBulkCards() {
       type: p.type || 'memo', subject, deck,
       question: p.question, answer: p.answer,
       explanation: p.explanation || '', hint: '',
+      isRuleType: p.isRuleType || false, ruleKeys: p.ruleKeys || [],
       streak: 0, lastResult: null, nextDate: getTodayString()
     });
   });
@@ -13385,22 +13388,28 @@ function renderStudyCard() {
         ${c.hint ? '<div style="font-size:12px;color:var(--teal);border-top:1px solid var(--border);padding-top:8px">💡 ' + c.hint + '</div>' : ''}
       </div>
 
-      ${c.type === 'drill' ? '<button onclick="showSimilarProblem(\'' + c.id + '\')" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--teal);background:#fff;color:var(--teal);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px">🔀 類似問題を出してもらう</button>' : ''}
+      ${(c.type === 'drill' && !c.isRuleType) ? '<button onclick="showSimilarProblem(\'' + c.id + '\')" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--teal);background:#fff;color:var(--teal);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px">🔀 類似問題を出してもらう</button>' : ''}
 
-      <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:10px">どうだった？</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button onclick="saveStudyCardResult('${c.id}','perfect')"
-                style="padding:12px;background:#4A9B5F;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
-          ✅ 完璧に答えられた
-        </button>
-        <button onclick="saveStudyCardResult('${c.id}','hint')"
-                style="padding:12px;background:#C8922A;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
-          💡 見たらわかった
-        </button>
-        <button onclick="saveStudyCardResult('${c.id}','wrong')"
-                style="padding:12px;background:#D94F3D;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
-          ❌ わからなかった
-        </button>
+      <!-- ルール型：なぜ？ステップ（答え確認直後に表示） -->
+      <div id="sc_why_area" style="display:none"></div>
+
+      <!-- 自己評価（ルール型はなぜ？が済んでから表示、非ルール型は即表示） -->
+      <div id="sc_selfeval_area" style="display:${c.isRuleType ? 'none' : 'block'}">
+        <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:10px">どうだった？</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button onclick="saveStudyCardResult('${c.id}','perfect')"
+                  style="padding:12px;background:#4A9B5F;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+            ✅ 完璧に答えられた
+          </button>
+          <button onclick="saveStudyCardResult('${c.id}','hint')"
+                  style="padding:12px;background:#C8922A;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+            💡 見たらわかった
+          </button>
+          <button onclick="saveStudyCardResult('${c.id}','wrong')"
+                  style="padding:12px;background:#D94F3D;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+            ❌ わからなかった
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -13409,6 +13418,12 @@ function renderStudyCard() {
 function showStudyCardAnswer() {
   document.getElementById('sc_answer_area').style.display = 'block';
   document.querySelector('#outputContent button.btn-secondary')?.remove();
+  // ルール型カードなら「なぜ？」ステップを起動
+  const s = window.scSession;
+  if (s && s.cards && s.cards[s.index]) {
+    const c = s.cards[s.index];
+    if (c.isRuleType) showWhyStep(c.id);
+  }
 }
 
 function saveStudyCardResult(cardId, result) {
@@ -13428,6 +13443,160 @@ function saveStudyCardResult(cardId, result) {
   }
   window.scSession.index++;
   renderStudyCard();
+}
+
+// ═══════════════════════════════════════
+// ルール型カードの「なぜ？」フロー
+// ═══════════════════════════════════════
+
+// カードのruleKeysに対応するルールを集める
+function getRulesForCard(card) {
+  if (!card || !card.isRuleType) return [];
+  const keys = card.ruleKeys || [];
+  if (keys.length === 0) return [];
+  return (AppData.rules || []).filter(r => keys.includes(r.key));
+}
+
+// ルール型カードで「答えを確認」した後に呼ぶ：なぜ？の入力欄を出す
+function showWhyStep(cardId) {
+  const card = (AppData.studyCards||[]).find(c => c.id === cardId);
+  if (!card) return;
+  const rules = getRulesForCard(card);
+  // 英語のbe動詞/一般動詞が絡む場合は見分けの問いを先に出す
+  const needDistinction = (card.ruleKeys||[]).some(k => ['否定文','疑問文','be動詞','一般動詞'].includes(k))
+    && card.subject === '英語';
+
+  const area = document.getElementById('sc_why_area');
+  if (!area) return;
+  area.style.display = 'block';
+  area.innerHTML = `
+    <div style="background:#F5F0FA;border:1px solid var(--purple);border-radius:12px;padding:16px;margin-top:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--purple);margin-bottom:8px">🤔 ポメからの質問</div>
+      ${needDistinction ? `
+      <div style="font-size:13px;color:var(--ink2);margin-bottom:6px;line-height:1.7">
+        この文は「<b>is / am / are がある文</b>」かな？<br>それとも「<b>動作のことば（like, play など）がある文</b>」かな？<br>
+        …それをふまえて、<b>どうしてこの答えになるのか</b>、自分のことばで説明してみて🐾
+      </div>` : `
+      <div style="font-size:13px;color:var(--ink2);margin-bottom:6px;line-height:1.7">
+        どうしてこの答えになるのかな？ どんなルールを使った？ 自分のことばで説明してみて🐾
+      </div>`}
+      <textarea id="sc_why_input" placeholder="ここに説明を書いてね"
+        style="width:100%;min-height:70px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;resize:vertical;margin-top:6px"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="judgeWhy('${cardId}')" class="btn btn-primary" style="flex:1;padding:11px;font-size:13px">説明できた！</button>
+        <button onclick="giveUpWhy('${cardId}')" style="padding:11px 14px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:13px;color:var(--ink2);cursor:pointer">わからない</button>
+      </div>
+      <div id="sc_why_result" style="margin-top:10px"></div>
+    </div>`;
+}
+
+// 「わからない」→ ルールを優しく提示（引き延ばさない）
+function giveUpWhy(cardId) {
+  const card = (AppData.studyCards||[]).find(c => c.id === cardId);
+  const rules = getRulesForCard(card);
+  const resultDiv = document.getElementById('sc_why_result');
+  if (!resultDiv) return;
+  const ruleText = rules.length > 0
+    ? rules.map(r => `・${r.rule}`).join('<br>')
+    : '（この問題のルールがまだ登録されていないよ）';
+  resultDiv.innerHTML = `
+    <div style="background:#FFF6EC;border:1px solid var(--accent);border-radius:10px;padding:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:6px">🐾 だいじょうぶ、いっしょに覚えよう</div>
+      <div style="font-size:13px;line-height:1.8">${ruleText}</div>
+      <div style="font-size:12px;color:var(--ink3);margin-top:8px">このコツを使うと、次からできるようになるよ！</div>
+    </div>`;
+  recordRuleMastery(cardId, '🔴');
+  revealSelfEval(cardId);
+}
+
+// 「説明できた」→ 判定API（ルール照合）
+async function judgeWhy(cardId) {
+  const card = (AppData.studyCards||[]).find(c => c.id === cardId);
+  const input = document.getElementById('sc_why_input')?.value?.trim() || '';
+  const resultDiv = document.getElementById('sc_why_result');
+  if (!input) { if(resultDiv){resultDiv.innerHTML='<div style="font-size:12px;color:var(--red)">説明を書いてね</div>';} return; }
+  if (!AppData.settings?.apiKey) { showToast('設定画面でAPIキーを入力してください'); revealSelfEval(cardId); return; }
+
+  const rules = getRulesForCard(card);
+  const ruleBlock = rules.length > 0
+    ? rules.map(r => `・${r.rule}${r.trigger?`（見分け方：${r.trigger}）`:''}`).join('\n')
+    : '（ルール未登録。問題文と答えから妥当性を判断してください）';
+
+  if(resultDiv){ resultDiv.innerHTML = '<div style="font-size:12px;color:var(--ink3)">🐾 ポメが考えているよ…</div>'; }
+
+  const sys = `あなたは中学1年生「香凜」の学習を支えるAI「ポメ」です。やさしく、責めず、語尾に時々🐾を添えます。
+香凜が問題の答えについて「なぜそうなるか」を説明しました。それが下記の模範ルールの要点を捉えているか判定してください。
+- 言葉が違っても意味が合っていれば正解とみなす
+- 一部だけ合っている場合は、足りない部分だけを模範ルールを参考にやさしく補う
+- 責める言葉は使わない。「おしいね」「あと一歩」から入る
+- 模範ルールの文をそのまま貼らず、香凜に届く言葉に噛み砕く
+JSONのみ出力（コードブロック不要）：
+{"level":"🟢または🟡または🔴","comment":"香凜への一言（2〜3文、やさしく）"}
+- 🟢=要点を説明できている / 🟡=一部合っているが要点が欠ける / 🔴=説明が的外れ`;
+
+  const usr = `【問題】${card.question}
+【答え】${card.answer}
+【模範ルール】
+${ruleBlock}
+【香凜の説明】${input}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 400,
+        system: sys,
+        messages: [{ role:'user', content: usr }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    const level = parsed.level || '🟡';
+    const comment = parsed.comment || '';
+
+    const color = level==='🟢' ? 'var(--green)' : level==='🟡' ? '#C8922A' : 'var(--red)';
+    const bg    = level==='🟢' ? '#EEF7F0' : level==='🟡' ? '#FFF9E6' : '#FEF2F0';
+    if(resultDiv){
+      resultDiv.innerHTML = `
+        <div style="background:${bg};border:1px solid ${color};border-radius:10px;padding:12px">
+          <div style="font-size:16px;margin-bottom:4px">${level}</div>
+          <div style="font-size:13px;line-height:1.8;color:var(--ink2)">${comment}</div>
+          ${level==='🟢' ? `<button onclick="showSimilarProblem('${cardId}')" style="width:100%;margin-top:10px;padding:10px;border-radius:10px;border:1px solid var(--teal);background:#fff;color:var(--teal);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">🔀 にた問題で確かめる</button>` : ''}
+        </div>`;
+    }
+    recordRuleMastery(cardId, level);
+    revealSelfEval(cardId);
+  } catch(e) {
+    if(resultDiv){ resultDiv.innerHTML = '<div style="font-size:12px;color:var(--red)">はんていに失敗しました。もう一度ためしてね</div>'; }
+    revealSelfEval(cardId);
+  }
+}
+
+// ルール型の習熟度を記録（🟢が別日に2回で🟢🟢=定着）
+function recordRuleMastery(cardId, level) {
+  if (!AppData.ruleMastery) AppData.ruleMastery = {};
+  const today = getTodayString();
+  const prev = AppData.ruleMastery[cardId] || { level:'🔴', history:[], greenDays:[] };
+  prev.history = prev.history || [];
+  prev.greenDays = prev.greenDays || [];
+  prev.history.push({ date: today, level });
+  if (level === '🟢' && !prev.greenDays.includes(today)) {
+    prev.greenDays.push(today);
+  }
+  // 別日に2回以上🟢 → 定着🟢🟢
+  prev.level = (prev.greenDays.length >= 2) ? '🟢🟢' : level;
+  prev.updated = today;
+  AppData.ruleMastery[cardId] = prev;
+  saveData();
+}
+
+// 自己評価ボタンを表示（なぜ？が済んでから出す）
+function revealSelfEval(cardId) {
+  const el = document.getElementById('sc_selfeval_area');
+  if (el) el.style.display = 'block';
 }
 
 async function showSimilarProblem(cardId) {
