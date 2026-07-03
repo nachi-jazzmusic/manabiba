@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.71</div>
+  <div class="sb-version">v2.80</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -1629,6 +1629,8 @@ let AppData = {
   dailyPlans: {},
   weeklyReviews: {},
   weekendQuizzes: {},
+  rules: [], // ルールマスタ [{id, key, rule, trigger, subject}]
+  ruleMastery: {}, // ルール型カードの習熟度 { cardId: {level:'🔴/🟡/🟢/🟢🟢', updated, history:[]} }
   jukuHomework: {}, // 塾の宿題を管理
   learningHistory: [], // 学習履歴（忘却曲線用）
   quizResults: {}, // 問題の結果
@@ -1950,6 +1952,27 @@ function loadData() {
   }
   // 分離保存された画像を復元
   loadDataWithImages();
+  // 旧データのマイグレーション
+  migrateCardData();
+}
+
+// 既存カードデータの移行（type:'problem'→'drill'、explanation欄の確保）
+function migrateCardData() {
+  // ルールマスタ・ルール習熟度の器を保証（既存データにない場合の後方互換）
+  if (!AppData.rules) AppData.rules = [];
+  if (!AppData.ruleMastery) AppData.ruleMastery = {};
+  if (!AppData.studyCards) return;
+  let migrated = false;
+  AppData.studyCards.forEach(c => {
+    if (c.type === 'problem') { c.type = 'drill'; migrated = true; }
+    if (c.explanation === undefined) { c.explanation = ''; migrated = true; }
+    // ルール型フィールドの後方互換（旧カードは非ルール型扱い）
+    if (c.isRuleType === undefined) { c.isRuleType = false; migrated = true; }
+    if (c.ruleKeys === undefined) { c.ruleKeys = []; migrated = true; }
+  });
+  if (migrated) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(AppData)); } catch(e) {}
+  }
 }
 
 function saveData() {
@@ -12481,8 +12504,13 @@ function editDeckAsText(subject, deck) {
   const content = document.getElementById('parentContent');
   const cards = (AppData.studyCards || []).filter(c => c.subject === subject && c.deck === deck);
 
-  // 現在のカードを「表＝裏」形式でテキスト化
-  const currentText = cards.map(c => `${c.question}＝${c.answer}`).join('\n');
+  // デッキのタイプを判定（drillが1枚でもあればドリル形式でテキスト化）
+  const isDrillDeck = cards.some(c => c.type === 'drill');
+
+  const currentText = isDrillDeck
+    ? cards.map(c => `---\n問題：${c.question}\n答え：${c.answer}${c.explanation ? '\n解説：' + c.explanation : ''}`).join('\n') + '\n---'
+    : cards.map(c => `${c.question}＝${c.answer}`).join('\n');
+
   const safeSubject = subject.replace(/'/g, "\\'");
   const safeDeck    = deck.replace(/'/g, "\\'");
 
@@ -12492,7 +12520,9 @@ function editDeckAsText(subject, deck) {
 
     <div style="font-size:14px;font-weight:700;margin-bottom:6px">${subject}：${deck}</div>
     <div style="font-size:11px;color:var(--ink3);margin-bottom:4px;line-height:1.6">
-      ・1行に1枚「表＝裏」の形式で入力<br>
+      ${isDrillDeck
+        ? '・ドリル問題形式：「---」で区切り「問題：」「答え：」「解説：」で記入'
+        : '・暗記カード形式：1行に1枚「表＝裏」'}<br>
       ・テキスト入力後に各カードへ画像を貼り付けできます
     </div>
 
@@ -12523,21 +12553,14 @@ function editDeckAsText(subject, deck) {
 // STEP2: 各カードに画像を貼り付ける画面
 function previewDeckForImages(subject, deck) {
   const text = document.getElementById('deck_edit_text')?.value || '';
-  const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
+  const parsed = parseBulkText(text);
+  const newCards = parsed.map(p => ({
+    question: p.question, answer: p.answer,
+    explanation: p.explanation || '', type: p.type || 'memo',
+    image: null, imageBack: null
+  }));
 
-  const newCards = [];
-  const errors = [];
-  lines.forEach((line, i) => {
-    const match = line.match(/^(.+?)[=＝](.+)$/);
-    if (match) {
-      newCards.push({ question: match[1].trim(), answer: match[2].trim(), image: null, imageBack: null });
-    } else if (line) {
-      errors.push(`${i+1}行目：「${line.slice(0,20)}」（＝がない）`);
-    }
-  });
-
-  if (errors.length > 0 && !confirm(`以下の行は無視されます：\n${errors.join('\n')}\n\n続けますか？`)) return;
-  if (newCards.length === 0) { showToast('カードが1枚もありません'); return; }
+  if (newCards.length === 0) { showToast('カードが1枚もありません。入力形式を確認してください'); return; }
 
   // 既存カードの画像を引き継ぐ
   const existing = (AppData.studyCards||[]).filter(c => c.subject===subject && c.deck===deck);
@@ -12650,9 +12673,11 @@ function saveDeckWithImages() {
   cards.forEach((p, i) => {
     AppData.studyCards.push({
       id: `sc_${baseId}_${i}`,
-      type: 'memo', subject, deck,
+      type: p.type || 'memo', subject, deck,
       question:  p.question,
       answer:    p.answer,
+      explanation: p.explanation || '',
+      hint: p.explanation || '',
       image:     p.image     || null,
       imageBack: p.imageBack || null,
       streak: 0, lastResult: null, nextDate: getTodayString()
@@ -12668,23 +12693,9 @@ function saveDeckWithImages() {
 // テキスト編集の内容を保存（画像なし）
 function saveDeckText(subject, deck) {
   const text = document.getElementById('deck_edit_text')?.value || '';
-  const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
+  const newCards = parseBulkText(text);
 
-  const newCards = [];
-  const errors = [];
-  lines.forEach((line, i) => {
-    const match = line.match(/^(.+?)[=＝](.+)$/);
-    if (match) {
-      newCards.push({ question: match[1].trim(), answer: match[2].trim() });
-    } else {
-      errors.push(`${i+1}行目：「${line}」（＝がない）`);
-    }
-  });
-
-  if (errors.length > 0) {
-    if (!confirm(`以下の行は無視されます：\n${errors.join('\n')}\n\n続けて保存しますか？`)) return;
-  }
-  if (newCards.length === 0) { showToast('カードが1枚もありません'); return; }
+  if (newCards.length === 0) { showToast('カードが1枚もありません。入力形式を確認してください'); return; }
 
   // 既存カードの画像を引き継ぐ
   const existing = (AppData.studyCards||[]).filter(c => c.subject===subject && c.deck===deck);
@@ -12695,9 +12706,11 @@ function saveDeckText(subject, deck) {
     const found = existing.find(e => e.question === p.question);
     AppData.studyCards.push({
       id: `sc_${baseId}_${i}`,
-      type: 'memo', subject, deck,
+      type: p.type || 'memo', subject, deck,
       question: p.question,
       answer:   p.answer,
+      explanation: p.explanation || '',
+      hint: p.explanation || '',
       image:     found?.image     || null,
       imageBack: found?.imageBack || null,
       streak: 0, lastResult: null, nextDate: getTodayString()
@@ -12839,10 +12852,10 @@ function showAddStudyCard(prefSubject, prefDeck) {
     <!-- まとめて登録エリア -->
     <div id="sc_bulk_area">
       <div class="input-group">
-        <label class="input-label">単語リストを貼り付け</label>
-        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px">
-          「表＝裏」の形式で<strong>1行に1枚ずつ</strong>。<br>
-          長い問題文（読点や記号を含む）もそのまま貼り付けOK
+        <label class="input-label">単語リスト・ドリル問題を貼り付け</label>
+        <div style="font-size:11px;color:var(--ink3);margin-bottom:6px;line-height:1.7">
+          <strong>暗記もの（双方向）：</strong> 「表＝裏」を1行に1枚<br>
+          <strong>ドリル問題（一方向・解説OK）：</strong> 下記の「問題：」形式
         </div>
 
         <!-- ドリル写真から自動生成 -->
@@ -12869,11 +12882,20 @@ function showAddStudyCard(prefSubject, prefDeck) {
           </div>
         </div>
 
-        <textarea class="input-field" id="sc_bulk_text" rows="8"
-                  placeholder="例：
+        <textarea class="input-field" id="sc_bulk_text" rows="10"
+                  placeholder="【暗記もの】1行1枚
 家族＝family
 祖父＝grandfather
-「カマキリりゅうじ」さんの様子は？＝④元気いっぱい"
+
+【ドリル問題】---で区切る
+---
+問題：1+1を計算しなさい
+答え：2
+解説：1個と1個を足すと2個になる
+---
+問題：次の英文を訳しなさい I am a student.
+答え：私は学生です
+---"
                   style="resize:vertical;font-size:13px;line-height:1.8"></textarea>
       </div>
       <div id="sc_bulk_preview" style="margin-bottom:12px"></div>
@@ -12897,9 +12919,9 @@ function showAddStudyCard(prefSubject, prefDeck) {
                   class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">
             🧠 暗記カード<br><span style="font-size:10px;font-weight:400">用語・単語・年号など</span>
           </button>
-          <button id="sc_type_problem" onclick="selectCardType('problem')"
+          <button id="sc_type_drill" onclick="selectCardType('drill')"
                   class="btn btn-secondary" style="flex:1;padding:10px;font-size:13px">
-            📐 問題カード<br><span style="font-size:10px;font-weight:400">計算・文章題など</span>
+            📐 ドリル問題<br><span style="font-size:10px;font-weight:400">問題→答え（一方向）</span>
           </button>
         </div>
       </div>
@@ -12973,10 +12995,11 @@ function showAddStudyCard(prefSubject, prefDeck) {
                   placeholder="答えや意味を書く"
                   style="resize:none;font-size:14px"></textarea>
       </div>
-      <div class="input-group">
-        <label class="input-label">ヒント・解説（任意）</label>
-        <input type="text" class="input-field" id="sc_hint"
-               placeholder="例：「こうえん」と読む同音異義語">
+      <div class="input-group" id="sc_explanation_wrap" style="display:none">
+        <label class="input-label">解説（任意）</label>
+        <textarea class="input-field" id="sc_hint" rows="2"
+               placeholder="例：1個と1個を足すと2個になる。複数行OK"
+               style="resize:vertical;font-size:13px"></textarea>
       </div>
       <button onclick="saveStudyCard()" class="btn btn-primary"
               style="width:100%;padding:14px;font-size:14px">
@@ -13091,17 +13114,65 @@ async function generateCardsFromDrillImage(base64Image) {
   }
 }
 
+// 新フォーマット（---区切り、問題：答え：解説：ラベル）かどうか判定してパース
+function parseDrillFormat(text) {
+  // "---" で囲われたブロックがあるか、または "問題：" ラベルがあるかで判定
+  if (!/問題[:：]/.test(text)) return null;
+
+  const blocks = text.split(/^---+$/m).map(s => s.trim()).filter(Boolean);
+  const cards = [];
+
+  blocks.forEach(block => {
+    // ルール型タグとkeyを先に抽出して本文から除去する。
+    // 対応形式（いずれも可）:
+    //   ・末尾に独立行:  ルール型｜key:否定文,一般動詞
+    //   ・答え行の末尾:  答え：〜｜ルール型｜key:否定文
+    //   ・key省略:       ルール型   （キーは後で単元から補完する想定）
+    let isRuleType = false;
+    let ruleKeys = [];
+    let work = block;
+    // 「ルール型」以降、行末まで（keyやtriggerを含む）を丸ごと捕捉して除去
+    const ruleTagRe = /[|｜]?\s*ルール型[^\n]*/;
+    const rm = work.match(ruleTagRe);
+    if (rm) {
+      isRuleType = true;
+      const keyMatch = rm[0].match(/key\s*[:：]\s*([^|｜\n]+)/);
+      if (keyMatch) {
+        ruleKeys = keyMatch[1].split(/[,、，]/).map(s => s.trim()).filter(Boolean);
+      }
+      work = work.replace(ruleTagRe, '').trim();
+    }
+
+    const qMatch = work.match(/問題[:：]\s*([\s\S]*?)(?=\n答え[:：]|\n解説[:：]|$)/);
+    const aMatch = work.match(/答え[:：]\s*([\s\S]*?)(?=\n解説[:：]|$)/);
+    const eMatch = work.match(/解説[:：]\s*([\s\S]*?)$/);
+
+    const question    = qMatch ? qMatch[1].trim() : '';
+    const answer      = aMatch ? aMatch[1].trim() : '';
+    const explanation = eMatch ? eMatch[1].trim() : '';
+
+    if (question && answer) {
+      cards.push({ question, answer, explanation, type: 'drill', isRuleType, ruleKeys });
+    }
+  });
+
+  return cards.length > 0 ? cards : null;
+}
+
 function parseBulkText(text) {
-  // 改行のみで区切る（「、」「,」は問題文の一部として扱う）
+  // まず新フォーマット（問題：答え：解説：）を試す
+  const drillCards = parseDrillFormat(text);
+  if (drillCards) return drillCards;
+
+  // 従来フォーマット（表＝裏、1行1枚）
   const pairs = [];
   const items = text.split(/\n/).map(s => s.trim()).filter(Boolean);
   items.forEach(item => {
-    // 全角＝または半角=で分割（最初の=で分割）
     const match = item.match(/^(.+?)[=＝](.+)$/);
     if (match) {
       const front = match[1].trim();
       const back  = match[2].trim();
-      if (front && back) pairs.push({ question: front, answer: back });
+      if (front && back) pairs.push({ question: front, answer: back, type: 'memo' });
     }
   });
   return pairs;
@@ -13114,15 +13185,20 @@ function previewBulkCards() {
   if (!preview) return;
 
   if (pairs.length === 0) {
-    preview.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px">形式が認識できません。「日本語＝英語」の形式で入力してください</div>';
+    preview.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px">形式が認識できません。「表＝裏」または「問題：〜　答え：〜」の形式で入力してください</div>';
     return;
   }
 
+  const isDrill = pairs[0]?.type === 'drill';
   preview.innerHTML = `
     <div style="background:var(--bg2);border-radius:10px;padding:12px;font-size:12px">
-      <div style="font-weight:700;margin-bottom:8px;color:var(--teal)">✓ ${pairs.length}枚を認識しました</div>
-      <div style="max-height:120px;overflow-y:auto">
-        ${pairs.map(p => '<div style="display:flex;gap:8px;padding:3px 0;border-bottom:1px solid var(--border)"><span style="flex:1;color:var(--ink)">' + p.question + '</span><span style="color:var(--ink3)">→</span><span style="flex:1;color:var(--ink2)">' + p.answer + '</span></div>').join('')}
+      <div style="font-weight:700;margin-bottom:8px;color:var(--teal)">✓ ${pairs.length}枚を認識しました${isDrill ? '（ドリル問題形式）' : '（暗記カード形式）'}</div>
+      <div style="max-height:160px;overflow-y:auto">
+        ${pairs.map(p => `<div style="padding:6px 0;border-bottom:1px solid var(--border)">
+          <div style="color:var(--ink)">${p.question}</div>
+          <div style="color:var(--ink3);font-size:11px">→ ${p.answer}</div>
+          ${p.explanation ? `<div style="color:var(--teal);font-size:10px;margin-top:2px">💡 ${p.explanation.slice(0,50)}${p.explanation.length>50?'…':''}</div>` : ''}
+        </div>`).join('')}
       </div>
     </div>`;
 }
@@ -13141,8 +13217,9 @@ function saveBulkCards() {
   pairs.forEach(p => {
     AppData.studyCards.push({
       id: 'sc_' + Date.now() + '_' + Math.random().toString(36).slice(2),
-      type: 'memo', subject, deck,
-      question: p.question, answer: p.answer, hint: '',
+      type: p.type || 'memo', subject, deck,
+      question: p.question, answer: p.answer,
+      explanation: p.explanation || '', hint: '',
       streak: 0, lastResult: null, nextDate: getTodayString()
     });
   });
@@ -13153,22 +13230,25 @@ function saveBulkCards() {
 }
 function selectCardType(type) {
   window._scType = type;
-  const memo    = document.getElementById('sc_type_memo');
-  const problem = document.getElementById('sc_type_problem');
+  const memo  = document.getElementById('sc_type_memo');
+  const drill = document.getElementById('sc_type_drill');
+  const explWrap = document.getElementById('sc_explanation_wrap');
   if (type === 'memo') {
-    memo.className    = 'btn btn-primary';
-    problem.className = 'btn btn-secondary';
+    memo.className  = 'btn btn-primary';
+    drill.className = 'btn btn-secondary';
     document.getElementById('sc_q_label').textContent = '表（覚えたいこと）';
     document.getElementById('sc_a_label').textContent = '裏（意味・答え）';
     document.getElementById('sc_question').placeholder = '例：光合成';
     document.getElementById('sc_answer').placeholder   = '例：植物が光でデンプンを作る働き';
+    if (explWrap) explWrap.style.display = 'none';
   } else {
-    memo.className    = 'btn btn-secondary';
-    problem.className = 'btn btn-primary';
+    memo.className  = 'btn btn-secondary';
+    drill.className = 'btn btn-primary';
     document.getElementById('sc_q_label').textContent = '問題文';
     document.getElementById('sc_a_label').textContent = '答え';
     document.getElementById('sc_question').placeholder = '例：分速80mで歩くと1秒に何m進む？';
     document.getElementById('sc_answer').placeholder   = '例：1と1/3m（80÷60=4/3）';
+    if (explWrap) explWrap.style.display = 'block';
   }
 }
 
@@ -13203,6 +13283,7 @@ function saveStudyCard() {
   AppData.studyCards.push({
     id: 'sc_' + Date.now(),
     type, subject, deck, question, answer, hint,
+    explanation: hint,  // type=drillの場合の解説欄として使用
     image:     imageFront || null,
     imageBack: imageBack  || null,
     streak: 0, lastResult: null, nextDate: getTodayString()
@@ -13304,7 +13385,7 @@ function renderStudyCard() {
         ${c.hint ? '<div style="font-size:12px;color:var(--teal);border-top:1px solid var(--border);padding-top:8px">💡 ' + c.hint + '</div>' : ''}
       </div>
 
-      ${c.type === 'problem' ? '<button onclick="showSimilarProblem(\'' + c.id + '\')" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--teal);background:#fff;color:var(--teal);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px">🔀 類似問題を出してもらう</button>' : ''}
+      ${c.type === 'drill' ? '<button onclick="showSimilarProblem(\'' + c.id + '\')" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--teal);background:#fff;color:var(--teal);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer;margin-bottom:12px">🔀 類似問題を出してもらう</button>' : ''}
 
       <div style="font-size:13px;font-weight:700;text-align:center;margin-bottom:10px">どうだった？</div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -13365,7 +13446,7 @@ async function showSimilarProblem(cardId) {
         model: 'claude-sonnet-4-6',
         max_tokens: 500,
         system: '中学1年生向けの類似問題を1問だけ作ってください。JSONのみ出力（コードブロック不要）。\n{"question":"問題文","answer":"答え（計算過程も）","hint":"解説1文"}',
-        messages: [{ role: 'user', content: `以下の問題と同じ単元の類似問題を1問作ってください。\n\n元の問題：${card.question}\n答え：${card.answer}\n科目：${card.subject}` }]
+        messages: [{ role: 'user', content: `以下の問題と同じ単元の類似問題を1問作ってください。\n\n元の問題：${card.question}\n答え：${card.answer}${card.explanation ? '\n解説：' + card.explanation : ''}\n科目：${card.subject}` }]
       })
     });
     const data = await res.json();
@@ -14172,6 +14253,151 @@ function renderTestPrepSession(item, questions) {
     itemDate: item.testDate
   };
   renderQAQuestion();
+}
+
+// ═══════════════════════════════════════
+// ルールマスタ機能（「なぜ？」判定の基準）
+// AppData.rules = [{ id, key, rule, trigger, subject }]
+// ═══════════════════════════════════════
+
+// ルールのキー一覧（生成AIプロンプトと共通。ドリルのkeyはこの中から選ぶ）
+const RULE_KEYS = {
+  '数学（単元）': [
+    '正負の数（加減）','正負の数（乗除）','絶対値・数の大小','文字式の表し方',
+    '式の値（代入）','文字式の計算','関係を表す式','方程式の解き方','比・比例式',
+    '方程式の利用（文章題）','比例','反比例','座標・グラフ','作図','円とおうぎ形',
+    '立体の構成','体積・表面積','ヒストグラム・相対度数','確率'
+  ],
+  '数学（横断）': ['割合','符号処理'],
+  '英語（文法）': [
+    '語順','be動詞','一般動詞','否定文','疑問文','疑問詞','命令文',
+    'How many・What time','三人称単数現在','名詞・複数形','代名詞',
+    '現在進行形','want to・look＋形容詞','一般動詞の過去形',
+    'be動詞の過去形・過去進行形','前置詞'
+  ]
+};
+
+function showRuleList() {
+  document.getElementById('parentModalTitle').textContent = '📏 ルールを登録する';
+  const content = document.getElementById('parentContent');
+  const rules = AppData.rules || [];
+
+  // key別にグループ化
+  const byKey = {};
+  rules.forEach(r => { (byKey[r.key] = byKey[r.key] || []).push(r); });
+
+  const groupHtml = Object.keys(byKey).sort().map(key => `
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:6px">🔑 ${key}（${byKey[key].length}）</div>
+      ${byKey[key].map(r => `
+        <div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;align-items:start;gap:8px">
+            <div style="flex:1">
+              <div style="font-size:11px;color:var(--ink3);font-weight:700">${r.id}</div>
+              <div style="font-size:13px;font-weight:600;margin:2px 0">${r.rule}</div>
+              ${r.trigger ? `<div style="font-size:11px;color:var(--teal)">👀 ${r.trigger}</div>` : ''}
+            </div>
+            <button onclick="deleteRule('${r.id}')" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:16px;flex-shrink:0">🗑</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  content.innerHTML = `
+    <button class="btn btn-secondary" onclick="showParentMenu()" style="margin-bottom:16px;padding:8px 14px">← 戻る</button>
+
+    <div style="background:#F5F0FA;border:1px solid var(--purple);border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--purple);margin-bottom:6px">📏 ルールとは</div>
+      <div style="font-size:12px;color:var(--ink2);line-height:1.7">
+        「なぜそうなるの？」の答え合わせに使う基準です。ドリルの<b>ルール型</b>問題で、香凜さんの説明がこのルールと合っているかポメが判定します。
+      </div>
+    </div>
+
+    <!-- 一括登録 -->
+    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:20px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px">まとめて登録</div>
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;line-height:1.6">
+        別のClaudeで作ったルールを貼り付け。1行1ルール：<br>
+        <code style="background:var(--bg2);padding:2px 5px;border-radius:4px;font-size:10px">ID｜ルール文｜key:キー名｜trigger:見分ける手がかり</code>
+      </div>
+      <textarea id="rule_bulk_text" placeholder="否定文R01｜be動詞の文の否定はnotを入れる。don'tは使わない｜key:否定文｜trigger:文にis/am/areがあるか確認"
+        style="width:100%;min-height:120px;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:12px;resize:vertical"></textarea>
+      <button onclick="saveBulkRules()" class="btn btn-primary" style="width:100%;margin-top:8px;padding:12px">＋ 登録する</button>
+      <div id="rule_bulk_msg" style="font-size:11px;margin-top:6px"></div>
+    </div>
+
+    <!-- 登録済み -->
+    <div style="font-size:14px;font-weight:700;margin-bottom:10px">登録済みルール（${rules.length}）</div>
+    ${rules.length > 0 ? groupHtml : '<div style="font-size:12px;color:var(--ink3);text-align:center;padding:20px">まだルールがありません</div>'}
+
+    <!-- キー一覧の参考 -->
+    <details style="margin-top:16px">
+      <summary style="font-size:12px;color:var(--ink3);cursor:pointer">使えるキー一覧を見る</summary>
+      <div style="font-size:11px;color:var(--ink2);margin-top:8px;line-height:1.8">
+        ${Object.entries(RULE_KEYS).map(([g,keys]) => `<b>${g}</b>：${keys.join(' / ')}`).join('<br>')}
+      </div>
+    </details>
+  `;
+}
+
+// 一括ルールをパースして保存
+function saveBulkRules() {
+  const text = document.getElementById('rule_bulk_text')?.value || '';
+  const msg = document.getElementById('rule_bulk_msg');
+  const lines = text.split(/\n/).map(s => s.trim()).filter(Boolean);
+  if (lines.length === 0) { if(msg){msg.textContent='入力がありません';msg.style.color='var(--red)';} return; }
+
+  const validKeys = Object.values(RULE_KEYS).flat();
+  const parsed = [];
+  const errors = [];
+
+  lines.forEach((line, i) => {
+    // ID｜ルール文｜key:xxx｜trigger:yyy （順不同のkey/triggerに対応）
+    const parts = line.split(/[|｜]/).map(s => s.trim()).filter(Boolean);
+    if (parts.length < 2) { errors.push(`${i+1}行目: 区切りが不足`); return; }
+    const id = parts[0];
+    const rule = parts[1];
+    let key = '', trigger = '';
+    parts.slice(2).forEach(p => {
+      const km = p.match(/^key\s*[:：]\s*(.+)$/);
+      const tm = p.match(/^trigger\s*[:：]\s*(.+)$/);
+      if (km) key = km[1].split(/[,、，]/)[0].trim(); // ルールは1key前提（複数keyはドリル側で持つ）
+      else if (tm) trigger = tm[1].trim();
+    });
+    if (!key) { errors.push(`${i+1}行目(${id}): keyがありません`); return; }
+    if (!validKeys.includes(key)) { errors.push(`${i+1}行目(${id}): 未知のkey「${key}」`); return; }
+    // 教科の推定
+    const subject = RULE_KEYS['英語（文法）'].includes(key) ? '英語' : '数学';
+    parsed.push({ id, key, rule, trigger, subject });
+  });
+
+  if (parsed.length === 0) {
+    if(msg){ msg.innerHTML = '登録できませんでした：<br>' + errors.join('<br>'); msg.style.color='var(--red)'; }
+    return;
+  }
+
+  // 既存とID重複は上書き、新規は追加
+  if (!AppData.rules) AppData.rules = [];
+  let added = 0, updated = 0;
+  parsed.forEach(np => {
+    const idx = AppData.rules.findIndex(r => r.id === np.id);
+    if (idx >= 0) { AppData.rules[idx] = np; updated++; }
+    else { AppData.rules.push(np); added++; }
+  });
+  saveData();
+
+  let out = `✅ ${added}件追加` + (updated>0?`／${updated}件更新`:'');
+  if (errors.length > 0) out += `<br>⚠️ ${errors.length}件スキップ：<br>` + errors.join('<br>');
+  if(msg){ msg.innerHTML = out; msg.style.color = errors.length>0 ? '#C8922A' : 'var(--green)'; }
+  setTimeout(() => showRuleList(), 1500);
+}
+
+function deleteRule(id) {
+  if (!confirm(`ルール ${id} を削除しますか？`)) return;
+  AppData.rules = (AppData.rules||[]).filter(r => r.id !== id);
+  saveData();
+  showRuleList();
 }
 
 // ═══════════════════════════════════════
@@ -15165,6 +15391,19 @@ function showParentMenu(section) {
         <span style="margin-left:auto;color:var(--ink3)">›</span>
       </button>
 
+      <!-- ルールを登録する -->
+      <button onclick="showRuleList()" class="btn btn-secondary"
+              style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
+        <span style="font-size:26px">📏</span>
+        <div>
+          <div style="font-weight:700;font-size:14px">ルールを登録する</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            ${(AppData.rules||[]).length > 0 ? `${(AppData.rules||[]).length}件登録中` : '「なぜ？」判定に使う文法・計算ルール'}
+          </div>
+        </div>
+        <span style="margin-left:auto;color:var(--ink3)">›</span>
+      </button>
+
       <!-- 弱点問題を登録する -->
       <button onclick="showWeakPointList()" class="btn btn-secondary"
               style="padding:16px;text-align:left;display:flex;align-items:center;gap:14px">
@@ -16138,6 +16377,7 @@ function showBulkTestSetup() {
       back:  isEnglish ? (c.question || '') : (c.answer || ''),
       image:     isEnglish ? null : (c.image || null),
       imageBack: c.imageBack || null,
+        explanation: c.explanation || c.hint || '',
       lastResult: c.lastResult,
       playCount:  c.playCount || 0,
       type: 'word',
@@ -16475,6 +16715,7 @@ function startSingleDeck(subject, deck) {
         back:  isEnglish ? (c.question || '') : (c.answer || ''),
         image:     isEnglish ? null : (c.image || null),
         imageBack: c.imageBack || null,
+        explanation: c.explanation || c.hint || '',
         lastResult: c.lastResult, type: 'word'
       };
     });
@@ -16551,6 +16792,7 @@ function getSelectedBulkCards() {
         back:  isEnglish ? (c.question || '') : (c.answer || ''),
         image:     isEnglish ? null : (c.image || null),
         imageBack: c.imageBack || null,
+        explanation: c.explanation || c.hint || '',
         lastResult: c.lastResult, type: 'word'
       };
     });
@@ -16708,7 +16950,10 @@ function renderFlipCard(bar, content) {
     const textHtml = c.back
       ? `<div style="font-size:18px;font-weight:700;line-height:1.6;white-space:pre-wrap;word-break:break-word">${escapeHtmlSafe(c.back)}</div>`
       : '';
-    return imgHtml + textHtml;
+    const explHtml = c.explanation
+      ? `<div style="font-size:13px;color:var(--teal);background:#EEF9F7;border-radius:8px;padding:10px;margin-top:10px;white-space:pre-wrap;line-height:1.6">💡 ${escapeHtmlSafe(c.explanation)}</div>`
+      : '';
+    return imgHtml + textHtml + explHtml;
   };
   const renderBackSmall = (c) => {
     const imgHtml = c.imageBack
