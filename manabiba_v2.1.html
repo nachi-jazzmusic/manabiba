@@ -17363,22 +17363,23 @@ function hwgInitCanvas() {
   hwgPaths = []; hwgCurPath = [];
   const pos = (e) => {
     const r = canvas.getBoundingClientRect();
-    const t = e.touches ? e.touches[0] : e;
-    return { x: t.clientX - r.left, y: t.clientY - r.top };
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
-  const start = (e) => { e.preventDefault(); hwgDrawing = true; hwgCurPath = [pos(e)]; };
+  const start = (e) => { e.preventDefault(); hwgDrawing = true; hwgCurPath = [pos(e)];
+    try { canvas.setPointerCapture(e.pointerId); } catch(_){} };
   const move = (e) => {
     if (!hwgDrawing) return; e.preventDefault();
     const p = pos(e); hwgCurPath.push(p);
-    hwgCtx.beginPath();
     if (hwgCurPath.length >= 2) {
       const prev = hwgCurPath[hwgCurPath.length-2];
-      hwgCtx.moveTo(prev.x, prev.y); hwgCtx.lineTo(p.x, p.y); hwgCtx.stroke();
+      hwgCtx.beginPath(); hwgCtx.moveTo(prev.x, prev.y); hwgCtx.lineTo(p.x, p.y); hwgCtx.stroke();
     }
   };
   const end = () => { if (hwgDrawing && hwgCurPath.length) hwgPaths.push([...hwgCurPath]); hwgDrawing = false; hwgCurPath = []; };
-  canvas.onmousedown = start; canvas.onmousemove = move; canvas.onmouseup = end; canvas.onmouseleave = end;
-  canvas.ontouchstart = start; canvas.ontouchmove = move; canvas.ontouchend = end;
+  canvas.addEventListener('pointerdown', start);
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointerleave', end);
 }
 function hwgRedraw() {
   const canvas = document.getElementById('hwgCanvas');
