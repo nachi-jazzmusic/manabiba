@@ -16805,6 +16805,28 @@ function showBulkTestSetup() {
       </div>`;
     })()}
 
+    <!-- 追加フィルター（学年・種類・テスト区分）-->
+    ${(() => {
+      const metas = sortedUnits.map(u => parseDeckMeta(u.subject, u.unit));
+      const uniq = (arr) => [...new Set(arr.filter(Boolean))];
+      const grades = uniq(metas.map(m => m.grade)).sort();
+      const types  = uniq(metas.map(m => m.type));
+      const exams  = uniq(metas.map(m => m.exam));
+      const mkRow = (label, dim, vals) => {
+        if (vals.length === 0) return '';
+        const btns = ['全部', ...vals].map(v => `
+          <button onclick="setDeckFilter('${dim}','${v}')" data-filter-dim="${dim}" data-filter-val="${v}"
+                  style="padding:5px 10px;border-radius:14px;border:1px solid var(--border);
+                         background:${v==='全部'?'var(--purple)':'#fff'};color:${v==='全部'?'#fff':'var(--ink2)'};
+                         font-family:var(--font);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">${v}</button>`).join('');
+        return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+          <span style="font-size:10px;color:var(--ink3);min-width:48px">${label}</span>${btns}</div>`;
+      };
+      const rows = mkRow('学年', 'grade', grades) + mkRow('種類', 'type', types) + mkRow('テスト', 'exam', exams);
+      if (!rows) return '';
+      return `<div style="background:var(--bg2);border-radius:10px;padding:10px;margin-bottom:12px">${rows}</div>`;
+    })()}
+
     <!-- デッキ選択 -->
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="font-size:12px;font-weight:700">デッキを選ぶ　<span style="font-size:10px;color:var(--purple);font-weight:400">▶ デッキ名をクリックで単体練習</span></div>
@@ -16840,6 +16862,9 @@ function showBulkTestSetup() {
 
         return `
         <div class="deck-row" draggable="true" data-key="${key}"
+             data-grade="${(() => { const m=parseDeckMeta(u.subject,u.unit); return m.grade; })()}"
+             data-type="${(() => { const m=parseDeckMeta(u.subject,u.unit); return m.type; })()}"
+             data-exam="${(() => { const m=parseDeckMeta(u.subject,u.unit); return m.exam; })()}"
              style="display:flex;align-items:center;gap:10px;background:#fff;border-radius:8px;
                     padding:10px 12px;margin-bottom:8px;border:1px solid var(--border)">
           <span class="deck-drag-handle" style="cursor:grab;color:var(--ink3);font-size:18px;user-select:none;flex-shrink:0;padding:0 4px">≡</span>
@@ -17004,19 +17029,75 @@ function uncheckAllDecks() {
   if (badge) badge.style.display = 'none';
 }
 
+// デッキ名から属性を抽出（命名ルール：教科｜学年学期｜種類｜単元｜テスト区分）
+// 命名が揃っていなくても、含まれるキーワードを部分一致で拾う
+function parseDeckMeta(subject, unit) {
+  const full = `${subject} ${unit}`;
+  const meta = { grade:'', term:'', type:'', exam:'' };
+  // 学年
+  const gm = full.match(/([1-3１-３])\s*年/);
+  if (gm) meta.grade = gm[1].replace(/[１-３]/,d=>'123'['１２３'.indexOf(d)]) + '年';
+  // 学期
+  const tm = full.match(/([1-3１-３])\s*学期/);
+  if (tm) meta.term = tm[1].replace(/[１-３]/,d=>'123'['１２３'.indexOf(d)]) + '学期';
+  // 種類
+  if (/教科書/.test(full)) meta.type = '教科書';
+  else if (/学校ドリル/.test(full)) meta.type = '学校ドリル';
+  else if (/塾ドリル/.test(full)) meta.type = '塾ドリル';
+  else if (/学校プリント/.test(full)) meta.type = '学校プリント';
+  else if (/塾プリント/.test(full)) meta.type = '塾プリント';
+  else if (/ドリル/.test(full)) meta.type = 'ドリル';
+  else if (/プリント/.test(full)) meta.type = 'プリント';
+  else if (/テスト|末テ/.test(full)) meta.type = 'テスト';
+  // テスト区分
+  if (/中間/.test(full)) meta.exam = '中間';
+  else if (/期末|末テ/.test(full)) meta.exam = '期末';
+  else if (/塾学力|学力検査|学力/.test(full)) meta.exam = '塾学力';
+  return meta;
+}
+
+// 複合フィルタの状態
+window._deckFilter = { subject:'全部', grade:'全部', type:'全部', exam:'全部' };
+
+// フィルタ値を1つ更新して再適用
+function setDeckFilter(dim, value) {
+  window._deckFilter[dim] = value;
+  // ボタンのハイライト更新
+  document.querySelectorAll(`[data-filter-dim="${dim}"]`).forEach(btn => {
+    const active = btn.dataset.filterVal === value;
+    btn.style.background = active ? 'var(--purple)' : '#fff';
+    btn.style.color = active ? '#fff' : 'var(--ink2)';
+  });
+  applyDeckFilters();
+}
+
+// 全フィルタをデッキ行に適用（AND条件）
+function applyDeckFilters() {
+  const f = window._deckFilter;
+  document.querySelectorAll('.deck-row').forEach(row => {
+    const chk = row.querySelector('.unit-check');
+    const subject = chk?.dataset.subject || '';
+    const grade = row.dataset.grade || '';
+    const type  = row.dataset.type  || '';
+    const exam  = row.dataset.exam  || '';
+    const ok =
+      (f.subject==='全部' || subject===f.subject) &&
+      (f.grade==='全部'   || grade===f.grade) &&
+      (f.type==='全部'    || type===f.type) &&
+      (f.exam==='全部'    || exam===f.exam);
+    row.style.display = ok ? '' : 'none';
+  });
+  updateBulkTestCount();
+}
+
 function filterBulkBySubject(subject) {
-  // タブのスタイル更新（data属性で管理）
   document.querySelectorAll('[data-subject-tab]').forEach(btn => {
     const isActive = btn.dataset.subjectTab === subject;
     btn.style.background = isActive ? 'var(--purple)' : '#fff';
     btn.style.color      = isActive ? '#fff' : 'var(--ink2)';
   });
-  // デッキ行の表示/非表示
-  document.querySelectorAll('.deck-row').forEach(row => {
-    const rowSubject = row.querySelector('.unit-check')?.dataset.subject || '';
-    row.style.display = (subject === '全部' || rowSubject === subject) ? '' : 'none';
-  });
-  updateBulkTestCount();
+  window._deckFilter.subject = subject;
+  applyDeckFilters();
 }
 
 function saveBulkSelection() {
@@ -17040,9 +17121,14 @@ function updateBulkTestCount() {
 }
 
 function getSelectedBulkCards() {
+  // フィルタで非表示（display:none）のデッキ行は対象外にする
   const checks = document.querySelectorAll('.unit-check:checked');
   const selectedKeys = new Set();
-  checks.forEach(c => selectedKeys.add(`${c.dataset.subject}__${c.dataset.unit}`));
+  checks.forEach(c => {
+    const row = c.closest('.deck-row');
+    if (row && row.style.display === 'none') return; // 非表示は除外
+    selectedKeys.add(`${c.dataset.subject}__${c.dataset.unit}`);
+  });
 
   if (selectedKeys.size === 0) return [];
 
