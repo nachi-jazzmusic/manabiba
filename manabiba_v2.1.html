@@ -16680,13 +16680,13 @@ function showBulkTestSetup() {
     const kb = `${b.subject}__${b.unit}`;
     const ia = userOrder.indexOf(ka);
     const ib = userOrder.indexOf(kb);
+    // 新規（userOrder未登録）を上に。両方新規なら新しい順
+    if (ia < 0 && ib < 0) return getTs(b) - getTs(a);
+    // 新規を、並び替え済みより先（上）に
+    if (ia < 0) return -1;
+    if (ib < 0) return 1;
     // 両方ユーザー順にある場合はその順
-    if (ia >= 0 && ib >= 0) return ia - ib;
-    // ユーザー順にあるものを先に
-    if (ia >= 0) return -1;
-    if (ib >= 0) return 1;
-    // 両方未定義（新規追加分）は新しい順
-    return getTs(b) - getTs(a);
+    return ia - ib;
   });
 
   // 前回の選択を読み込む
