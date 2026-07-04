@@ -1869,56 +1869,60 @@ async function loadFromGitHub() {
 async function saveToGitHub(data) {
   const token = getGithubToken();
   if (!token) return;
-  try {
-    // TextEncoderで正しくUTF-8→base64変換
+
+  // 最新SHAを取得するヘルパー
+  async function fetchLatestSha() {
+    try {
+      const r = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}?ref=${GITHUB_BRANCH}`, {
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (r.status === 404) return null;      // ファイル未作成（新規作成扱い）
+      if (!r.ok) return undefined;             // 取得失敗（不明）
+      const j = await r.json();
+      return j.sha;
+    } catch(e) { return undefined; }
+  }
+
+  // 1回のPUTを実行
+  async function putOnce(sha) {
     const jsonStr = JSON.stringify(data, null, 2);
     const bytes = new TextEncoder().encode(jsonStr);
     const binStr = Array.from(bytes).map(b => String.fromCharCode(b)).join('');
     const content = btoa(binStr);
-    const sha = localStorage.getItem('manabiba_github_sha') || null;
-    const body = {
-      message: 'まなびば データ更新 ' + new Date().toLocaleString('ja-JP'),
-      content,
-      branch: GITHUB_BRANCH
-    };
-    if (sha) body.sha = sha;  // 初回はSHAなし→新規作成
-    const res = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`, {
+    const body = { message: 'まなびば データ更新 ' + new Date().toLocaleString('ja-JP'), content, branch: GITHUB_BRANCH };
+    if (sha) body.sha = sha;
+    return fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`, {
       method: 'PUT',
-      headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (!res.ok) {
-      const err = await res.json();
-      // SHAが古い場合→GitHubから最新SHAを取得して再試行
-      if (err.message && err.message.includes('sha')) {
-        console.log('SHA不一致→最新SHAを取得して再試行');
-        const latest = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}?ref=${GITHUB_BRANCH}`, {
-          headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
-        });
-        if (latest.ok) {
-          const latestJson = await latest.json();
-          localStorage.setItem('manabiba_github_sha', latestJson.sha);
-          body.sha = latestJson.sha;
-          const retry = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${GITHUB_DATA_FILE}`, {
-            method: 'PUT',
-            headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-          });
-          if (retry.ok) {
-            const r = await retry.json();
-            localStorage.setItem('manabiba_github_sha', r.content.sha);
-            return;
-          }
-        }
-      }
-      throw new Error(err.message || 'GitHub保存失敗');
+  }
+
+  try {
+    let sha = localStorage.getItem('manabiba_github_sha') || null;
+    let res = await putOnce(sha);
+
+    // 409/422（SHA競合・不一致）は、最新SHAを取り直して最大2回まで再試行
+    let attempts = 0;
+    while (!res.ok && (res.status === 409 || res.status === 422) && attempts < 2) {
+      attempts++;
+      const latest = await fetchLatestSha();
+      if (latest === undefined) break;         // SHA取得できず→中断
+      sha = latest;                            // null（新規作成）も許容
+      if (sha) localStorage.setItem('manabiba_github_sha', sha);
+      else localStorage.removeItem('manabiba_github_sha');
+      res = await putOnce(sha);
     }
+
+    if (!res.ok) {
+      let msg = 'GitHub保存失敗 (' + res.status + ')';
+      try { const e = await res.json(); if (e.message) msg = e.message; } catch(_) {}
+      throw new Error(msg);
+    }
+
     const result = await res.json();
     localStorage.setItem('manabiba_github_sha', result.content.sha);
+    showSyncStatus('☁ 保存しました', 'var(--green)');
   } catch(e) {
     console.warn('GitHub保存失敗:', e.message);
     showSyncStatus('⚠ 同期失敗: ' + e.message, 'var(--red)');
