@@ -12512,7 +12512,14 @@ function editDeckAsText(subject, deck) {
   const isDrillDeck = cards.some(c => c.type === 'drill');
 
   const currentText = isDrillDeck
-    ? cards.map(c => `---\n問題：${c.question}\n答え：${c.answer}${c.explanation ? '\n解説：' + c.explanation : ''}`).join('\n') + '\n---'
+    ? cards.map(c => {
+        let block = `---\n問題：${c.question}\n答え：${c.answer}`;
+        if (c.explanation) block += '\n解説：' + c.explanation;
+        if (c.isRuleType) {
+          block += '\nルール型' + ((c.ruleKeys && c.ruleKeys.length) ? '｜key:' + c.ruleKeys.join(',') : '');
+        }
+        return block;
+      }).join('\n') + '\n---'
     : cards.map(c => `${c.question}＝${c.answer}`).join('\n');
 
   const safeSubject = subject.replace(/'/g, "\\'");
@@ -16634,6 +16641,8 @@ function showBulkTestSetup() {
       image:     isEnglish ? null : (c.image || null),
       imageBack: c.imageBack || null,
         explanation: c.explanation || c.hint || '',
+      isRuleType: c.isRuleType || false, ruleKeys: c.ruleKeys || [],
+      questionText: c.question || '', answerText: c.answer || '',
       lastResult: c.lastResult,
       playCount:  c.playCount || 0,
       type: 'word',
@@ -16972,6 +16981,8 @@ function startSingleDeck(subject, deck) {
         image:     isEnglish ? null : (c.image || null),
         imageBack: c.imageBack || null,
         explanation: c.explanation || c.hint || '',
+        isRuleType: c.isRuleType || false, ruleKeys: c.ruleKeys || [],
+        questionText: c.question || '', answerText: c.answer || '',
         lastResult: c.lastResult, type: 'word'
       };
     });
@@ -17049,6 +17060,8 @@ function getSelectedBulkCards() {
         image:     isEnglish ? null : (c.image || null),
         imageBack: c.imageBack || null,
         explanation: c.explanation || c.hint || '',
+        isRuleType: c.isRuleType || false, ruleKeys: c.ruleKeys || [],
+        questionText: c.question || '', answerText: c.answer || '',
         lastResult: c.lastResult, type: 'word'
       };
     });
@@ -17173,6 +17186,92 @@ function renderBulkTest() {
 }
 
 // ── 「めくる」式のカード描画（両面/表のみ/裏のみ） ──
+// ═══════════════════════════════════════
+// 暗記カード（フラッシュ）内のルール型「なぜ？」フロー
+// ═══════════════════════════════════════
+
+// 現在のbulkカードに対応するルールを取得
+function getRulesForBulkCard(card) {
+  if (!card || !card.isRuleType) return [];
+  const keys = card.ruleKeys || [];
+  if (keys.length === 0) return [];
+  return (AppData.rules || []).filter(r => keys.includes(r.key));
+}
+
+// 「なぜ？」判定（bulkTest版）
+async function judgeBulkWhy(cardId) {
+  const card = (bulkTest.cards || []).find(c => c.id === cardId);
+  const input = document.getElementById('bc_why_input')?.value?.trim() || '';
+  const resultDiv = document.getElementById('bc_why_result');
+  if (!card) return;
+  if (!input) { if(resultDiv){resultDiv.innerHTML='<div style="font-size:12px;color:var(--red)">説明を書いてね</div>';} return; }
+  if (!AppData.settings?.apiKey) { showToast('設定画面でAPIキーを入力してください'); return; }
+
+  const rules = getRulesForBulkCard(card);
+  const ruleBlock = rules.length > 0
+    ? rules.map(r => `・${r.rule}${r.trigger?`（見分け方：${r.trigger}）`:''}`).join('\n')
+    : '（ルール未登録。問題文と答えから妥当性を判断してください）';
+  const qText = card.questionText || card.back || '';
+  const aText = card.answerText || card.front || '';
+
+  if(resultDiv){ resultDiv.innerHTML = '<div style="font-size:12px;color:var(--ink3)">🐾 ポメが考えているよ…</div>'; }
+
+  const sys = `あなたは中学1年生「香凜」の学習を支えるAI「ポメ」です。やさしく、責めず、語尾に時々🐾を添えます。
+香凜が問題の答えについて「なぜそうなるか」を説明しました。それが下記の模範ルールの要点を捉えているか判定してください。
+- 言葉が違っても意味が合っていれば正解とみなす
+- 一部だけ合っている場合は、足りない部分だけを模範ルールを参考にやさしく補う
+- 責める言葉は使わない。「おしいね」「あと一歩」から入る
+- 模範ルールの文をそのまま貼らず、香凜に届く言葉に噛み砕く
+JSONのみ出力（コードブロック不要）：
+{"level":"🟢または🟡または🔴","comment":"香凜への一言（2〜3文、やさしく）"}
+- 🟢=要点を説明できている / 🟡=一部合っているが要点が欠ける / 🔴=説明が的外れ`;
+
+  const usr = `【問題】${qText}\n【答え】${aText}\n【模範ルール】\n${ruleBlock}\n【香凜の説明】${input}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': AppData.settings.apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:400, system:sys, messages:[{role:'user',content:usr}] })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '';
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    const level = parsed.level || '🟡';
+    const comment = parsed.comment || '';
+    const color = level==='🟢' ? 'var(--green)' : level==='🟡' ? '#C8922A' : 'var(--red)';
+    const bg    = level==='🟢' ? '#EEF7F0' : level==='🟡' ? '#FFF9E6' : '#FEF2F0';
+    if(resultDiv){
+      resultDiv.innerHTML = `
+        <div style="background:${bg};border:1px solid ${color};border-radius:10px;padding:12px">
+          <div style="font-size:16px;margin-bottom:4px">${level}</div>
+          <div style="font-size:13px;line-height:1.8;color:var(--ink2)">${escapeHtmlSafe(comment)}</div>
+        </div>`;
+    }
+    recordRuleMastery(cardId, level);
+  } catch(e) {
+    if(resultDiv){ resultDiv.innerHTML = '<div style="font-size:12px;color:var(--red)">はんていに失敗しました。もう一度ためしてね</div>'; }
+  }
+}
+
+// 「わからない」→ ルールを優しく提示（bulkTest版）
+function giveUpBulkWhy(cardId) {
+  const card = (bulkTest.cards || []).find(c => c.id === cardId);
+  const rules = getRulesForBulkCard(card);
+  const resultDiv = document.getElementById('bc_why_result');
+  if (!resultDiv) return;
+  const ruleText = rules.length > 0
+    ? rules.map(r => `・${escapeHtmlSafe(r.rule)}`).join('<br>')
+    : '（この問題のルールがまだ登録されていないよ）';
+  resultDiv.innerHTML = `
+    <div style="background:#FFF6EC;border:1px solid var(--accent);border-radius:10px;padding:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:6px">🐾 だいじょうぶ、いっしょに覚えよう</div>
+      <div style="font-size:13px;line-height:1.8">${ruleText}</div>
+      <div style="font-size:12px;color:var(--ink3);margin-top:8px">このコツを使うと、次からできるようになるよ！</div>
+    </div>`;
+  recordRuleMastery(cardId, '🔴');
+}
+
 function renderFlipCard(bar, content) {
   const { phase, cards, index, flipped } = bulkTest;
   const card = cards[index];
@@ -17257,13 +17356,33 @@ function renderFlipCard(bar, content) {
         ${renderBack(card)}
         <div style="text-align:center;margin-top:30px;font-size:13px;color:var(--purple);font-weight:700">↓ タップしてめくる ↓</div>`;
     } else {
+      // ルール型カードは、めくった後に「なぜ？」を出す
+      const whyHtml = card.isRuleType ? `
+        <div style="border-top:1px dashed var(--border);padding-top:14px;margin-top:14px">
+          <div style="background:#F5F0FA;border:1px solid var(--purple);border-radius:12px;padding:14px">
+            <div style="font-size:13px;font-weight:700;color:var(--purple);margin-bottom:6px">🤔 ポメからの質問</div>
+            ${(card.ruleKeys||[]).some(k=>['否定文','疑問文','be動詞','一般動詞'].includes(k)) ? `
+            <div style="font-size:12px;color:var(--ink2);margin-bottom:6px;line-height:1.7">
+              この文は「<b>is / am / are がある文</b>」かな？それとも「<b>動作のことば（like, play など）がある文</b>」かな？<br>それをふまえて、<b>どうしてこの答えになるのか</b>説明してみて🐾
+            </div>` : `
+            <div style="font-size:12px;color:var(--ink2);margin-bottom:6px;line-height:1.7">どうしてこの答えになるのかな？ 自分のことばで説明してみて🐾</div>`}
+            <textarea id="bc_why_input" placeholder="ここに説明を書いてね"
+              style="width:100%;min-height:60px;padding:9px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;resize:vertical;margin-top:4px"></textarea>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button onclick="judgeBulkWhy('${card.id}')" class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">説明できた！</button>
+              <button onclick="giveUpBulkWhy('${card.id}')" style="padding:10px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:13px;color:var(--ink2);cursor:pointer">わからない</button>
+            </div>
+            <div id="bc_why_result" style="margin-top:10px"></div>
+          </div>
+        </div>` : '';
       mainContent = `
         <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">裏</div>
         ${renderBackSmall(card)}
         <div style="border-top:1px dashed var(--border);padding-top:16px;margin-top:12px">
           <div style="font-size:13px;color:var(--teal);margin-bottom:6px;font-weight:700">表（答え）</div>
           ${renderFront(card)}
-        </div>`;
+        </div>
+        ${whyHtml}`;
     }
   }
 
