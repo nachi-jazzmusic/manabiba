@@ -14449,6 +14449,15 @@ const RULE_KEYS = {
     '立体の構成','体積・表面積','ヒストグラム・相対度数','確率'
   ],
   '数学（横断）': ['割合','符号処理'],
+  '理科（生物）': [
+    '生物の観察','顕微鏡','花のつくり','受粉と結実','種子植物の分類',
+    '葉と根のつくり','種子をつくらない植物','脊椎動物','無脊椎動物'
+  ],
+  '理科（横断）': ['植物の分類（横断）'],
+  '理科（化学）': ['物体と物質','金属と非金属','密度','有機物と無機物','実験器具'],
+  '国語（設問タイプ）': [
+    '抜き出し','指示語','理由説明','記述の文末','接続語','心情把握','文法（品詞・活用）'
+  ],
   '英語（文法）': [
     '語順','be動詞','一般動詞','否定文','疑問文','疑問詞','命令文',
     'How many・What time','三人称単数現在','名詞・複数形','代名詞',
@@ -14548,7 +14557,11 @@ function saveBulkRules() {
     if (!key) { errors.push(`${i+1}行目(${id}): keyがありません`); return; }
     if (!validKeys.includes(key)) { errors.push(`${i+1}行目(${id}): 未知のkey「${key}」`); return; }
     // 教科の推定
-    const subject = RULE_KEYS['英語（文法）'].includes(key) ? '英語' : '数学';
+    const isRika = ['理科（生物）','理科（横断）','理科（化学）'].some(g => RULE_KEYS[g].includes(key));
+    const isKokugo = RULE_KEYS['国語（設問タイプ）'].includes(key);
+    const subject = RULE_KEYS['英語（文法）'].includes(key) ? '英語'
+                  : isKokugo ? '国語'
+                  : isRika ? '理科' : '数学';
     parsed.push({ id, key, rule, trigger, subject });
   });
 
