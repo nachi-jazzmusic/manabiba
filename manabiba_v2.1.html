@@ -13156,13 +13156,21 @@ function parseDrillFormat(text) {
       work = work.replace(ruleTagRe, '').trim();
     }
 
-    const qMatch = work.match(/問題[:：]\s*([\s\S]*?)(?=\n答え[:：]|\n解説[:：]|$)/);
-    const aMatch = work.match(/答え[:：]\s*([\s\S]*?)(?=\n解説[:：]|$)/);
+    // 問題／選択肢／答え／解説をラベルで分離（各ラベルは行頭想定）
+    const qMatch = work.match(/問題[:：]\s*([\s\S]*?)(?=\n\s*選択肢[:：]|\n\s*答え[:：]|\n\s*解説[:：]|$)/);
+    const cMatch = work.match(/選択肢[:：]\s*([\s\S]*?)(?=\n\s*答え[:：]|\n\s*解説[:：]|$)/);
+    const aMatch = work.match(/答え[:：]\s*([\s\S]*?)(?=\n\s*解説[:：]|$)/);
     const eMatch = work.match(/解説[:：]\s*([\s\S]*?)$/);
 
-    const question    = qMatch ? qMatch[1].trim() : '';
-    const answer      = aMatch ? aMatch[1].trim() : '';
+    let question    = qMatch ? qMatch[1].trim() : '';
+    const choices   = cMatch ? cMatch[1].trim() : '';
+    const answer    = aMatch ? aMatch[1].trim() : '';
     const explanation = eMatch ? eMatch[1].trim() : '';
+
+    // 選択肢があれば、問題文の下に改行で結合して表示（1つずつ改行）
+    if (choices) {
+      question = question + '\n\n' + choices;
+    }
 
     if (question && answer) {
       cards.push({ question, answer, explanation, type: 'drill', isRuleType, ruleKeys });
