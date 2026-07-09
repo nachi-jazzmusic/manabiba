@@ -17363,15 +17363,28 @@ JSONのみ出力（コードブロック不要）：
   }
 }
 
-// 判定後に「答えを見る」ボタンを出す（押すとめくって答え合わせへ）
+// 判定後に答えを表示し、そのまま4段階評価に進む
 function showFlipAfterButton() {
+  const card = bulkTest.cards[bulkTest.index];
   const box = document.getElementById('bc_flip_after');
-  if (!box) return;
+  if (!box || !card) return;
+  const ans = escapeHtmlSafe(card.answerText || card.front || '');
   box.innerHTML = `
-    <button onclick="bulkTest.flipped=true; renderBulkTest();" class="btn btn-primary"
-            style="width:100%;padding:12px;font-size:14px;background:var(--purple)">
-      ↓ 答えを見る（答え合わせ）
-    </button>`;
+    <div style="border-top:1px dashed var(--border);padding-top:12px;margin-top:12px">
+      <div style="font-size:13px;color:var(--teal);margin-bottom:6px;font-weight:700">答え</div>
+      <div style="font-size:18px;font-weight:700;white-space:pre-wrap;margin-bottom:12px">${ans}</div>
+      <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:8px">正直に選んでね（ポメが覚えておくよ🐾）</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button onclick="bulkResultGraded('explained')"
+                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#3A9B8C;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🟢 解けて説明もできた</button>
+        <button onclick="bulkResultGraded('solved')"
+                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#4A9B5F;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🟡 解けたが理由は曖昧</button>
+        <button onclick="bulkResultGraded('sawAnswer')"
+                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#C8922A;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🟠 答えを見てわかった</button>
+        <button onclick="bulkResultGraded('notyet')"
+                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#D94F3D;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🔴 まだわからない</button>
+      </div>
+    </div>`;
 }
 
 // 「わからない」→ ルールを優しく提示（bulkTest版）
@@ -17664,7 +17677,7 @@ function renderFlipCard(bar, content) {
         <div style="font-size:13px;color:var(--ink3);margin-bottom:6px">問題</div>
         ${questionDisplay}
         ${whyBlock}
-        <div style="text-align:center;margin-top:20px;font-size:13px;color:var(--purple);font-weight:700">${card.isRuleType ? '↓ 説明したら、タップして答え合わせ ↓' : '↓ タップしてめくる ↓'}</div>`;
+        ${card.isRuleType ? '' : '<div style="text-align:center;margin-top:20px;font-size:13px;color:var(--purple);font-weight:700">↓ タップしてめくる ↓</div>'}`;
     } else {
       // めくった後：答えを表示（答え合わせ）
       const answerDisplay = card.isRuleType
@@ -17711,28 +17724,7 @@ function renderFlipCard(bar, content) {
         <button onclick="bulkNext()"
                 class="btn btn-primary" style="flex:2;padding:12px;font-size:14px;background:var(--purple)">
           ${index===totalCards-1 ? '次のフェーズへ →' : '次へ →'}
-        </button>` : (card.isRuleType ? `
-        <div style="width:100%">
-          <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:8px">正直に選んでね（ポメが覚えておくよ🐾）</div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <button onclick="bulkResultGraded('explained')"
-                    style="padding:11px;border-radius:10px;border:none;background:#3A9B8C;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
-              🟢 自分で解けて、理由も説明できた
-            </button>
-            <button onclick="bulkResultGraded('solved')"
-                    style="padding:11px;border-radius:10px;border:none;background:#4A9B5F;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
-              🟡 自分で解けたけど、理由は曖昧
-            </button>
-            <button onclick="bulkResultGraded('sawAnswer')"
-                    style="padding:11px;border-radius:10px;border:none;background:#C8922A;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
-              🟠 答えを見てわかった
-            </button>
-            <button onclick="bulkResultGraded('notyet')"
-                    style="padding:11px;border-radius:10px;border:none;background:#D94F3D;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
-              🔴 まだわからない
-            </button>
-          </div>
-        </div>` : `
+        </button>` : `
         <button onclick="bulkResultNG()"
                 style="flex:1;padding:12px;border-radius:10px;border:none;
                        background:#D94F3D;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
@@ -17742,7 +17734,7 @@ function renderFlipCard(bar, content) {
                 style="flex:1;padding:12px;border-radius:10px;border:none;
                        background:#4A9B5F;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
           ◎ できた
-        </button>`)}
+        </button>`}
     </div>`}
 
     <div style="display:flex;gap:8px;margin-top:8px">
