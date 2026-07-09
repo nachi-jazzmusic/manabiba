@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.82</div>
+  <div class="sb-version">v2.85</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -17352,6 +17352,10 @@ JSONのみ出力（コードブロック不要）：
         <div style="background:${bg};border:1px solid ${color};border-radius:10px;padding:12px">
           <div style="font-size:16px;margin-bottom:4px">${level}</div>
           <div style="font-size:13px;line-height:1.8;color:var(--ink2)">${escapeHtmlSafe(comment)}</div>
+          <button onclick="openPomeExplainModalById('${cardId}')"
+                  style="width:100%;margin-top:10px;padding:9px;border-radius:8px;border:1px solid var(--purple);background:#fff;color:var(--purple);font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+            🐾 ポメと対話する（もっと聞きたい・確かめたい）
+          </button>
         </div>`;
     }
     recordRuleMastery(cardId, level);
@@ -17385,7 +17389,7 @@ function showFlipAfterButton() {
     </div>`;
 }
 
-// 「わからない」→ ルールを優しく提示（bulkTest版）
+// 「わからない」→ ルールを優しく提示して答え合わせへ
 function giveUpBulkWhy(cardId) {
   const card = (bulkTest.cards || []).find(c => c.id === cardId);
   const rules = getRulesForBulkCard(card);
@@ -17404,9 +17408,179 @@ function giveUpBulkWhy(cardId) {
   showFlipAfterButton();
 }
 
+// cardIdからカードを取得して対話モーダルを開く（香凜の説明も文脈に渡す）
+function openPomeExplainModalById(cardId) {
+  const card = (bulkTest.cards || []).find(c => c.id === cardId);
+  if (!card) return;
+  const userExplanation = document.getElementById('bc_why_input')?.value?.trim() || '';
+  openPomeExplainModal(card, userExplanation);
+}
+
+// ═══════════════════════════════════════
+// ポメ対話解説モーダル（わからない→解説→対話→類題→クローズ）
+// ═══════════════════════════════════════
+let pomeExplain = { card:null, history:[], quizCount:0, closed:false, userExplanation:'' };
+
+function openPomeExplainModal(card, userExplanation) {
+  pomeExplain = { card, history:[], quizCount:0, closed:false, userExplanation: userExplanation || '' };
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pomeExplainOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10001;display:flex;align-items:center;justify-content:center;padding:12px';
+  overlay.innerHTML = `
+    <div style="background:var(--bg);border-radius:16px;width:100%;max-width:560px;height:86vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);background:#F5F0FA">
+        <div style="font-size:15px;font-weight:700;color:var(--purple)">🐾 ポメと一緒に考えよう</div>
+        <button onclick="closePomeExplain()" style="border:none;background:none;font-size:22px;cursor:pointer;color:var(--ink3)">×</button>
+      </div>
+      <div id="pe_messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px"></div>
+      <div style="padding:12px 16px;border-top:1px solid var(--border)">
+        <div style="position:relative">
+          <textarea id="pe_input" placeholder="ポメに聞いてみよう / 答えを書いてね"
+            style="width:100%;min-height:52px;max-height:120px;padding:10px 76px 10px 12px;border:1px solid var(--border);border-radius:12px;font-family:var(--font);font-size:14px;resize:none"></textarea>
+          <div style="position:absolute;right:8px;bottom:9px;display:flex;gap:6px">
+            <button onclick="startVoiceInputTo('pe_input','pe_voice')" id="pe_voice"
+                    style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:15px;padding:0" title="音声">🎤</button>
+            <button onclick="openHandwritingTo('pe_input')"
+                    style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:15px;padding:0" title="手書き">✏️</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button onclick="sendPomeExplain()" class="btn btn-primary" style="flex:1;padding:11px;font-size:14px">送信</button>
+          <button onclick="closePomeExplain(true)" style="padding:11px 14px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:13px;color:var(--ink2);cursor:pointer">わかった！閉じる</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  // Enterで送信（Shift+Enterで改行）
+  document.getElementById('pe_input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendPomeExplain(); }
+  });
+
+  // 初回：自動で解説を依頼
+  requestPomeExplanation();
+}
+
+function peAppendMessage(role, text) {
+  const box = document.getElementById('pe_messages');
+  if (!box) return;
+  const isPome = role === 'assistant';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = `display:flex;${isPome?'':'flex-direction:row-reverse'};gap:8px;align-items:flex-start`;
+  wrap.innerHTML = `
+    <div style="flex-shrink:0;font-size:20px">${isPome?'🐾':'🧒'}</div>
+    <div style="background:${isPome?'#F5F0FA':'#FFF6EC'};border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.7;color:var(--ink2);max-width:80%;white-space:pre-wrap">${escapeHtmlSafe(text)}</div>`;
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
+}
+
+function peShowTyping() {
+  const box = document.getElementById('pe_messages');
+  if (!box) return;
+  const el = document.createElement('div');
+  el.id = 'pe_typing';
+  el.style.cssText = 'display:flex;gap:8px;align-items:center';
+  el.innerHTML = `<div style="font-size:20px">🐾</div><div style="background:#F5F0FA;border-radius:12px;padding:10px 12px;font-size:13px;color:var(--ink3)">考えているよ…</div>`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+function peHideTyping() { document.getElementById('pe_typing')?.remove(); }
+
+function pomeExplainSystemPrompt() {
+  const card = pomeExplain.card;
+  const rules = getRulesForBulkCard(card);
+  const ruleBlock = rules.length > 0
+    ? rules.map(r => `・${r.rule}${r.trigger?`（見分け方：${r.trigger}）`:''}`).join('\n')
+    : '（登録ルールなし。問題と答えから教えて）';
+  const qText = card.questionText || card.back || '';
+  const aText = card.answerText || card.front || '';
+  const explBlock = pomeExplain.userExplanation
+    ? `\n【香凜がさっき書いた説明】\n${pomeExplain.userExplanation}\n（この説明の良い点・直す点を踏まえて対話を始めてください）`
+    : '';
+  return `あなたは中学1年生「香凜」の家庭教師AI「ポメ」です。やさしく、語尾に時々🐾。
+香凜がこの問題についてもっと理解したいと思っています。一緒に理解できるよう導いてください。
+
+【問題】${qText}
+【答え】${aText}
+【使う考え方（ルール）】
+${ruleBlock}${explBlock}
+
+進め方：
+1. 香凜の説明があれば、まず良い点をほめ、足りない点をやさしく補う
+2. 説明がなければ、解き方の手順を1ステップずつやさしく説明する
+3. 香凜が質問したら答える。対話しながら理解を助ける
+4. 香凜がわかった様子になったら、確認のため似た問題（数字や語句を変えた類題）を1問出す
+5. 類題を2〜3問出し、2問連続で正解できたら「もう大丈夫そうだね🐾」と伝えて終了を促す
+
+ルール：
+- 1回の返答は3〜4文まで。長くしない
+- 責めない。「おしいね」「あと少し」から入る
+- 中1がわかる平易な言葉で
+- 類題を出すときは「じゃあ、にた問題だよ：」と明示してから出す
+- 理解できたと判断したら「わかったら『わかった！閉じる』を押してね🐾」と伝える`;
+}
+
+async function requestPomeExplanation() {
+  if (!AppData.settings?.apiKey) {
+    peAppendMessage('assistant', '設定画面でAPIキーを入れてね🐾');
+    return;
+  }
+  peShowTyping();
+  // 初回：説明があればそれを評価、なければ解き方を教えてもらう
+  const firstMsg = pomeExplain.userExplanation
+    ? 'さっきの私の説明を見て、合っているか教えて。そのあともっと理解したい'
+    : 'この問題の解き方を教えて';
+  pomeExplain.history = [{ role:'user', content: firstMsg }];
+  await callPomeExplainAPI();
+}
+
+async function sendPomeExplain() {
+  const input = document.getElementById('pe_input');
+  const text = input?.value?.trim();
+  if (!text) return;
+  input.value = '';
+  peAppendMessage('user', text);
+  pomeExplain.history.push({ role:'user', content:text });
+  peShowTyping();
+  await callPomeExplainAPI();
+}
+
+async function callPomeExplainAPI() {
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key':AppData.settings.apiKey, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6', max_tokens: 600,
+        system: pomeExplainSystemPrompt(),
+        messages: pomeExplain.history
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.[0]?.text || 'うまく答えられなかった…もう一度聞いてみて🐾';
+    peHideTyping();
+    peAppendMessage('assistant', text);
+    pomeExplain.history.push({ role:'assistant', content:text });
+  } catch(e) {
+    peHideTyping();
+    peAppendMessage('assistant', 'エラーが出ちゃった。もう一度ためしてね🐾');
+  }
+}
+
+function closePomeExplain(understood) {
+  const card = pomeExplain.card;
+  document.getElementById('pomeExplainOverlay')?.remove();
+  // 「わかった！閉じる」で閉じたら習熟度を🟡に上げる（理解の入口）
+  if (understood && card && card.id) {
+    try { recordRuleMastery(card.id, '🟡'); } catch(e) {}
+  }
+  pomeExplain.closed = true;
+  // 元のカード画面に戻り、答え合わせに進める
+  showFlipAfterButton();
+}
 // ═══════════════════════════════════════
 // 汎用入力補助（音声・手書きOCR）：任意のtextareaに書き込む
-// 「なぜ？」欄など aiChatInput 以外でも使えるようにする版
 // ═══════════════════════════════════════
 let genericRecognition = null;
 
@@ -17662,7 +17836,7 @@ function renderFlipCard(bar, content) {
           <div style="display:flex;gap:6px;margin-top:8px">
             <button onclick="judgeBulkWhy('${card.id}')" class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">次へ（答え合わせ）→</button>
             <button onclick="giveUpBulkWhy('${card.id}')" style="padding:10px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:12px;color:var(--ink2);cursor:pointer">わからない</button>
-            <button onclick="bulkResultGraded('skip')" style="padding:10px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:12px;color:var(--ink3);cursor:pointer">スキップ</button>
+            <button onclick="bulkResultGraded('skip')" style="padding:10px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:12px;color:var(--ink3);cursor:pointer" title="説明を書かずに答え合わせへ">説明を飛ばす</button>
           </div>
           <div id="bc_why_result" style="margin-top:10px"></div>
           <div id="bc_flip_after" style="margin-top:10px"></div>
@@ -17792,11 +17966,10 @@ function bulkResultOK() { _bulkResult(true); }
 function bulkResultGraded(level) {
   const card = bulkTest.cards[bulkTest.index];
   if (level === 'skip') {
-    // スキップ：記録せず次のカードへ
-    bulkTest.flipped = false;
-    if (bulkTest.index < bulkTest.cards.length - 1) { bulkTest.index++; }
-    else { bulkTest.phase = nextPhase(bulkTest.phase); bulkTest.index = 0; }
-    renderBulkTest();
+    // 説明入力をスキップ：判定はせず、答えと理解度ボックスを出す
+    const resultDiv = document.getElementById('bc_why_result');
+    if (resultDiv) resultDiv.innerHTML = '';
+    showFlipAfterButton();
     return;
   }
   // 「自分で解けた」以上を正解(◎)、それ未満を不正解(×)として既存集計に接続
