@@ -17357,9 +17357,21 @@ JSONのみ出力（コードブロック不要）：
         </div>`;
     }
     recordRuleMastery(cardId, level);
+    showFlipAfterButton();
   } catch(e) {
     if(resultDiv){ resultDiv.innerHTML = '<div style="font-size:12px;color:var(--red)">はんていに失敗しました。もう一度ためしてね</div>'; }
   }
+}
+
+// 判定後に「答えを見る」ボタンを出す（押すとめくって答え合わせへ）
+function showFlipAfterButton() {
+  const box = document.getElementById('bc_flip_after');
+  if (!box) return;
+  box.innerHTML = `
+    <button onclick="bulkTest.flipped=true; renderBulkTest();" class="btn btn-primary"
+            style="width:100%;padding:12px;font-size:14px;background:var(--purple)">
+      ↓ 答えを見る（答え合わせ）
+    </button>`;
 }
 
 // 「わからない」→ ルールを優しく提示（bulkTest版）
@@ -17378,6 +17390,7 @@ function giveUpBulkWhy(cardId) {
       <div style="font-size:12px;color:var(--ink3);margin-top:8px">このコツを使うと、次からできるようになるよ！</div>
     </div>`;
   recordRuleMastery(cardId, '🔴');
+  showFlipAfterButton();
 }
 
 // ═══════════════════════════════════════
@@ -17634,10 +17647,11 @@ function renderFlipCard(bar, content) {
                     style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:13px;cursor:pointer" title="手書きで入力">✏️ 手書き</button>
           </div>
           <div style="display:flex;gap:8px;margin-top:8px">
-            <button onclick="judgeBulkWhy('${card.id}')" class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">説明できた！</button>
+            <button onclick="judgeBulkWhy('${card.id}')" class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">次へ（答え合わせ）→</button>
             <button onclick="giveUpBulkWhy('${card.id}')" style="padding:10px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:13px;color:var(--ink2);cursor:pointer">わからない</button>
           </div>
           <div id="bc_why_result" style="margin-top:10px"></div>
+          <div id="bc_flip_after" style="margin-top:10px"></div>
         </div>
       </div>` : '';
 
@@ -17697,7 +17711,28 @@ function renderFlipCard(bar, content) {
         <button onclick="bulkNext()"
                 class="btn btn-primary" style="flex:2;padding:12px;font-size:14px;background:var(--purple)">
           ${index===totalCards-1 ? '次のフェーズへ →' : '次へ →'}
-        </button>` : `
+        </button>` : (card.isRuleType ? `
+        <div style="width:100%">
+          <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:8px">正直に選んでね（ポメが覚えておくよ🐾）</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <button onclick="bulkResultGraded('explained')"
+                    style="padding:11px;border-radius:10px;border:none;background:#3A9B8C;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+              🟢 自分で解けて、理由も説明できた
+            </button>
+            <button onclick="bulkResultGraded('solved')"
+                    style="padding:11px;border-radius:10px;border:none;background:#4A9B5F;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+              🟡 自分で解けたけど、理由は曖昧
+            </button>
+            <button onclick="bulkResultGraded('sawAnswer')"
+                    style="padding:11px;border-radius:10px;border:none;background:#C8922A;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+              🟠 答えを見てわかった
+            </button>
+            <button onclick="bulkResultGraded('notyet')"
+                    style="padding:11px;border-radius:10px;border:none;background:#D94F3D;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
+              🔴 まだわからない
+            </button>
+          </div>
+        </div>` : `
         <button onclick="bulkResultNG()"
                 style="flex:1;padding:12px;border-radius:10px;border:none;
                        background:#D94F3D;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
@@ -17707,7 +17742,7 @@ function renderFlipCard(bar, content) {
                 style="flex:1;padding:12px;border-radius:10px;border:none;
                        background:#4A9B5F;color:#fff;font-family:var(--font);font-size:13px;font-weight:700;cursor:pointer">
           ◎ できた
-        </button>`}
+        </button>`)}
     </div>`}
 
     <div style="display:flex;gap:8px;margin-top:8px">
@@ -17723,8 +17758,8 @@ function renderFlipCard(bar, content) {
       </button>
     </div>`;
 
-  // タップでめくる
-  if (needFlipFirst) {
+  // タップでめくる（ただしルール型カードで「なぜ？」入力中はカードクリックで誤爆しない）
+  if (needFlipFirst && !card.isRuleType) {
     document.getElementById('bc-card').addEventListener('click', function() {
       bulkTest.flipped = true;
       renderBulkTest();
@@ -17760,7 +17795,18 @@ function bulkPrev() {
 
 // クイズフェーズの◎/×
 function bulkResultOK() { _bulkResult(true); }
-function bulkResultNG() { _bulkResult(false); }
+// ルール型カードの4段階評価。理解度を記録して次へ
+function bulkResultGraded(level) {
+  const card = bulkTest.cards[bulkTest.index];
+  // 「自分で解けた」以上を正解(◎)、それ未満を不正解(×)として既存集計に接続
+  const ok = (level === 'explained' || level === 'solved');
+  // ルール習熟度にも段階を反映
+  if (card && card.id) {
+    const map = { explained:'🟢', solved:'🟡', sawAnswer:'🟠', notyet:'🔴' };
+    try { recordRuleMastery(card.id, map[level] === '🟠' ? '🔴' : map[level]); } catch(e) {}
+  }
+  _bulkResult(ok);
+}function bulkResultNG() { _bulkResult(false); }
 function _bulkResult(ok) {
   const card = bulkTest.cards[bulkTest.index];
   if (!bulkTest.results[bulkTest.phase]) bulkTest.results[bulkTest.phase] = {};
