@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.80</div>
+  <div class="sb-version">v2.82</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -17270,24 +17270,22 @@ function renderBulkTest() {
     const current = phase === p.key;
     const color = done ? 'var(--green)' : current ? 'var(--purple)' : 'var(--bg3)';
     const tc = (done || current) ? '#fff' : 'var(--ink3)';
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
-      <div style="width:28px;height:28px;border-radius:50%;background:${color};
-                  display:flex;align-items:center;justify-content:center;font-size:11px;color:${tc};font-weight:700">
+    return `<div style="display:flex;align-items:center;gap:4px">
+      <div style="width:20px;height:20px;border-radius:50%;background:${color};
+                  display:flex;align-items:center;justify-content:center;font-size:10px;color:${tc};font-weight:700">
         ${done ? '✓' : p.label[0]}
       </div>
-      <div style="font-size:9px;color:${current?'var(--purple)':'var(--ink3)'};font-weight:${current?'700':'400'}">${p.label}</div>
+      <div style="font-size:10px;color:${current?'var(--purple)':'var(--ink3)'};font-weight:${current?'700':'400'}">${p.label}</div>
     </div>`;
-  }).join(`<div style="height:2px;background:var(--bg3);flex:1;margin:14px 4px 0"></div>`);
+  }).join(`<div style="width:16px;height:2px;background:var(--bg3);margin:0 2px"></div>`);
 
-  const barHtml = `<div style="margin-bottom:14px">
-    <div style="display:flex;align-items:flex-start;margin-bottom:8px">${stepsHtml}</div>
-    <div style="text-align:right">
-      <a href="${location.href}" target="_blank"
-         style="font-size:11px;color:var(--purple);text-decoration:none;
-                background:#F0EEF9;padding:4px 10px;border-radius:8px;font-weight:700">
-        🐾 ポメを別タブで開く
-      </a>
-    </div>
+  const barHtml = `<div style="margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center">${stepsHtml}</div>
+    <a href="${location.href}" target="_blank"
+       style="font-size:10px;color:var(--purple);text-decoration:none;
+              background:#F0EEF9;padding:3px 8px;border-radius:8px;font-weight:700;white-space:nowrap">
+      🐾 別タブ
+    </a>
   </div>`;
 
   renderFlipCard(barHtml, content);
@@ -17375,14 +17373,14 @@ function showFlipAfterButton() {
       <div style="font-size:18px;font-weight:700;white-space:pre-wrap;margin-bottom:12px">${ans}</div>
       <div style="font-size:12px;color:var(--ink3);text-align:center;margin-bottom:8px">正直に選んでね（ポメが覚えておくよ🐾）</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        <button onclick="bulkResultGraded('explained')"
-                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#3A9B8C;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🟢 解けて説明もできた</button>
-        <button onclick="bulkResultGraded('solved')"
-                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#4A9B5F;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🟡 解けたが理由は曖昧</button>
-        <button onclick="bulkResultGraded('sawAnswer')"
-                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#C8922A;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🟠 答えを見てわかった</button>
         <button onclick="bulkResultGraded('notyet')"
                 style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#D94F3D;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🔴 まだわからない</button>
+        <button onclick="bulkResultGraded('sawAnswer')"
+                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#C8922A;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🟠 答えを見てわかった</button>
+        <button onclick="bulkResultGraded('solved')"
+                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#4A9B5F;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🟡 解けたが理由は曖昧</button>
+        <button onclick="bulkResultGraded('explained')"
+                style="flex:1;min-width:120px;padding:11px 6px;border-radius:10px;border:none;background:#3A9B8C;color:#fff;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer">🟢 解けて説明もできた</button>
       </div>
     </div>`;
 }
@@ -17651,17 +17649,20 @@ function renderFlipCard(bar, content) {
             この文は「<b>is / am / are がある文</b>」かな？それとも「<b>動作のことば（like, play など）がある文</b>」かな？<br>それをふまえて、<b>答えと、どうしてそうなるのか</b>を説明してみて🐾
           </div>` : `
           <div style="font-size:12px;color:var(--ink2);margin-bottom:6px;line-height:1.7">答えは何かな？ そして、どうしてそうなるのか自分のことばで説明してみて🐾</div>`}
-          <textarea id="bc_why_input" placeholder="答えと、その理由を書いてね"
-            style="width:100%;min-height:60px;padding:9px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;resize:vertical;margin-top:4px"></textarea>
-          <div style="display:flex;gap:6px;margin-top:6px">
-            <button onclick="startVoiceInputTo('bc_why_input','bc_why_voice')" id="bc_why_voice"
-                    style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:13px;cursor:pointer" title="音声で入力">🎤 声で</button>
-            <button onclick="openHandwritingTo('bc_why_input')"
-                    style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:#fff;font-family:var(--font);font-size:13px;cursor:pointer" title="手書きで入力">✏️ 手書き</button>
+          <div style="position:relative">
+            <textarea id="bc_why_input" placeholder="答えと、その理由を書いてね"
+              style="width:100%;min-height:64px;padding:9px 72px 9px 9px;border:1px solid var(--border);border-radius:8px;font-family:var(--font);font-size:14px;resize:vertical"></textarea>
+            <div style="position:absolute;right:8px;bottom:10px;display:flex;gap:6px">
+              <button onclick="startVoiceInputTo('bc_why_input','bc_why_voice')" id="bc_why_voice"
+                      style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:15px;padding:0" title="音声で入力">🎤</button>
+              <button onclick="openHandwritingTo('bc_why_input')"
+                      style="width:30px;height:30px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:15px;padding:0" title="手書きで入力">✏️</button>
+            </div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="display:flex;gap:6px;margin-top:8px">
             <button onclick="judgeBulkWhy('${card.id}')" class="btn btn-primary" style="flex:1;padding:10px;font-size:13px">次へ（答え合わせ）→</button>
-            <button onclick="giveUpBulkWhy('${card.id}')" style="padding:10px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:13px;color:var(--ink2);cursor:pointer">わからない</button>
+            <button onclick="giveUpBulkWhy('${card.id}')" style="padding:10px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:12px;color:var(--ink2);cursor:pointer">わからない</button>
+            <button onclick="bulkResultGraded('skip')" style="padding:10px 12px;border:1px solid var(--border);background:#fff;border-radius:10px;font-family:var(--font);font-size:12px;color:var(--ink3);cursor:pointer">スキップ</button>
           </div>
           <div id="bc_why_result" style="margin-top:10px"></div>
           <div id="bc_flip_after" style="margin-top:10px"></div>
@@ -17790,12 +17791,19 @@ function bulkResultOK() { _bulkResult(true); }
 // ルール型カードの4段階評価。理解度を記録して次へ
 function bulkResultGraded(level) {
   const card = bulkTest.cards[bulkTest.index];
+  if (level === 'skip') {
+    // スキップ：記録せず次のカードへ
+    bulkTest.flipped = false;
+    if (bulkTest.index < bulkTest.cards.length - 1) { bulkTest.index++; }
+    else { bulkTest.phase = nextPhase(bulkTest.phase); bulkTest.index = 0; }
+    renderBulkTest();
+    return;
+  }
   // 「自分で解けた」以上を正解(◎)、それ未満を不正解(×)として既存集計に接続
   const ok = (level === 'explained' || level === 'solved');
-  // ルール習熟度にも段階を反映
   if (card && card.id) {
-    const map = { explained:'🟢', solved:'🟡', sawAnswer:'🟠', notyet:'🔴' };
-    try { recordRuleMastery(card.id, map[level] === '🟠' ? '🔴' : map[level]); } catch(e) {}
+    const map = { explained:'🟢', solved:'🟡', sawAnswer:'🔴', notyet:'🔴' };
+    try { recordRuleMastery(card.id, map[level]); } catch(e) {}
   }
   _bulkResult(ok);
 }function bulkResultNG() { _bulkResult(false); }
