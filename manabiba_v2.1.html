@@ -805,7 +805,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15p
       <ellipse cx="58" cy="31" rx="5" ry="3" fill="#FFB0A8" opacity="0.38"/>
     </svg>
   </div>
-  <div class="sb-version">v2.85</div>
+  <div class="sb-version">v2.86</div>
 
   <nav class="sb-nav" style="display:flex;flex-direction:column;height:100%;overflow:hidden">
 
@@ -17926,7 +17926,9 @@ function renderFlipCard(bar, content) {
     </div>`;
 
   // タップでめくる（ただしルール型カードで「なぜ？」入力中はカードクリックで誤爆しない）
-  if (needFlipFirst && !card.isRuleType) {
+  // タップでめくる。ただしbackOnlyフェーズのルール型（なぜ？入力中）だけは誤爆防止で無効
+  const suppressFlip = (phase === 'backOnly' && card.isRuleType);
+  if (needFlipFirst && !suppressFlip) {
     document.getElementById('bc-card').addEventListener('click', function() {
       bulkTest.flipped = true;
       renderBulkTest();
