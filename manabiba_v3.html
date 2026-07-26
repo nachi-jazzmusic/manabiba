@@ -712,6 +712,14 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <label class="btn sub2" style="margin-left:8px">バックアップから復元<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label>
     <div class="hint-note" id="storageUsage" style="margin-top:10px"></div>
   </div>
+  <div class="card" style="border-color:#E8B84B;background:#FDF6E3">
+    <h2>🩹 うまく動かないときの修理</h2>
+    <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">「容量をこえました」と出たときや、同じデッキが2つ並んでいるときに使ってください。</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn sub2" onclick="rescueEmbeddedImages()">🩹 画像を専用の保存場所へ移す</button>
+      <button class="btn sub2" onclick="dedupeDecks()">🧹 重複しているデッキを1つにまとめる</button>
+    </div>
+  </div>
   <div class="card" style="background:var(--mint-soft);border-color:var(--mint)">
     <h2>📦 v2からの引っ越し</h2>
     <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">v2で使っていた暗記カードを、まとめてv3に取り込みます。すでに変換ずみのファイル(<code>manabiba_v2_decks_import.json</code>など)を選んでください。</p>
@@ -924,7 +932,13 @@ function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultS
  if(!S.cardLog)S.cardLog={};
  if(!S.lvMigrated){(S.rules||[]).forEach(r=>{r.lv=3;});S.lvMigrated=true;}
  (S.ansSets||[]).forEach(a=>(a.items||[]).forEach(i=>{if(i.text===undefined)i.text="";}));}
-function save(){localStorage.setItem(KEY,JSON.stringify(S));}
+function save(){
+ try{localStorage.setItem(KEY,JSON.stringify(S));}
+ catch(e){
+  if(String(e).includes("quota")||String(e).includes("Quota")){
+   alert("⚠️ 保存できる容量をこえました。\n\nカードの中に画像が直接入っている可能性があります。\n「データ管理」→「🩹 画像を専用の保存場所へ移す」を実行してください。");
+  }else{alert("保存に失敗しました:"+e.message);}
+  throw e;}}
 function D(date){date=date||today();if(!S.daily[date])S.daily[date]={cards:0,green:0,rui:0,ruiPass:0,rev:0,revPass:0,ok:0,ng:0,blocks:{},off:false,maru:0};return S.daily[date];}
 
 /* ---------- ストリーク ---------- */
@@ -2186,6 +2200,33 @@ async function idbAll(){const db=await idbOpen();
   cReq.onsuccess=(e)=>{const cur=e.target.result;if(cur){out[cur.key]=cur.value;cur.continue();}else res(out);};
   cReq.onerror=()=>rej(cReq.error);});}
 function newImgId(){return "idb:img_"+Date.now()+"_"+Math.random().toString(36).slice(2,9);}
+/** data:URLを新しいIDでIndexedDBに入れ、その参照IDを返す */
+async function idbPutNew(dataUrl){const id=newImgId();await idbPut(id,dataUrl);return id;}
+/** カードに直接埋まっている画像を、すべてIndexedDBへ移す(容量オーバーの修復用) */
+async function rescueEmbeddedImages(){
+ let moved=0,found=0;
+ for(const dk of S.decks){
+  for(const c of dk.cards){
+   if(c.img&&c.img.startsWith("data:")){found++;c.img=await idbPutNew(c.img);moved++;}
+   if(c.imgBack&&c.imgBack.startsWith("data:")){found++;c.imgBack=await idbPutNew(c.imgBack);moved++;}}}
+ if(!found){toast("カードに直接入っている画像はありませんでした");return;}
+ try{save();toast(`✅ 画像${moved}枚を専用の保存場所へ移しました`);renderData();}
+ catch(e){alert("移動はできましたが保存に失敗しました。ページを再読み込みしてもう一度お試しください。");}}
+/** 重複して取り込まれたデッキを取り除く(同じ名前・同じ枚数のものを1つだけ残す) */
+async function dedupeDecks(){
+ const seen=new Map();const dup=[];
+ S.decks.forEach((d,i)=>{const key=d.sub+"|"+d.name+"|"+d.cards.length;
+  if(seen.has(key))dup.push(i);else seen.set(key,i);});
+ if(!dup.length){toast("重複しているデッキはありませんでした");return;}
+ if(!confirm(`同じ名前・同じ枚数のデッキが ${dup.length}件 重複しています。\n新しい方を削除して1つにまとめますか?`))return;
+ // 後ろから削除(インデックスがずれないように)。紐づく画像も消す
+ for(let k=dup.length-1;k>=0;k--){
+  const d=S.decks[dup[k]];
+  for(const c of d.cards){
+   if(c.img&&c.img.startsWith("idb:"))await idbDelete(c.img).catch(()=>{});
+   if(c.imgBack&&c.imgBack.startsWith("idb:"))await idbDelete(c.imgBack).catch(()=>{});}
+  S.decks.splice(dup[k],1);}
+ save();renderData();toast(`✅ ${dup.length}件の重複デッキを削除しました`);}
 /** data:URL(base64)を受け取り、IndexedDBに保存して参照IDを返す。既に "idb:" ならそのまま。空/nullはnullのまま。 */
 async function storeImage(dataUrlOrRef){
  if(!dataUrlOrRef)return null;
@@ -2255,7 +2296,15 @@ function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReade
   if(!newS||typeof newS!=="object"||!newS.decks)throw new Error("形式が違います");
   if(!confirm(`現在のデータを上書きします${images?`(画像${Object.keys(images).length}枚を含む)`:""}。よろしいですか?`))return;
   if(images){for(const [id,url] of Object.entries(images)){await idbPut(id,url);}}
-  S=newS;save();location.reload();
+  // カードに直接埋まっている画像(data:)はIndexedDBへ逃がしてから保存する
+  let moved=0;
+  for(const dk of (newS.decks||[])){
+   for(const c of (dk.cards||[])){
+    if(c.img&&c.img.startsWith("data:")){c.img=await idbPutNew(c.img);moved++;}
+    if(c.imgBack&&c.imgBack.startsWith("data:")){c.imgBack=await idbPutNew(c.imgBack);moved++;}}}
+  S=newS;save();
+  if(moved)alert(`画像${moved}枚を専用の保存場所へ移しました。`);
+  location.reload();
  }catch(e){alert("読み込めませんでした:"+e.message);}};
  r.readAsText(f);}
 async function removeV2Import(){
@@ -2313,10 +2362,17 @@ function importDeckFile(inp){const f=inp.files[0];if(!f)return;const r=new FileR
   msg.innerHTML=`✅ ${addedDecks}デッキ・${addedCards}枚を追加しました<br>📚 ${unitTagged}デッキは単元を自動でタグづけしました。残り${addedDecks-unitTagged}デッキは「登録ずみデッキ」から手動で単元を付けられます。${imgFlag?`<br>📷 うち${imgFlag}枚は元は画像つきの問題です。画像は${imgMoved}枚、専用の保存領域に移しました。`:""}`;
  }catch(e){msg.textContent="読み込めませんでした:"+e.message;}};
  r.readAsText(f);inp.value="";}
-function importDeck(){const txt=qs("#deckImport").value.trim();if(!txt)return;
+async function importDeck(){const txt=qs("#deckImport").value.trim();if(!txt)return;
  try{
   if(txt.startsWith("{")||txt.startsWith("[")){const j=JSON.parse(txt);const arr=Array.isArray(j)?j:[j];
-   arr.forEach(d=>S.decks.push({id:"d"+Date.now()+Math.random().toString(36).slice(2,5),name:d.name||"新しいデッキ",sub:SUBJECTS.find(s=>s.id===d.sub)?d.sub:"other",cards:(d.cards||[]).map(c=>({q:c.q,a:c.a,exp:c.exp||"",lv:0,last:null,gs:0,img:c.img||null,imgBack:c.imgBack||null}))}));}
+   for(const d of arr){
+    const cards=[];
+    for(const c of (d.cards||[])){
+     let img=c.img||null,imgBack=c.imgBack||null;
+     if(img&&!img.startsWith("idb:"))img=await storeImage(img);
+     if(imgBack&&!imgBack.startsWith("idb:"))imgBack=await storeImage(imgBack);
+     cards.push({q:c.q,a:c.a,exp:c.exp||"",lv:0,last:null,gs:0,img,imgBack});}
+    S.decks.push({id:"d"+Date.now()+Math.random().toString(36).slice(2,5),name:d.name||"新しいデッキ",sub:SUBJECTS.find(s=>s.id===d.sub)?d.sub:"other",cards});}}
   else{const lines=txt.split("\n");const head=lines[0].split("|");const name=head[0].trim(),sub=(head[1]||"math").trim();
    const body=lines.slice(1).join("\n");const blocks=body.split(/\n\s*\n/).filter(b=>b.trim());
    const cards=blocks.map(b=>{const g=k=>{const m=b.match(new RegExp(k+"[：:](.*)"));return m?m[1].trim():"";};
