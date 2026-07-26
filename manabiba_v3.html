@@ -103,6 +103,7 @@ h1 .tag{vertical-align:middle}
 .debtstep{border:1.5px dashed var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
 .debtstep>b{font-family:var(--disp);font-size:13.5px;display:block;margin-bottom:4px}
 /* 5ステップ */
+.okline{font-size:12.5px;color:#2F6B52;background:var(--mint-soft);border:1.5px solid var(--mint);border-radius:10px;padding:8px 12px;font-weight:700}
 .diagbox{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px}
 .diagtable{width:100%;border-collapse:collapse;font-size:12.5px}
 .diagtable th{text-align:left;color:var(--ink-soft);font-size:11.5px;border-bottom:1.5px solid var(--line);padding:4px 6px}
@@ -807,7 +808,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-28c)</span></div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-28d)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -909,6 +910,7 @@ const INIT_RULES=[
 
 /* ---------- 状態 ---------- */
 const KEY="manabiba3";
+const BUILD_ID="2026-07-28d";
 let S=null;
 function defaultState(){
  const t=today();
@@ -2220,24 +2222,50 @@ async function idbAll(){const db=await idbOpen();
 /** 保存データの中身を大きい順に調べる(容量オーバーの原因さがし) */
 function diagnoseStorage(){
  const sizeOf=v=>{try{return JSON.stringify(v||"").length;}catch(e){return 0;}};
+ const mb=n=>(n/1024/1024).toFixed(2)+"MB";
  const rows=Object.keys(S).map(k=>({k,size:sizeOf(S[k])})).sort((a,b)=>b.size-a.size);
  const total=sizeOf(S);
- // カードに直接入っている画像の量も調べる
+ // 実際にこの端末へ保存されている量(すべてのキー)を調べる
+ let lsRows=[],lsTotal=0,savedSize=0;
+ try{
+  for(let i=0;i<localStorage.length;i++){
+   const k=localStorage.key(i);const v=localStorage.getItem(k)||"";
+   lsRows.push({k,size:v.length});lsTotal+=v.length;
+   if(k===KEY)savedSize=v.length;}
+  lsRows.sort((a,b)=>b.size-a.size);
+ }catch(e){}
  let embedded=0,embeddedN=0;
  (S.decks||[]).forEach(d=>(d.cards||[]).forEach(c=>{
   ["img","imgBack"].forEach(f=>{if(c[f]&&String(c[f]).startsWith("data:")){embedded+=c[f].length;embeddedN++;}});}));
- const mb=n=>(n/1024/1024).toFixed(2)+"MB";
- let html=`<div class="diagbox"><b>📊 保存データの内訳(合計 ${mb(total)})</b>
-  <div class="hint-note" style="margin:2px 0">いま動いているファイル:<b>2026-07-28c</b></div>
-  <div class="hint-note" style="margin:4px 0 8px">この端末に保存できるのは、だいたい5MBまでです。</div>
-  <table class="diagtable"><tr><th>種類</th><th>大きさ</th></tr>
+ const deckN=(S.decks||[]).length, cardN=(S.decks||[]).reduce((a,d)=>a+(d.cards||[]).length,0);
+ const persisted=savedSize>0&&Math.abs(savedSize-total)<total*0.2;
+ let html=`<div class="diagbox"><b>📊 保存データの内訳</b>
+  <div class="hint-note" style="margin:2px 0">いま動いているファイル:<b>${BUILD_ID}</b></div>
+  <div class="${persisted?"okline":"warnline"}" style="margin:8px 0">
+   ${persisted?`✅ この端末にちゃんと保存されています(${mb(savedSize)})`
+    :`⚠️ <b>まだ保存されていません</b>(画面上は ${mb(total)} ですが、端末には ${mb(savedSize)} しか入っていません)<br>
+      <span style="font-weight:500">ページを再読み込みすると元に戻ってしまいます。下の「🩹 画像を専用の保存場所へ移す」を押してから、もう一度お試しください。</span>`}
+  </div>
+  <div style="font-size:12px;font-weight:700;color:var(--ink-soft);margin-top:8px">画面上のデータ(合計 ${mb(total)})</div>
+  <table class="diagtable">
   ${rows.filter(r=>r.size>1000).map(r=>`<tr><td>${esc(r.k)}</td><td>${mb(r.size)}</td></tr>`).join("")}
+  </table>
+  <div style="font-size:12px;font-weight:700;color:var(--ink-soft);margin-top:10px">この端末に実際に入っているもの(合計 ${mb(lsTotal)} / 上限およそ5MB)</div>
+  <table class="diagtable">
+  ${lsRows.map(r=>`<tr><td>${esc(r.k)}</td><td>${mb(r.size)}</td></tr>`).join("")||"<tr><td>(なし)</td><td>-</td></tr>"}
   </table>`;
  if(embeddedN)html+=`<div class="warnline" style="margin-top:8px">⚠️ カードの中に画像が直接 ${embeddedN}枚(${mb(embedded)})入っています。「🩹 画像を専用の保存場所へ移す」で解決できます。</div>`;
- // デッキ数・カード数も出す
- const deckN=(S.decks||[]).length, cardN=(S.decks||[]).reduce((a,d)=>a+(d.cards||[]).length,0);
+ if(lsTotal>total*1.5&&lsRows.length>1)html+=`<div class="warnline" style="margin-top:8px">⚠️ まなびば以外の古いデータが残っているようです。<button class="mini" onclick="cleanOtherKeys()">🧹 まなびば以外の古いデータを消す</button></div>`;
  html+=`<div class="hint-note" style="margin-top:8px">デッキ ${deckN}件 / カード ${cardN}枚 / 誤答キュー ${(S.wrongQ||[]).length}件 / 復習キュー ${(S.reviewQ||[]).length}件</div></div>`;
  qs("#diagResult").innerHTML=html;}
+/** このアプリ以外の、同じアドレスに残っている古いデータを削除する */
+function cleanOtherKeys(){
+ const others=[];
+ for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k!==KEY)others.push(k);}
+ if(!others.length){toast("ほかのデータはありませんでした");return;}
+ if(!confirm(`まなびば以外の古いデータ ${others.length}件を削除します。\n(${others.join(", ")})\nよろしいですか?`))return;
+ others.forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
+ diagnoseStorage();toast(`✅ ${others.length}件を削除しました`);}
 /** IndexedDBの中で、どのカードからも参照されていない画像を削除する */
 async function cleanOrphanImages(){
  const used=new Set();
@@ -2372,11 +2400,16 @@ function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReade
     +rows.map(x=>`・${x.k}: ${mb(x.size)}`).join("\n")
     +"\n\nこの内容をClaudeに伝えてください。");
    return;}
-  S=newS;save();
+  S=newS;
+  let saveOk=true;
+  try{save();}catch(e){saveOk=false;}
+  if(!saveOk){
+   alert("⚠️ 復元しましたが、この端末に保存できませんでした。\n\n画面には出ていますが、再読み込みすると消えてしまいます。\n「📊 何が容量を使っているか調べる」で原因を確認してください。");
+   go("sData",qs('[data-s="sData"]'));diagnoseStorage();return;}
   let msg=[];
   if(moved)msg.push(`画像${moved}枚を専用の保存場所へ移しました`);
   if(strippedKeys.length)msg.push(`不要な画像データ(${strippedKeys.join(", ")})を整理しました`);
-  if(msg.length)alert("✅ 復元しました。\n"+msg.join("\n"));
+  alert("✅ 復元しました。"+(msg.length?"\n"+msg.join("\n"):""));
   location.reload();
  }catch(e){alert("読み込めませんでした:"+e.message);}};
  r.readAsText(f);}
