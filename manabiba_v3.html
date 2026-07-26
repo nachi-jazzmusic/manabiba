@@ -2334,16 +2334,38 @@ function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReade
   const newS=j.S||j; // 旧形式(画像なし・Sを直接保存)にも対応
   const images=j.images||null;
   if(!newS||typeof newS!=="object"||!newS.decks)throw new Error("形式が違います");
+  const sizeOf=v=>{try{return JSON.stringify(v||"").length;}catch(e){return 0;}};
+  const mb=n=>(n/1024/1024).toFixed(2)+"MB";
   if(!confirm(`現在のデータを上書きします${images?`(画像${Object.keys(images).length}枚を含む)`:""}。よろしいですか?`))return;
   if(images){for(const [id,url] of Object.entries(images)){await idbPut(id,url);}}
-  // カードに直接埋まっている画像(data:)はIndexedDBへ逃がしてから保存する
+  // ① カードに直接埋まっている画像(data:)はIndexedDBへ逃がす
   let moved=0;
   for(const dk of (newS.decks||[])){
    for(const c of (dk.cards||[])){
-    if(c.img&&c.img.startsWith("data:")){c.img=await idbPutNew(c.img);moved++;}
-    if(c.imgBack&&c.imgBack.startsWith("data:")){c.imgBack=await idbPutNew(c.imgBack);moved++;}}}
+    if(c.img&&String(c.img).startsWith("data:")){c.img=await idbPutNew(c.img);moved++;}
+    if(c.imgBack&&String(c.imgBack).startsWith("data:")){c.imgBack=await idbPutNew(c.imgBack);moved++;}}}
+  // ② S の中に紛れ込んだ画像のかたまり(古い形式のなごり)を取り除く
+  let strippedKeys=[];
+  for(const k of Object.keys(newS)){
+   const sz=sizeOf(newS[k]);
+   const looksLikeImages=(k==="images"||k==="imageStore"||k==="imgs");
+   if(looksLikeImages&&sz>200000){
+    // 画像の入れ物ならIndexedDBへ移してから取り除く
+    try{for(const [id,url] of Object.entries(newS[k]||{})){if(String(url).startsWith("data:"))await idbPut(String(id).startsWith("idb:")?id:("idb:"+id),url);}}catch(e){}
+    delete newS[k];strippedKeys.push(k+"("+mb(sz)+")");}}
+  // ③ それでも大きすぎる場合は、原因を具体的に知らせる
+  const total=sizeOf(newS);
+  if(total>4.5*1024*1024){
+   const rows=Object.keys(newS).map(k=>({k,size:sizeOf(newS[k])})).sort((a,b)=>b.size-a.size).slice(0,5);
+   alert("⚠️ このバックアップは大きすぎて保存できません("+mb(total)+")。\n\n内訳(大きい順):\n"
+    +rows.map(x=>`・${x.k}: ${mb(x.size)}`).join("\n")
+    +"\n\nこの内容をClaudeに伝えてください。");
+   return;}
   S=newS;save();
-  if(moved)alert(`画像${moved}枚を専用の保存場所へ移しました。`);
+  let msg=[];
+  if(moved)msg.push(`画像${moved}枚を専用の保存場所へ移しました`);
+  if(strippedKeys.length)msg.push(`不要な画像データ(${strippedKeys.join(", ")})を整理しました`);
+  if(msg.length)alert("✅ 復元しました。\n"+msg.join("\n"));
   location.reload();
  }catch(e){alert("読み込めませんでした:"+e.message);}};
  r.readAsText(f);}
