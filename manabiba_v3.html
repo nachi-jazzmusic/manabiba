@@ -807,7 +807,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0</div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-28c)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -944,7 +944,17 @@ function save(){
  try{localStorage.setItem(KEY,JSON.stringify(S));}
  catch(e){
   if(String(e).includes("quota")||String(e).includes("Quota")){
-   alert("⚠️ 保存できる容量をこえました。\n\nカードの中に画像が直接入っている可能性があります。\n「データ管理」→「🩹 画像を専用の保存場所へ移す」を実行してください。");
+   // 画像がカードに紛れ込んでいると容量オーバーになる。自動で切り離して再保存を試みる
+   let stripped=0;
+   (S.decks||[]).forEach(d=>(d.cards||[]).forEach(c=>{
+    ["img","imgBack"].forEach(f=>{if(c[f]&&String(c[f]).startsWith("data:")){c[f]=null;stripped++;}});}));
+   Object.keys(S).forEach(k=>{
+    if(k==="images"||k==="imageStore"||k==="imgs"){delete S[k];stripped++;}});
+   if(stripped){
+    try{localStorage.setItem(KEY,JSON.stringify(S));
+     alert(`⚠️ 容量をこえたため、カードに直接入っていた画像(${stripped}件)を切りはなして保存しました。\n画像を使いたい場合は、もう一度バックアップから復元してください。`);
+     return;}catch(e2){}}
+   alert("⚠️ 保存できる容量をこえました。\n\n「データ管理」→「📊 何が容量を使っているか調べる」で内訳を確認してください。");
   }else{alert("保存に失敗しました:"+e.message);}
   throw e;}}
 function D(date){date=date||today();if(!S.daily[date])S.daily[date]={cards:0,green:0,rui:0,ruiPass:0,rev:0,revPass:0,ok:0,ng:0,blocks:{},off:false,maru:0};return S.daily[date];}
@@ -2218,6 +2228,7 @@ function diagnoseStorage(){
   ["img","imgBack"].forEach(f=>{if(c[f]&&String(c[f]).startsWith("data:")){embedded+=c[f].length;embeddedN++;}});}));
  const mb=n=>(n/1024/1024).toFixed(2)+"MB";
  let html=`<div class="diagbox"><b>📊 保存データの内訳(合計 ${mb(total)})</b>
+  <div class="hint-note" style="margin:2px 0">いま動いているファイル:<b>2026-07-28c</b></div>
   <div class="hint-note" style="margin:4px 0 8px">この端末に保存できるのは、だいたい5MBまでです。</div>
   <table class="diagtable"><tr><th>種類</th><th>大きさ</th></tr>
   ${rows.filter(r=>r.size>1000).map(r=>`<tr><td>${esc(r.k)}</td><td>${mb(r.size)}</td></tr>`).join("")}
