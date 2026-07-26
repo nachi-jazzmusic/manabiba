@@ -103,6 +103,8 @@ h1 .tag{vertical-align:middle}
 .debtstep{border:1.5px dashed var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
 .debtstep>b{font-family:var(--disp);font-size:13.5px;display:block;margin-bottom:4px}
 /* 5ステップ */
+.nextdeck{display:block;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--mint-soft);border-radius:9px;padding:5px 10px;margin-top:5px;line-height:1.5}
+.nd-st{font-size:11px;font-weight:800;color:var(--ink-soft);margin-left:8px}
 .stepflow{margin-top:8px}
 .sf-row{display:flex;gap:10px;padding:11px 0;border-bottom:1px dashed var(--line)}
 .sf-row:last-child{border-bottom:none}
@@ -1099,10 +1101,18 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
   const picks=pickSubjectsForToday();
   h+=`<div class="timeline">`;
   // ---- すきま時間(毎日固定・暗記もの) ----
+  const kanji=nextMemoDeck("jpn"), eitan=nextMemoDeck("eng");
+  const memoLine=(icon,label,dk,sub)=>{
+   if(!dk)return `<div class="act">${icon} ${label}<span class="am manu">デッキ未登録</span></div>`;
+   const nm=dk.name.replace(/^[^｜]+｜/,"");const done=deckDoneCount(dk),tot=dk.cards.length;
+   return `<button class="act applink" onclick="startMemo('${sub}')">${icon} ${label}
+     <span class="nextdeck">👉 ${esc(nm)}<span class="nd-st">${done}/${tot}枚</span></span>
+     <span class="jump">はじめる →</span></button>
+    <div class="hint-note" style="margin:2px 0 8px 26px">ほかのを選ぶ:<button class="mini" onclick="openMemoList('${sub}')">一覧から選ぶ</button></div>`;};
   h+=`<div class="tblock ${blockDone('s1')&&d.cards>0?"done":""}"><div class="who"><span class="tag mintT">ひとりで</span></div><div class="when">すきま時間|〜20:00</div><div class="what">暗記もの(漢字・英単語)</div>`;
   h+=A("✏️","学校の宿題");
-  h+=A("📱","漢字 15分(夕食まえ)",`今日 ${d.cards}枚・自動✓`,"openSubjCards('jpn')");
-  h+=A("📱","英単語 15分(お風呂待ち)","","openSubjCards('eng')");
+  h+=memoLine("📱","漢字 15分(夕食まえ)",kanji,"jpn");
+  h+=memoLine("📱","英単語 15分(お風呂待ち)",eitan,"eng");
   h+=A("📱",`口頭チェックのカンペ(${((S.cardLog||{})[today()]||[]).length}枚・答えが見えます)`,"","go('sCards',document.querySelector('[data-s=sCards]'));cardTab('log')");
   h+=doneBtn('s1')+`</div>`;
   // ---- メイン学習(2教科×40分) ----
@@ -1202,6 +1212,47 @@ function stepFlowHtml(pk,key){
   </div></div>
  </div>`;}
 /** 教科を指定して暗記カード一覧を開く */
+/** 暗記もの(漢字・英単語)のデッキかどうかを名前から判定する */
+const MEMO_PATTERNS={
+ jpn:[/漢ド/,/漢字/,/熟語/,/語彙/,/漢ワ/],
+ eng:[/単語/,/Bingo/i,/ワード/,/word/i]
+};
+// 「語句」だけを含む読解系ドリルなどは暗記ものから外す
+const MEMO_EXCLUDE=[/指示する語句/,/接続する語句/,/文節/,/文法/];
+function isMemoDeck(d){
+ const pats=MEMO_PATTERNS[d.sub];if(!pats)return false;
+ if(MEMO_EXCLUDE.some(p=>p.test(d.name))&&!/漢ド/.test(d.name))return false;
+ return pats.some(p=>p.test(d.name));}
+function memoDecks(sub){return S.decks.filter(d=>d.sub===sub&&isMemoDeck(d));}
+/** 次にやるべき暗記デッキを1つ決める(まだ終わってないもの→進み具合が少ない順) */
+function nextMemoDeck(sub){
+ const list=memoDecks(sub);
+ if(!list.length)return null;
+ const undone=list.filter(d=>deckDoneCount(d)<d.cards.length);
+ const pool=undone.length?undone:list;
+ // 「やりかけ」を優先し、次に「手つかず」。同じなら登録順
+ pool.sort((a,b)=>{
+  const ra=deckDoneCount(a)>0?0:1, rb=deckDoneCount(b)>0?0:1;
+  if(ra!==rb)return ra-rb;
+  return (deckDoneCount(a)/a.cards.length)-(deckDoneCount(b)/b.cards.length);});
+ return pool[0];}
+/** 暗記デッキを直接ひらいて、すぐカードを始める */
+function startMemo(sub){
+ const d=nextMemoDeck(sub);
+ if(!d){openSubjCards(sub);toast("暗記用のデッキが見つかりませんでした。一覧から選んでください");return;}
+ go("sCards",qs('[data-s="sCards"]'));cardTab("do");
+ deckManual=true;curDeck=S.decks.indexOf(d);ruleFilter=null;judgeMode="solve";
+ pickerOpen=false;unitRoundIdxs=null;
+ startRound();
+ toast(`${d.name.replace(/^[^｜]+｜/,"")} をはじめます`);}
+/** 教科を指定して暗記もののデッキ一覧だけを開く */
+function openMemoList(sub){
+ go("sCards",qs('[data-s="sCards"]'));cardTab("do");
+ deckSub=sub;deckSubManual=true;pickerOpen=true;deckSearchQ="";deckView="flat";
+ const list=memoDecks(sub);
+ ruleFilter=list.length?{ids:list.map(d=>d.id),label:sub==="jpn"?"漢字ドリル":"英単語",narrowed:true}:null;
+ const se=qs("#deckSearch");if(se)se.value="";
+ renderCards();}
 function openSubjCards(sub){
  go("sCards",qs('[data-s="sCards"]'));cardTab("do");
  deckSub=sub;deckSubManual=true;ruleFilter=null;pickerOpen=true;deckSearchQ="";
@@ -2221,6 +2272,11 @@ async function removeV2Import(){
  qs("#v2ImportMsg").textContent=`🗑️ ${targets.length}デッキ・${cardCount}枚を削除しました。続けて新しいファイルを取り込めます。`;}
 /** デッキ名からページ番号やUnit番号を拾い、UNITMAPで単元名を推測する。わからなければnull */
 function guessUnit(sub,name){
+ // 暗記もの(漢字ドリル・英単語)は専用グループにまとめる
+ if(sub==="jpn"&&/漢ド/.test(name))return "漢字ドリル";
+ if(sub==="jpn"&&/漢字練習/.test(name))return "漢字ドリル";
+ if(sub==="eng"&&/Bingo/i.test(name))return "英単語";
+ if(sub==="eng"&&/単語/.test(name))return "英単語";
  const arr=UNITMAP[sub];if(!arr)return null;
  // Unit番号を直接含む場合(英語・国語向け):"Unit3"のように一致する単元名を探す
  const um=name.match(/Unit\s?(\d+)/i);
@@ -2283,6 +2339,11 @@ function addSampleAns(){
   {label:"大問1(1)",text:"0.75 を分数で表しなさい(約分すること)",ans:"3/4",input:"",res:null},
   {label:"大問1(2)",text:"3a + 5 の値を求めなさい(a = -2 のとき)",ans:"-1",input:"",res:null}]});
  save();renderData();toast("サンプルを入れました。「ワークを解く」で試せます");}
+function retagUnits(){
+ if(!confirm("すべてのデッキの単元を、名前から自動でつけ直します。\n(手で設定した単元も上書きされます)\nよろしいですか?"))return;
+ let n=0;
+ S.decks.forEach(d=>{const u=guessUnit(d.sub,d.name);if(u&&d.unit!==u){d.unit=u;n++;}});
+ save();renderData();toast(`${n}件の単元をつけ直しました`);}
 function setDeckUnit(i,u){const d=S.decks[i];if(!d)return;d.unit=(u||"").trim();save();renderData();toast(d.unit?`単元を「${d.unit}」に設定しました`:"単元をクリアしました");}
 async function deleteDeckAt(i){const d=S.decks[i];if(!d)return;
  if(!confirm(`「${d.name}」を削除しますか?(${d.cards.length}枚)`))return;
@@ -2299,7 +2360,9 @@ function renderData(){
   el.textContent=n?`📷 画像 ${n}枚(約${(bytes/1024/1024).toFixed(1)}MB)を専用の保存領域に保存中。カードの文字データとは別管理なので、増えても動作は軽いままです。`:"";
  }).catch(()=>{});
  const unitOptions=(sub)=>[""].concat((UNITMAP[sub]||[]).map(x=>x[2]));
- qs("#deckManage").innerHTML=`<b style="font-size:13px">登録ずみデッキ</b><div class="hint-note" style="margin:2px 0 8px">各デッキの「単元」を設定すると、暗記カード画面の「📚 単元でまとめる」でグループ表示されます。</div>`
+ qs("#deckManage").innerHTML=`<b style="font-size:13px">登録ずみデッキ</b>
+  <div class="hint-note" style="margin:2px 0 8px">各デッキの「単元」を設定すると、暗記カード画面の「📚 単元でまとめる」でグループ表示されます。
+   <button class="mini" onclick="retagUnits()" style="margin-left:6px">🔄 単元を自動でつけ直す</button></div>`
   +(S.decks.map((d,i)=>{const opts=unitOptions(d.sub);
     return `<div class="list-row deckrow"><b>${esc(d.name)}</b><span class="tag">${d.cards.length}枚</span>
      <select class="unitsel" onchange="setDeckUnit(${i},this.value)">
