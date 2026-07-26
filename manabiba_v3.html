@@ -103,6 +103,11 @@ h1 .tag{vertical-align:middle}
 .debtstep{border:1.5px dashed var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
 .debtstep>b{font-family:var(--disp);font-size:13.5px;display:block;margin-bottom:4px}
 /* 5ステップ */
+.diagbox{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px}
+.diagtable{width:100%;border-collapse:collapse;font-size:12.5px}
+.diagtable th{text-align:left;color:var(--ink-soft);font-size:11.5px;border-bottom:1.5px solid var(--line);padding:4px 6px}
+.diagtable td{padding:4px 6px;border-bottom:1px solid var(--line)}
+.diagtable td:last-child{text-align:right;font-weight:700;font-family:var(--disp)}
 .nextdeck{display:block;font-size:12.5px;font-weight:700;color:var(--ink);background:var(--mint-soft);border-radius:9px;padding:5px 10px;margin-top:5px;line-height:1.5}
 .nd-st{font-size:11px;font-weight:800;color:var(--ink-soft);margin-left:8px}
 .stepflow{margin-top:8px}
@@ -716,9 +721,12 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <h2>🩹 うまく動かないときの修理</h2>
     <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">「容量をこえました」と出たときや、同じデッキが2つ並んでいるときに使ってください。</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" onclick="diagnoseStorage()">📊 何が容量を使っているか調べる</button>
       <button class="btn sub2" onclick="rescueEmbeddedImages()">🩹 画像を専用の保存場所へ移す</button>
       <button class="btn sub2" onclick="dedupeDecks()">🧹 重複しているデッキを1つにまとめる</button>
+      <button class="btn sub2" onclick="cleanOrphanImages()">🗑️ 使われていない画像を消す</button>
     </div>
+    <div id="diagResult" style="margin-top:10px"></div>
   </div>
   <div class="card" style="background:var(--mint-soft);border-color:var(--mint)">
     <h2>📦 v2からの引っ越し</h2>
@@ -2199,6 +2207,38 @@ async function idbAll(){const db=await idbOpen();
   const cReq=store.openCursor();
   cReq.onsuccess=(e)=>{const cur=e.target.result;if(cur){out[cur.key]=cur.value;cur.continue();}else res(out);};
   cReq.onerror=()=>rej(cReq.error);});}
+/** 保存データの中身を大きい順に調べる(容量オーバーの原因さがし) */
+function diagnoseStorage(){
+ const sizeOf=v=>{try{return JSON.stringify(v||"").length;}catch(e){return 0;}};
+ const rows=Object.keys(S).map(k=>({k,size:sizeOf(S[k])})).sort((a,b)=>b.size-a.size);
+ const total=sizeOf(S);
+ // カードに直接入っている画像の量も調べる
+ let embedded=0,embeddedN=0;
+ (S.decks||[]).forEach(d=>(d.cards||[]).forEach(c=>{
+  ["img","imgBack"].forEach(f=>{if(c[f]&&String(c[f]).startsWith("data:")){embedded+=c[f].length;embeddedN++;}});}));
+ const mb=n=>(n/1024/1024).toFixed(2)+"MB";
+ let html=`<div class="diagbox"><b>📊 保存データの内訳(合計 ${mb(total)})</b>
+  <div class="hint-note" style="margin:4px 0 8px">この端末に保存できるのは、だいたい5MBまでです。</div>
+  <table class="diagtable"><tr><th>種類</th><th>大きさ</th></tr>
+  ${rows.filter(r=>r.size>1000).map(r=>`<tr><td>${esc(r.k)}</td><td>${mb(r.size)}</td></tr>`).join("")}
+  </table>`;
+ if(embeddedN)html+=`<div class="warnline" style="margin-top:8px">⚠️ カードの中に画像が直接 ${embeddedN}枚(${mb(embedded)})入っています。「🩹 画像を専用の保存場所へ移す」で解決できます。</div>`;
+ // デッキ数・カード数も出す
+ const deckN=(S.decks||[]).length, cardN=(S.decks||[]).reduce((a,d)=>a+(d.cards||[]).length,0);
+ html+=`<div class="hint-note" style="margin-top:8px">デッキ ${deckN}件 / カード ${cardN}枚 / 誤答キュー ${(S.wrongQ||[]).length}件 / 復習キュー ${(S.reviewQ||[]).length}件</div></div>`;
+ qs("#diagResult").innerHTML=html;}
+/** IndexedDBの中で、どのカードからも参照されていない画像を削除する */
+async function cleanOrphanImages(){
+ const used=new Set();
+ (S.decks||[]).forEach(d=>(d.cards||[]).forEach(c=>{
+  if(c.img&&c.img.startsWith("idb:"))used.add(c.img);
+  if(c.imgBack&&c.imgBack.startsWith("idb:"))used.add(c.imgBack);}));
+ const all=await idbAll();
+ const orphans=Object.keys(all).filter(id=>!used.has(id));
+ if(!orphans.length){toast("使われていない画像はありませんでした");return;}
+ if(!confirm(`どのカードからも使われていない画像が ${orphans.length}枚 あります。\n削除して空き容量を増やしますか?`))return;
+ for(const id of orphans)await idbDelete(id).catch(()=>{});
+ renderData();toast(`✅ 使われていない画像 ${orphans.length}枚を削除しました`);}
 function newImgId(){return "idb:img_"+Date.now()+"_"+Math.random().toString(36).slice(2,9);}
 /** data:URLを新しいIDでIndexedDBに入れ、その参照IDを返す */
 async function idbPutNew(dataUrl){const id=newImgId();await idbPut(id,dataUrl);return id;}
