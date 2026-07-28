@@ -103,6 +103,14 @@ h1 .tag{vertical-align:middle}
 .debtstep{border:1.5px dashed var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
 .debtstep>b{font-family:var(--disp);font-size:13.5px;display:block;margin-bottom:4px}
 /* 5ステップ */
+.checklist{display:flex;flex-direction:column;gap:10px}
+.checkcard{border:1.5px solid var(--line);border-radius:12px;padding:11px 13px;background:#fff}
+.cc-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:12.5px}
+.cc-head b{font-family:var(--disp);font-size:13px}
+.cc-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px}
+.cc-row>span{flex-shrink:0;width:38px;font-size:12px;font-weight:700;color:var(--ink-soft);padding-top:6px}
+.cc-row textarea{flex:1;padding:7px 10px;border:1.5px solid var(--line);border-radius:9px;font-size:13px;font-family:inherit;resize:vertical}
+.cc-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
 .deckrow2{display:flex;gap:6px;align-items:stretch;width:100%}
 .deckrow2 .rule-chip{flex:1}
 .peekbtn{flex-shrink:0;width:42px;border-radius:12px;border:2px solid var(--line);background:#fff;font-size:16px;cursor:pointer}
@@ -738,10 +746,12 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">「容量をこえました」と出たときや、同じデッキが2つ並んでいるときに使ってください。</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" onclick="diagnoseStorage()">📊 何が容量を使っているか調べる</button>
+      <button class="btn sub2" onclick="checkCards()">🔍 カードの中身を点検する</button>
       <button class="btn sub2" onclick="rescueEmbeddedImages()">🩹 画像を専用の保存場所へ移す</button>
       <button class="btn sub2" onclick="dedupeDecks()">🧹 重複しているデッキを1つにまとめる</button>
       <button class="btn sub2" onclick="cleanOrphanImages()">🗑️ 使われていない画像を消す</button>
     </div>
+    <div id="checkResult" style="margin-top:10px"></div>
     <div id="diagResult" style="margin-top:10px"></div>
   </div>
   <div class="card" style="background:var(--mint-soft);border-color:var(--mint)">
@@ -829,7 +839,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-28d)</span></div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-29a)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -931,7 +941,7 @@ const INIT_RULES=[
 
 /* ---------- 状態 ---------- */
 const KEY="manabiba3";
-const BUILD_ID="2026-07-28d";
+const BUILD_ID="2026-07-29a";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1154,6 +1164,7 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
  if(d.off){h=`<div class="card" style="border-color:var(--pink);background:var(--pink-soft)"><h2>🏖 今日はオフ日</h2><div>ゆっくり休んでね。連続記録はフリーズしていて切れません。</div></div>`;}
  else{
   const picks=pickSubjectsForToday();
+  recordMainPicks(picks);
   h+=`<div class="timeline">`;
   // ---- すきま時間(毎日固定・暗記もの) ----
   const kanji=nextMemoDeck("jpn"), eitan=nextMemoDeck("eng");
@@ -1177,7 +1188,8 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
    const slot=i===0?"20:00〜20:40":"20:50〜21:30";
    const key="main"+i;
    h+=`<div class="tblock ${blockDone(key)?"done":""}"><div class="who"><span class="tag blueT">お母さんと/ひとりで</span></div><div class="when">${slot}(40分)</div>
-    <div class="what">${esc(pk.label)}${pk.why?`<span class="tag" style="margin-left:6px">${esc(pk.why)}</span>`:""}</div>`;
+    <div class="what">${esc(pk.label)}${pk.why?`<span class="tag" style="margin-left:6px">${esc(pk.why)}</span>`:""}
+     ${pk.rule?`<button class="mini" style="margin-left:8px" onclick="swapPick('${pk.rule.id}')">🔄 ほかのにする</button>`:""}</div>`;
    h+=stepFlowHtml(pk,key);
    h+=doneBtn(key)+`</div>`;});
   // ---- 復習テスト ----
@@ -1191,29 +1203,76 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
  }
  qs("#menuBody").innerHTML=h;}
 /** 今日やる2教科を決める */
+/** 直近n日でメイン学習に出した rule.id の集合 */
+function recentMainRuleIds(days){
+ const set=new Set();
+ const log=S.mainLog||{};
+ for(let i=1;i<=days;i++){
+  const dt=addDays(today(),-i);
+  (log[dt]||[]).forEach(id=>set.add(id));}
+ return set;}
+/** 今日メイン学習に出したものを記録する */
+function recordMainPicks(picks){
+ if(!S.mainLog)S.mainLog={};
+ const t=today();
+ const ids=picks.map(p=>p.rule?p.rule.id:("sub:"+p.sub)).filter(Boolean);
+ const prev=S.mainLog[t]||[];
+ const merged=[...new Set([...prev,...ids])];
+ if(merged.length!==prev.length){S.mainLog[t]=merged;
+  // 30日より古い記録は捨てる
+  Object.keys(S.mainLog).forEach(k=>{if(daysBetween(k,t)>30)delete S.mainLog[k];});
+  save();}}
+/** その単元を「今日はやらない」ことにして、別の単元に差しかえる */
+function swapPick(ruleId){
+ if(!S.mainLog)S.mainLog={};
+ const t=today();
+ // 今日の記録に入れて、次の抽選から外れるようにする
+ S.mainLog[t]=[...new Set([...(S.mainLog[t]||[]),ruleId])];
+ // さらに「今日は出さない」印もつける
+ if(!S.skipToday)S.skipToday={};
+ S.skipToday[t]=[...new Set([...(S.skipToday[t]||[]),ruleId])];
+ save();renderMenu();
+ toast("べつの単元に入れかえました");}
 function pickSubjectsForToday(){
  const ent=S.input.entries||{};const entSubs=Object.keys(ent);
  const quizToday=S.quizzes.filter(q=>daysBetween(q.date,today())<=3);
  const out=[];
  const usedSub={},usedRule={};
+ const recent=recentMainRuleIds(4); // 直近4日にやったものは後回し(同じ単元が続かないように)
+ const skip=new Set((S.skipToday||{})[today()]||[]); // 今日「ほかのにする」で外したもの
  // ①小テストの予告があれば最優先
  quizToday.slice(0,2).forEach(q=>{
   if(out.length>=2)return;
   const nm=(SUBJECTS.find(s=>s.id===q.sub)||{}).name||q.sub;
   out.push({kind:"quiz",sub:q.sub,label:`${nm}:小テスト対策(${q.range})`,why:"📢 小テスト",rule:null});
   usedSub[q.sub]=1;});
+ /** 候補リストから、最近やっていないものを優先して詰める */
+ const fill=(cands0,opt)=>{
+  const o=opt||{};
+  const cands=cands0.filter(r=>!skip.has(r.id)); // 今日外したものは候補から除く
+  // 1周目:最近やっていない & 教科がかぶらない
+  for(const r of cands){if(out.length>=2)break;
+   if(usedRule[r.id]||recent.has(r.id))continue;
+   if(o.avoidSameSub&&usedSub[r.sub])continue;
+   out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🎯 苦手",rule:r});
+   usedSub[r.sub]=1;usedRule[r.id]=1;}
+  // 2周目:教科かぶりを許す(最近やっていないものだけ)
+  for(const r of cands){if(out.length>=2)break;
+   if(usedRule[r.id]||recent.has(r.id))continue;
+   out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🎯 苦手",rule:r});
+   usedSub[r.sub]=1;usedRule[r.id]=1;}
+  // 3周目:候補が尽きたら、最近やったものでも出す(「昨日のつづき」と明示)
+  for(const r of cands){if(out.length>=2)break;
+   if(usedRule[r.id])continue;
+   out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🔁 きのうのつづき",rule:r});
+   usedSub[r.sub]=1;usedRule[r.id]=1;}};
  if(S.longBreak){
   // ③長い休み:苦手優先だが教科が偏らないように
   const debts=S.rules.filter(r=>r.status!=="mastered"&&r.gen).sort((a,b)=>a.pr-b.pr);
-  for(const r of debts){if(out.length>=2)break;if(usedSub[r.sub])continue;
-   out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🎯 苦手",rule:r});usedSub[r.sub]=1;usedRule[r.id]=1;}
-  for(const r of debts){if(out.length>=2)break;if(usedRule[r.id])continue;
-   out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🎯 苦手",rule:r});usedRule[r.id]=1;}
+  fill(debts,{avoidSameSub:true});
  }else if(S.holiday){
   // ②お休みの日:苦手から2つ
-  const debts=topDebts(4);
-  for(const r of debts){if(out.length>=2)break;if(usedRule[r.id])continue;
-   out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🎯 苦手",rule:r});usedRule[r.id]=1;}
+  fill(S.rules.filter(r=>r.status!=="mastered"&&r.gen).sort((a,b)=>a.pr-b.pr));
  }else{
   // ①平日:今日習った教科から
   for(const sub of entSubs){if(out.length>=2)break;if(usedSub[sub])continue;
@@ -1337,7 +1396,56 @@ function shortDeckName(d,ctxSub,ctxUnit){
  return n||d.name;}
 function deckDoneCount(d){return d.cards.filter(c=>c.gs>=1).length;}
 function deckImgCount(d){return d.cards.filter(c=>c.img||c.imgBack).length;}
-/* ---------- デッキの中身をのぞく(記録は残りません) ---------- */
+/* ---------- カードの点検(途切れ・記号の閉じ忘れ) ---------- */
+function checkCards(){
+ const bad=[];
+ const trailing=/[、（(【]$/;
+ S.decks.forEach((d,di)=>d.cards.forEach((c,ci)=>{
+  const q=String(c.q||"").trim(),a=String(c.a||"").trim();
+  const why=[];
+  if(trailing.test(q)||q.endsWith("…"))why.push("問題が途中で切れている");
+  if(trailing.test(a)||a.endsWith("…"))why.push("答えが途中で切れている");
+  if((q.match(/（/g)||[]).length!==(q.match(/）/g)||[]).length)why.push("問題のカッコが閉じていない");
+  if((a.match(/（/g)||[]).length!==(a.match(/）/g)||[]).length)why.push("答えのカッコが閉じていない");
+  if((q.match(/【/g)||[]).length!==(q.match(/】/g)||[]).length)why.push("問題の【】が閉じていない");
+  if((a.match(/【/g)||[]).length!==(a.match(/】/g)||[]).length)why.push("答えの【】が閉じていない");
+  if(!q)why.push("問題が空っぽ");
+  if(!a)why.push("答えが空っぽ");
+  if(why.length)bad.push({di,ci,c,deck:d,why});}));
+ checkList=bad;checkPage=0;
+ if(!bad.length){toast("✅ おかしなカードは見つかりませんでした");qs("#checkResult").innerHTML=`<div class="okline">✅ 2462枚ぜんぶ調べましたが、途中で切れているカードはありませんでした。</div>`;return;}
+ renderCheck();}
+let checkList=[],checkPage=0;
+function renderCheck(){
+ const per=10,total=Math.ceil(checkList.length/per);
+ const start=checkPage*per,slice=checkList.slice(start,start+per);
+ qs("#checkResult").innerHTML=`
+  <div class="warnline" style="margin-bottom:10px">⚠️ 直したほうがよさそうなカードが <b>${checkList.length}枚</b> 見つかりました(全${S.decks.reduce((a,d)=>a+d.cards.length,0)}枚中)。<br>
+   <span style="font-weight:500">末尾の「、」だけなど、軽いものも含みます。気になるものだけ直せば大丈夫です。</span></div>
+  <div class="checklist">${slice.map((b,n)=>`
+   <div class="checkcard">
+    <div class="cc-head"><b>${esc(b.deck.name.replace(/^[^｜]+｜/,""))}</b><span class="tag">${b.why.join(" / ")}</span></div>
+    <label class="cc-row"><span>問題</span><textarea id="ckq_${start+n}" rows="2">${esc(b.c.q)}</textarea></label>
+    <label class="cc-row"><span>答え</span><textarea id="cka_${start+n}" rows="2">${esc(b.c.a)}</textarea></label>
+    <div class="cc-acts">
+      <button class="mini mintB" onclick="saveCheck(${start+n})">✅ この内容で直す</button>
+      <button class="mini" onclick="fixTrailing(${start+n})">✂️ 末尾の「、」を消す</button>
+    </div>
+   </div>`).join("")}</div>
+  <div class="peeknav">
+   <button class="btn sub2" ${checkPage<=0?"disabled":""} onclick="checkPage--;renderCheck()">← まえ</button>
+   <span>${checkPage+1} / ${total}</span>
+   <button class="btn sub2" ${checkPage>=total-1?"disabled":""} onclick="checkPage++;renderCheck()">つぎ →</button>
+  </div>`;}
+function saveCheck(i){const b=checkList[i];if(!b)return;
+ const q=qs("#ckq_"+i).value.trim(),a=qs("#cka_"+i).value.trim();
+ if(!q||!a){toast("問題と答えは両方必要です");return;}
+ b.c.q=q;b.c.a=a;save();toast("✅ 直しました");}
+function fixTrailing(i){const b=checkList[i];if(!b)return;
+ const clean=s=>String(s||"").replace(/[、\s]+$/,"");
+ qs("#ckq_"+i).value=clean(qs("#ckq_"+i).value);
+ qs("#cka_"+i).value=clean(qs("#cka_"+i).value);
+ saveCheck(i);}
 let peekIdxs=null,peekPage=0;
 function peekDeck(i){peekIdxs=[i];peekPage=0;renderPeek();}
 function closePeek(){peekIdxs=null;qs("#peekModal").classList.remove("open");}
