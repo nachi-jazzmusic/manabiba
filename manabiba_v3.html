@@ -246,6 +246,8 @@ h1 .tag{vertical-align:middle}
 .pf-row{display:flex;flex-direction:column;gap:4px}
 .pf-row label{font-size:12.5px;font-weight:700;color:var(--ink-soft);font-family:var(--disp)}
 .pf-row input[type=text]{padding:9px 12px;border:2px solid var(--line);border-radius:10px;font-size:14px}
+.inprow{display:flex;gap:6px;align-items:center}
+.inprow input[type=text]{flex:1}
 .pf-row input[type=file]{font-size:12.5px}
 .imgflag{background:#FFF3E0;border:1.5px solid #F0B060;border-radius:10px;padding:6px 12px;font-size:12.5px;font-weight:700;color:#8A5A10;margin-bottom:6px}
 .notehint{display:inline-block;font-size:12px;font-weight:700;background:#FDF6E3;border:1.5px solid #E8B84B;border-radius:9px;padding:3px 9px;color:#8A6510}
@@ -300,6 +302,11 @@ h1 .tag{vertical-align:middle}
 .trendbox>b{font-family:var(--disp);font-size:13.5px;display:block;margin-bottom:6px}
 .trend-row{font-size:13px;padding:5px 0;border-bottom:1px dashed var(--line)}
 .trend-row:last-child{border-bottom:none}
+.paper-today-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
+.paper-today-row:last-child{border-bottom:none}
+.ptr-q{flex:1;min-width:0}
+.ptr-res{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ptr-res select{font-size:12px;padding:3px 6px;border:1.5px solid var(--line);border-radius:8px}
 .whyrule{font-size:13px;background:var(--pink-soft);border-radius:12px;padding:8px 14px;margin:10px 0;text-align:center}
 .inline-pome{margin-top:14px;border-top:1.5px dashed var(--line);padding-top:12px}
 .ip-log{max-height:240px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
@@ -673,9 +680,9 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">丸つけのとき、まちがえた問題をここに登録します。所要時間の目安は<b>1ページ15分</b>です。</p>
     <div class="pform">
       <div class="pf-row"><label>教科</label><select id="pw_sub"></select></div>
-      <div class="pf-row"><label>どこの問題か</label><input type="text" id="pw_where" placeholder="例:パターンドリル数学 p.27 (3)"></div>
-      <div class="pf-row"><label>問題文<span class="hint-note" style="margin:0">(短くて可)</span></label><input type="text" id="pw_q" placeholder="例:-3²を計算しなさい"></div>
-      <div class="pf-row"><label>正しい答え</label><input type="text" id="pw_a" placeholder="例:-9"></div>
+      <div class="pf-row"><label>どこの問題か</label><div class="inprow"><input type="text" id="pw_where" placeholder="例:パターンドリル数学 p.27 (3)"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pw_where',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pw_where')">✍️</button></span></div></div>
+      <div class="pf-row"><label>問題文<span class="hint-note" style="margin:0">(短くて可)</span></label><div class="inprow"><input type="text" id="pw_q" placeholder="例:-3²を計算しなさい"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pw_q',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pw_q')">✍️</button></span></div></div>
+      <div class="pf-row"><label>正しい答え</label><div class="inprow"><input type="text" id="pw_a" placeholder="例:-9"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pw_a',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pw_a')">✍️</button></span></div></div>
       <div class="pf-row" style="align-items:flex-start"><label>結果</label>
        <div class="tagpick2" id="pw_result">
         <button data-v="green" onclick="setPwResult(this,'green')"><b>🟢 一発正解</b><small>自力で1回で解けた</small></button>
@@ -686,16 +693,17 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
        </div></div>
       <div class="pf-row" style="align-items:flex-start"><label>なぜ間違えた</label>
        <div class="tagpick2" id="pw_tag"></div></div>
-      <div class="pf-row"><label>ひとこと<span class="hint-note" style="margin:0">(自由記入・任意)</span></label><input type="text" id="pw_note" placeholder="例:累乗の順番を勘違いしていた"></div>
+      <div class="pf-row"><label>ひとこと<span class="hint-note" style="margin:0">(自由記入・任意)</span></label><div class="inprow"><input type="text" id="pw_note" placeholder="例:累乗の順番を勘違いしていた"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pw_note',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pw_note')">✍️</button></span></div></div>
       <div class="pf-row"><label>問題の写真<span class="hint-note" style="margin:0">(あれば)</span></label><input type="file" accept="image/*" id="pw_img"></div>
       <button class="btn mintB" onclick="addPaperWrong()">この内容で登録</button>
       <span class="hint-note" id="pwMsg"></span>
     </div>
+    <div id="paperToday" style="margin-top:12px"></div>
     <div id="paperTrend" style="margin-top:12px"></div>
   </div>
-  <p class="sub">締めの時間に、かりんさんと一緒に。今日の×は自動で並んでいます。問題文はかりんさんが読み上げると復習になります。</p>
+  <p class="sub">下は「アプリのワークを解く」を使ったときだけ、自動でたまる欄です。今は紙のドリルが中心なので、基本は上のフォームだけ使えばOKです。</p>
   <div class="card" style="background:var(--blue-soft);border-color:#CCDEF0">
-    <h2>📥 今日の×(自動で集まっています)</h2>
+    <h2>📥 アプリのワークで見つかった×(あれば)</h2>
     <div id="wrongQueueList"></div>
   </div>
   <div class="card" id="wrongForm"></div>
@@ -724,6 +732,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
       <div class="chat-scroll" id="pomeMsgs"><div class="spacer"></div></div>
       <div class="chat-in">
         <input type="text" id="pomeInput" placeholder="ポメにメッセージ…" onkeydown="if(event.key==='Enter')sendPome()">
+        <span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pomeInput',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pomeInput')">✍️</button></span>
         <button class="btn pome" onclick="sendPome()" id="pomeSend">送る</button>
       </div>
       <div class="hint-note">ポメは最近の間違いを知った上で話します。会話の記録はお母さんも見られます。</div>
@@ -878,7 +887,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-29c)</span></div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-29d)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -1034,7 +1043,7 @@ function pdrillHtml(sub,keyword){
  const range=pages.length>1?`p.${Math.min(...pages)}〜${Math.max(...pages)}`:`p.${pages[0]}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>`<span class="pd-item">${x.no} ${esc(x.name)} <b>p.${x.page}</b></span>`).join("")}</div></div>`;}
-const BUILD_ID="2026-07-29c";
+const BUILD_ID="2026-07-29d";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1051,9 +1060,7 @@ function defaultState(){
     {q:"金属をたたくとうすく広がる性質は?",a:"展性",exp:"引っぱるとのびるのは延性",lv:0,last:null,gs:0},
     {q:"金属に共通する性質を3つ",a:"光沢・電気を通す・熱を伝える",exp:"磁石につくのは鉄など一部だけ!",lv:0,last:null,gs:0},
     {q:"磁石につくのは金属全部? 一部?",a:"一部(鉄など)",exp:"アルミや銅はつかない。ひっかけ注意",lv:0,last:null,gs:0}]}],
-  ansSets:[{id:"a_sample",name:"【サンプル】数学ワーク p.40",date:t,items:[
-    {label:"大問1(1)",text:"0.75 を分数で表しなさい(約分すること)",ans:"3/4",input:"",res:null},
-    {label:"大問1(2)",text:"3a + 5 の値を求めなさい(a = -2 のとき)",ans:"-1",input:"",res:null}]}],
+  ansSets:[],
   wrongQ:[], reviewQ:[],
   chats:[], pchats:[],
   tests:[{name:"1学期 中間(5月)",scores:{math:"",eng:"",sci:"",soc:"",jpn:""},avg:"80"},
@@ -1065,7 +1072,9 @@ function defaultState(){
 function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultState();}catch(e){S=defaultState();}
  if(!S.cardLog)S.cardLog={};
  if(!S.lvMigrated){(S.rules||[]).forEach(r=>{r.lv=3;});S.lvMigrated=true;}
- (S.ansSets||[]).forEach(a=>(a.items||[]).forEach(i=>{if(i.text===undefined)i.text="";}));}
+ (S.ansSets||[]).forEach(a=>(a.items||[]).forEach(i=>{if(i.text===undefined)i.text="";}));
+ // 動作確認用に入っていたサンプルのワークが残っていたら取り除く(1回だけ)
+ if(S.ansSets&&S.ansSets.some(a=>a.id==="a_sample")){S.ansSets=S.ansSets.filter(a=>a.id!=="a_sample");save();}}
 function save(){
  try{localStorage.setItem(KEY,JSON.stringify(S));}
  catch(e){
@@ -1384,41 +1393,32 @@ function stepFlowHtml(pk,key){
  let decks=[],narrowed=false;
  if(r){const res=decksForRule(r);decks=res.decks;narrowed=res.narrowed;}
  else if(pk.sub){decks=S.decks.filter(d=>d.sub===pk.sub);}
- const done=decks.reduce((a,dk)=>a+deckDoneCount(dk),0),tot=decks.reduce((a,dk)=>a+dk.cards.length,0);
- const openDrill=r?`openRuleDecks('${r.id}')`:`openSubjCards('${pk.sub}')`;
  const vidBtn=r&&r.vid?`<button class="act applink" onclick="window.open('${plURL(r.sub,r.vid)}','_blank')">🎥 やさまる動画を見る<span class="jump">YouTube →</span></button>`
    :(VIDEO_PL[pk.sub]?`<button class="act applink" onclick="window.open('${plURL(pk.sub)}','_blank')">🎥 やさまる動画を見る<span class="jump">YouTube →</span></button>`:"");
  return `
  <div class="stepflow">
   <div class="sf-row"><span class="sf-no">①</span><div class="sf-body">
-    <b>基礎の2〜3問を、お母さんに説明しながら解く</b><span class="tag blueT">お母さんと</span><span class="sf-min">5分</span>
+    <b>紙のドリルを、まずひとりで最後まで解く</b><span class="tag mintT">ひとりで</span><span class="sf-min">1ページ15分めやす</span>
     ${pdrillHtml(pk.sub,(r?r.name:"")||pk.unit||"")}
-    ${decks.length?A("📱",`アプリのドリルを開く(${decks.length}件)`,`${done}/${tot}枚`,`${openDrill};setJudgeMode('explain')`):""}
-    <div class="sf-fallback">😕 わからなかったら…
-      ${vidBtn||`<div class="act">📖 教科書・やさまるを読む</div>`}
-      ${A("🐶","ポメに聞く(答えは言わずヒントをくれます)","","go('sPome',document.querySelector('[data-s=sPome]'))")}
-      <div class="hint-note">それでも詰まったら<b>今日はここまででOK</b>。明日また①からやります。
-        <button class="mini" onclick="markBlock('${key}',this)">今日はここまでにする</button></div>
-    </div>
+    <div class="hint-note">わからない問題があっても<b>止まらず、印だけつけて先に進む</b>のがコツです。</div>
   </div></div>
   <div class="sf-row"><span class="sf-no">②</span><div class="sf-body">
-    <b>ドリルを自分で解く</b><span class="tag mintT">ひとりで</span><span class="sf-min">1ページ15分めやす</span>
-    ${pdrillHtml(pk.sub,(r?r.name:"")||pk.unit||"")}
-    ${decks.length?A("📱","アプリのドリルもやる(任意)","自動✓",`${openDrill};setJudgeMode('solve')`):""}
+    <b>お母さんが丸つけして、まちがいを登録する</b><span class="tag blueT">お母さんと</span><span class="sf-min">5〜10分</span>
+    <div class="hint-note">まちがえた問題を「誤答の登録」に記録します。まだ結果を聞かず、まず記録だけでOKです。
+     <button class="mini" onclick="setMode(true);go('sWrong',document.querySelector('[data-s=sWrong]'));focusPaperForm()">📌 誤答の登録をひらく</button></div>
   </div></div>
   <div class="sf-row"><span class="sf-no">③</span><div class="sf-body">
-    <b>まちがえたものを丸つけして登録する</b><span class="tag mintT">ひとりで／お母さんと</span><span class="sf-min">10分</span>
-    <div class="hint-note">「誤答の登録」で、まちがえた問題を記録します。🟢一発正解〜⚪答えを見て理解した、まで5段階で正直に記録してOKです。
-     <button class="mini" onclick="setMode(true);go('sWrong',document.querySelector('[data-s=sWrong]'))">📌 誤答の登録をひらく</button></div>
+    <b>まちがえた問題だけ、もう一度ひとりで解き直す</b><span class="tag mintT">ひとりで</span><span class="sf-min">5〜10分</span>
+    <div class="hint-note">ここで解けたら「うっかりミス」、解けなければ「わからなかった」に変わります。②の記録を選び直してください。</div>
   </div></div>
   <div class="sf-row"><span class="sf-no">④</span><div class="sf-body">
-    <b>🔴🟠🟡だけをお母さんと確認</b><span class="tag blueT">お母さんと</span><span class="sf-min">5分</span>
-    ${A("📱","今日やったカードのカンペを開く","","go('sCards',document.querySelector('[data-s=sCards]'));cardTab('log')")}
-    ${A("📱","×の登録をお母さんと","","setMode(true);go('sWrong',document.querySelector('[data-s=sWrong]'))")}
+    <b>それでもできないところを、お母さんに説明する</b><span class="tag blueT">お母さんと</span><span class="sf-min">5分</span>
+    <div class="hint-note">説明できれば「教われば分かる」、できなければ「わからなかった」のままでOK。
+     ${A("🐶","うまく説明できないときはポメに聞く","","go('sPome',document.querySelector('[data-s=sPome]'))")}</div>
   </div></div>
   <div class="sf-row"><span class="sf-no">⑤</span><div class="sf-body">
-    <b>類題でしあげ(お母さんに説明しながら)</b><span class="tag blueT">お母さんと</span><span class="sf-min">5分</span>
-    <div class="hint-note" style="margin:0">📕紙のドリルが中心の日は、⑤は無理にやらなくてOKです。</div>
+    <b>類題でしあげ(任意)</b><span class="tag mintT">ひとりで</span><span class="sf-min">5分</span>
+    <div class="hint-note" style="margin:0 0 6px">時間が余ったときだけでOK。誤答の登録画面からも同じ型の類題を出せます。</div>
     ${r?A("✏️","類題3問連続にちょうせん",r.status==="passed"?"○ずみ":"",`startRule('${r.id}')`):A("📱","類題チャレンジ","","go('sChal',document.querySelector('[data-s=sChal]'))")}
   </div></div>
  </div>`;}
@@ -1487,24 +1487,55 @@ async function addPaperWrong(){
   const f=qs("#pw_img").files[0];
   let img=null;
   if(f){const raw=await compressImage(f);img=await storeImage(raw);}
+  const ruleId=guessRule({text:q,ans:a,label:where},"")||"";
   if(!S.paperLog)S.paperLog=[];
   S.paperLog.push({
-   id:"pw"+Date.now(),date:today(),sub,where,q,a,
+   id:"pw"+Date.now(),date:today(),sub,where,q,a,ruleId,
    result:pwResult,tag:pwTag2||"",note,img,
    nextDate: (pwResult==="green")?null:addDays(today(),7)
   });
   save();
   // 🔴🟠🟡は7日後の復習にも積む(未確認/一発正解は積まない)
   if(pwResult==="red"||pwResult==="orange"||pwResult==="yellow"){
-   S.reviewQ.push({id:"rvp"+Date.now(),ruleId:"",kind:"paper",q:q||where,sub,ans:a,pkind:"paper",
+   S.reviewQ.push({id:"rvp"+Date.now(),ruleId,kind:"paper",q:q||where,sub,ans:a,pkind:"paper",
     due:addDays(today(),7),status:"due",src:"紙のドリル("+where+")",where});
    save();}
   qs("#pw_where").value="";qs("#pw_q").value="";qs("#pw_a").value="";qs("#pw_note").value="";qs("#pw_img").value="";
   pwResult=null;pwTag2=null;
   qsa("#pw_result button, #pw_tag button").forEach(b=>b.classList.remove("on"));
-  msg.textContent="✅ 登録しました。つづけて次のまちがいを入れられます。";
+  const rule=ruleId?S.rules.find(x=>x.id===ruleId):null;
+  msg.innerHTML=`✅ 登録しました。つづけて次のまちがいを入れられます。`
+   +(rule&&rule.gen?`<br><button class="mini mintB" onclick="go('sChal',document.querySelector('[data-s=sChal]'));startRule('${rule.id}')" style="margin-top:6px">✏️ いま「${esc(rule.name)}」の類題をやる</button>`:"");
   renderPaperTrend();
+  renderPaperToday();
  }catch(e){msg.textContent="失敗:"+e.message;}}
+/** 誤答の登録画面に来たら、紙のフォームにフォーカスする */
+function focusPaperForm(){setTimeout(()=>{const e=qs("#pw_where");if(e)e.focus();},80);renderPaperToday();}
+/** 今日登録した紙の記録を一覧し、③の解き直し後に結果を選び直せるようにする */
+function renderPaperToday(){
+ const el=qs("#paperToday");if(!el)return;
+ const log=(S.paperLog||[]).filter(x=>x.date===today());
+ if(!log.length){el.innerHTML="";return;}
+ el.innerHTML=`<div class="trendbox"><b>📋 今日登録した問題(${log.length}件)</b>
+  <div class="hint-note" style="margin:4px 0 8px">③でもう一度解いて、結果が変わったらここで選び直してください。</div>
+  ${log.map((x,i)=>`<div class="paper-today-row">
+    <div class="ptr-q"><b>${esc(x.where)}</b>${x.q?` — ${esc(x.q)}`:""}</div>
+    <div class="ptr-res">${RESULT_LABEL[x.result]}
+     <select onchange="reresultPaper(${(S.paperLog||[]).indexOf(x)},this.value)">
+      ${Object.entries(RESULT_LABEL).map(([k,v])=>`<option value="${k}" ${x.result===k?"selected":""}>${v}</option>`).join("")}
+     </select></div>
+   </div>`).join("")}</div>`;}
+function reresultPaper(idx,newResult){
+ const x=S.paperLog[idx];if(!x)return;
+ const old=x.result;x.result=newResult;
+ // 復習キューへの出し入れを結果に応じて調整
+ const needsReview=(newResult==="red"||newResult==="orange"||newResult==="yellow");
+ const already=S.reviewQ.find(r=>r.kind==="paper"&&r.where===x.where&&r.q===(x.q||x.where)&&daysBetween(r.due,addDays(today(),7))===0);
+ if(needsReview&&!already){
+  S.reviewQ.push({id:"rvp"+Date.now(),ruleId:x.ruleId||"",kind:"paper",q:x.q||x.where,sub:x.sub,ans:x.a,pkind:"paper",
+   due:addDays(today(),7),status:"due",src:"紙のドリル("+x.where+")",where:x.where});}
+ if(!needsReview&&already){S.reviewQ=S.reviewQ.filter(r=>r!==already);}
+ save();renderPaperToday();renderPaperTrend();toast("結果を「"+RESULT_LABEL[newResult]+"」にしました");}
 /** 直近30日の紙の記録から、苦手傾向を集計する */
 function renderPaperTrend(){
  const el=qs("#paperTrend");if(!el)return;
@@ -2070,7 +2101,8 @@ function renderRev(){const due=pendingReviews();qs("#revCount").textContent=due.
   return `<div class="card"><div class="hint-note">📌 ${esc(r.src)}(${jdate(addDays(r.due,-7))}に登録)${rule?" ｜ルール:"+esc(rule.name):""}${r.where?` ｜📖 ${esc(r.where)}`:""}</div>
   <div class="problem-box" style="font-size:18px">${esc(r.q).replace(/\n/g,"<br>")}${r.sub?`<small>${esc(r.sub)}</small>`:""}</div>
   <div class="ansrow" style="justify-content:center"><input class="numin ansbig" id="rv_${r.id}" placeholder="答えを入力" onkeydown="if(event.key==='Enter')judgeRev('${r.id}')"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('rv_${r.id}',this)">🎤</button><button class="mini" title="ペンで手書き入力" onclick="openPad('rv_${r.id}')">✍️</button></span><button class="btn checkbtn" onclick="judgeRev('${r.id}')">✓ こたえあわせ</button></div>
-  <div id="rvres_${r.id}" style="text-align:center;margin-top:10px;font-weight:700"></div></div>`;}).join("");}
+  <div id="rvres_${r.id}" style="text-align:center;margin-top:10px;font-weight:700"></div>
+  ${rule&&rule.gen?`<div style="text-align:center;margin-top:8px"><button class="mini" onclick="go('sChal',document.querySelector('[data-s=sChal]'));startRule('${rule.id}')">✏️ 類題で確認する</button></div>`:""}</div>`;}).join("");}
 function judgeRev(id){const r=S.reviewQ.find(x=>x.id===id);if(!r)return;
  const v=(qs("#rv_"+id).value||"").trim();if(!v)return;
  let ok=false;
@@ -2183,7 +2215,7 @@ function openPomeModal(title,ctxJson){
  inlineMsgs=[];
  const box=qs("#pomeInline");
  box.innerHTML=`<div class="inline-pome"><div class="ip-log" id="ipLog"><div class="pome-line"><span class="pface">🐶</span><div>いっしょに探そう!　「ここまでは分かった」「ここで止まった」って、思ったことを書いてみて。</div></div></div>
- <div class="ip-in"><input id="ipInput" placeholder="ポメに話しかける…" onkeydown="if(event.key==='Enter')sendInlinePome()"><button class="btn pome" id="ipSend" onclick="sendInlinePome()">送る</button></div>
+ <div class="ip-in"><input id="ipInput" placeholder="ポメに話しかける…" onkeydown="if(event.key==='Enter')sendInlinePome()"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('ipInput',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('ipInput')">✍️</button></span><button class="btn pome" id="ipSend" onclick="sendInlinePome()">送る</button></div>
  <div class="hint-note" style="margin:6px 0 0">APIキーが未設定のときは動きません(おうちメニュー→設定)。</div></div>`;
  setTimeout(()=>{const e=qs("#ipInput");if(e)e.focus();},60);}
 async function sendInlinePome(){
@@ -2210,6 +2242,7 @@ function renderWrong(){const t=today();const q=S.wrongQ.filter(w=>w.date===t);
  const pwTag=qs("#pw_tag");
  if(pwTag&&!pwTag.children.length)pwTag.innerHTML=TAGS.map(t2=>`<button data-v="${t2}" onclick="setPwTag(this,'${t2}')"><b>${TAGLABEL[t2].t}</b><small>${TAGLABEL[t2].d}</small></button>`).join("");
  renderPaperTrend();
+ renderPaperToday();
  qs("#wrongQueueList").innerHTML=q.length?q.map((w,i)=>`<button class="qx ${wqSel===i?"on":""} ${w.done?"done2":""}" onclick="wqSel=${i};renderWrong()">${esc(w.setName)} ${esc(w.label)}｜答えた:${esc(w.input)}${w.done?" ✓登録ずみ":""}</button>`).join("")
   :`<div class="hint-note">今日の×はまだありません。「ワークを解く」で答え合わせをすると、ここに自動で並びます。</div>`;
  if(wqSel===null&&q.length)wqSel=q.findIndex(w=>!w.done)>=0?q.findIndex(w=>!w.done):0;
