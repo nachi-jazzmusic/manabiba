@@ -301,6 +301,10 @@ h1 .tag{vertical-align:middle}
 .trendbox{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
 .trendbox>b{font-family:var(--disp);font-size:13.5px;display:block;margin-bottom:6px}
 .trend-row{font-size:13px;padding:5px 0;border-bottom:1px dashed var(--line)}
+.tagarea{width:100%}
+.tagchip{display:inline-flex;align-items:center;gap:8px;background:var(--pink-soft);border:2px solid var(--pink-deep);border-radius:11px;padding:8px 14px;font-family:var(--disp);font-weight:800;font-size:13.5px;cursor:default}
+.newtag{background:var(--mint);color:#fff;font-size:10.5px;font-weight:800;border-radius:99px;padding:2px 8px}
+.usedtag{background:#fff;color:var(--ink-soft);font-size:10.5px;font-weight:800;border-radius:99px;padding:2px 8px;border:1px solid var(--line)}
 .trend-row:last-child{border-bottom:none}
 .paper-today-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:12.5px}
 .paper-today-row:last-child{border-bottom:none}
@@ -691,9 +695,11 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
         <button data-v="gray" onclick="setPwResult(this,'gray')"><b>⚪ 未確認</b><small>答えを見て理解した</small></button>
         <button data-v="red" onclick="setPwResult(this,'red')"><b>🔴 わからなかった</b><small>最後まで理解できなかった</small></button>
        </div></div>
+      <div class="pf-row"><label>ひとこと<span class="hint-note" style="margin:0">(自由記入・できれば書いて)</span></label><div class="inprow"><input type="text" id="pw_note" placeholder="例:かっこの中の-5にかけ算するの忘れてた" oninput="pwNoteChanged()"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pw_note',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pw_note')">✍️</button></span></div></div>
       <div class="pf-row" style="align-items:flex-start"><label>なぜ間違えた</label>
-       <div class="tagpick2" id="pw_tag"></div></div>
-      <div class="pf-row"><label>ひとこと<span class="hint-note" style="margin:0">(自由記入・任意)</span></label><div class="inprow"><input type="text" id="pw_note" placeholder="例:累乗の順番を勘違いしていた"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pw_note',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pw_note')">✍️</button></span></div></div>
+       <div id="pw_tagArea" class="tagarea">
+        <div class="hint-note" style="margin:0">「ひとこと」を書くと、どんな間違いか自動で判定します。</div>
+       </div></div>
       <div class="pf-row"><label>問題の写真<span class="hint-note" style="margin:0">(あれば)</span></label><input type="file" accept="image/*" id="pw_img"></div>
       <button class="btn mintB" onclick="addPaperWrong()">この内容で登録</button>
       <span class="hint-note" id="pwMsg"></span>
@@ -887,7 +893,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-29d)</span></div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-30a)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -946,10 +952,12 @@ const VIDEO_PL={math:"PLFK0gaZkmkxDq3-cAJBxe7Ge34zJ9NUua",jpn:"PLFK0gaZkmkxDcnKa
 const plURL=(sub,idx)=>"https://www.youtube.com/playlist?list="+VIDEO_PL[sub]+(idx?("&index="+idx):"");
 
 /* ---------- ルールキー初期マスタ(あぶり出し結果より) ---------- */
-const TAGS=["型を知らない","型を選べない","書き方を省略","計算ミス","代入ミス","再現性不足"];
+const TAGS=["型を知らない","型を選べない","符号ミス","かっこの展開ミス","書き方を省略","計算ミス","代入ミス","再現性不足"];
 const TAGLABEL={
  "型を知らない":{t:"やり方を習ってない",d:"そもそもこの解き方を知らなかった"},
  "型を選べない":{t:"どのやり方か迷った",d:"やり方は知ってたけど、どれを使うか分からなかった"},
+ "符号ミス":{t:"符号(+-)をまちがえた",d:"マイナスを見落とした・付け間違えた"},
+ "かっこの展開ミス":{t:"かっこを開くときにミス",d:"分配法則で一部の項にしか掛けなかった・符号を変え忘れた"},
  "書き方を省略":{t:"とちゅうを飛ばした",d:"暗算したり、式を書かずに進めて崩れた"},
  "計算ミス":{t:"計算をまちがえた",d:"やり方は合ってたが、数の計算でミス"},
  "代入ミス":{t:"数の入れ方をまちがえた",d:"文字に数を入れるところでミス"},
@@ -1043,7 +1051,7 @@ function pdrillHtml(sub,keyword){
  const range=pages.length>1?`p.${Math.min(...pages)}〜${Math.max(...pages)}`:`p.${pages[0]}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>`<span class="pd-item">${x.no} ${esc(x.name)} <b>p.${x.page}</b></span>`).join("")}</div></div>`;}
-const BUILD_ID="2026-07-29d";
+const BUILD_ID="2026-07-30a";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1252,7 +1260,14 @@ function openRuleDecks(ruleId){const rule=S.rules.find(r=>r.id===ruleId);if(!rul
  }else{deckSub=rule.sub;deckSubManual=true;ruleFilter=null;pickerOpen=true;renderCards();
   toast("この単元のドリルはまだ登録されていません");}}
 function blockDone(key){return !!(S.menuManual[today()]&&S.menuManual[today()][key]);}
-function markBlock(key,btn){const t=today();if(!S.menuManual[t])S.menuManual[t]={};S.menuManual[t][key]=true;save();renderMenu();}
+function markBlock(key,btn){const t=today();if(!S.menuManual[t])S.menuManual[t]={};S.menuManual[t][key]=true;
+ // 「main0」「main1」(メイン学習)を終わったにしたら、その単元は完了として記録し、次回の選定から確実に外す
+ const m=key.match(/^main(\d+)$/);
+ if(m&&S.lastPicks&&S.lastPicks[t]&&S.lastPicks[t][+m[1]]){
+  const ruleId=S.lastPicks[t][+m[1]];
+  if(!S.doneRuleLog)S.doneRuleLog={};
+  S.doneRuleLog[t]=[...new Set([...(S.doneRuleLog[t]||[]),ruleId])];}
+ save();renderMenu();}
 const A=(icon,label,badge,jump)=>jump?`<button class="act applink" onclick="${jump}">${icon} ${label} ${badge?`<span class="am auto">${badge}</span>`:""}<span class="jump">ひらく →</span></button>`:`<div class="act">${icon} ${label} ${badge?`<span class="am manu">${badge}</span>`:""}</div>`;
 function renderMenu(){qs("#menuDate").textContent=jdate(today());
  qs("#holidayChk").checked=S.holiday;
@@ -1262,7 +1277,7 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
  const revN=pendingReviews().length;
  const quizToday=S.quizzes.filter(q=>daysBetween(q.date,today())<=3);
  let h="";
- const doneBtn=k=>blockDone(k)?`<button class="donebtn done">✓ おわった</button>`:`<button class="donebtn" onclick="markBlock('${k}',this)">おわった!</button>`;
+ const doneBtn=k=>blockDone(k)?`<button class="donebtn done">✓ おわった</button><span class="hint-note" style="margin:2px 0 0">明日はちがう単元が出ます</span>`:`<button class="donebtn" onclick="markBlock('${k}',this)">おわった!</button>`;
  if(d.off){h=`<div class="card" style="border-color:var(--pink);background:var(--pink-soft)"><h2>🏖 今日はオフ日</h2><div>ゆっくり休んでね。連続記録はフリーズしていて切れません。</div></div>`;}
  else{
   const picks=pickSubjectsForToday();
@@ -1312,18 +1327,26 @@ function recentMainRuleIds(days){
  for(let i=1;i<=days;i++){
   const dt=addDays(today(),-i);
   (log[dt]||[]).forEach(id=>set.add(id));}
+ // 「終わった」を押して完了させた単元は、最大14日は確実に除外する(自己申告の完了を尊重)
+ const done=S.doneRuleLog||{};
+ for(let i=1;i<=14;i++){
+  const dt=addDays(today(),-i);
+  (done[dt]||[]).forEach(id=>set.add(id));}
  return set;}
 /** 今日メイン学習に出したものを記録する */
 function recordMainPicks(picks){
  if(!S.mainLog)S.mainLog={};
+ if(!S.lastPicks)S.lastPicks={};
  const t=today();
  const ids=picks.map(p=>p.rule?p.rule.id:("sub:"+p.sub)).filter(Boolean);
  const prev=S.mainLog[t]||[];
  const merged=[...new Set([...prev,...ids])];
+ S.lastPicks[t]=picks.map(p=>p.rule?p.rule.id:null); // ①②の位置ごとに、今出しているruleIdを覚えておく("終わった"の紐付け用)
  if(merged.length!==prev.length){S.mainLog[t]=merged;
   // 30日より古い記録は捨てる
   Object.keys(S.mainLog).forEach(k=>{if(daysBetween(k,t)>30)delete S.mainLog[k];});
-  save();}}
+  save();}
+ else save();}
 /** その単元を「今日はやらない」ことにして、別の単元に差しかえる */
 function swapPick(ruleId){
  if(!S.mainLog)S.mainLog={};
@@ -1470,9 +1493,69 @@ function openSubjCards(sub){
  const se=qs("#deckSearch");if(se)se.value="";
  renderCards();}
 /* ---------- 紙のドリル・ワークからの誤答登録 ---------- */
-let pwResult=null,pwTag2=null;
+let pwResult=null,pwTag2=null,pwTagDebounce=null;
 function setPwResult(btn,v){pwResult=v;qsa("#pw_result button").forEach(b=>b.classList.toggle("on",b===btn));}
-function setPwTag(btn,v){pwTag2=v;qsa("#pw_tag button").forEach(b=>b.classList.toggle("on",b===btn));}
+/** これまでに使われた「なぜ間違えた」タグを全部集める(自由記入分もふくむ) */
+function allUsedTags(){
+ const set=new Map(); // tag名 -> 使われた回数
+ (S.paperLog||[]).forEach(x=>{if(x.tag)set.set(x.tag,(set.get(x.tag)||0)+1);});
+ return set;}
+/** 「ひとこと」の内容が変わったら、少し待ってAIにタグを聞く */
+function pwNoteChanged(){
+ clearTimeout(pwTagDebounce);
+ const note=qs("#pw_note").value.trim();
+ if(!note){renderPwTagDefault();pwTag2=null;return;}
+ pwTagDebounce=setTimeout(()=>guessPwTag(note),900);}
+function renderPwTagDefault(){
+ const used=allUsedTags();
+ const top=[...used.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6);
+ qs("#pw_tagArea").innerHTML=
+  (top.length?`<div class="hint-note" style="margin:0 0 6px">前と同じ間違いなら、ここから選べます:</div>
+   <div class="tagpick2">${top.map(([t,n])=>`<button onclick="pickExistingTag('${esc(t).replace(/'/g,"&#39;")}')"><b>${esc(t)}</b><small>${n}回目になります</small></button>`).join("")}</div>`:"")
+  +`<div class="hint-note" style="margin-top:6px">「ひとこと」を書くと、どんな間違いか自動で判定します。</div>`;}
+function pickExistingTag(t){
+ pwTag2=t;const used=allUsedTags();
+ qs("#pw_tagArea").innerHTML=`<button class="tagchip on">${esc(t)}<span class="usedtag">${(used.get(t)||0)+1}回目</span></button>
+  <div class="hint-note" style="margin-top:4px">同じ間違いとして記録します。<button class="mini" onclick="renderPwTagDefault()">✕ 選び直す</button></div>`;}
+async function guessPwTag(note){
+ const area=qs("#pw_tagArea");
+ area.innerHTML=`<div class="hint-note" style="margin:0">🤖 判定中…</div>`;
+ const used=allUsedTags();
+ const existing=[...used.keys()];
+ const q=qs("#pw_q").value.trim(),a=qs("#pw_a").value.trim(),sub=qs("#pw_sub").value;
+ const subName=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
+ try{
+  const sys=`あなたは中学生の学習記録を分類するアシスタントです。
+「なぜ間違えたか」の一言メモを読んで、間違いの原因を表すタグを1つ決めてください。
+
+ルール:
+- すでに使われているタグの中に、意味がほぼ同じものがあれば、必ずそれをそのまま使う(表記も完全に一致させる)。単語を変えて言い換えない。
+- 既存タグに当てはまるものが無いときだけ、新しいタグを作る。
+- 新しいタグは「○○ミス」のように7〜12文字程度で、単元名は含めず、間違いの"型"だけを表す言葉にする(例:「符号ミス」「aの付け忘れ」「単位のつけ忘れ」)。
+- 出力は次のJSON形式だけ。説明や前置きは書かない。
+{"tag":"タグ名","label":"子どもに見せる短い言い方(12字以内)","desc":"補足説明(20字以内)"}`;
+  const msg=`【すでに使われているタグ】\n${existing.length?existing.join("、"):"(まだ何もありません)"}\n\n【今回の記録】\n教科:${subName}\n問題:${q||"(なし)"}\n正しい答え:${a||"(なし)"}\nひとこと:${note}`;
+  const out=await callClaude(sys,[{role:"user",content:msg}]);
+  const jsonMatch=out.match(/\{[\s\S]*\}/);
+  if(!jsonMatch)throw new Error("判定結果を読み取れませんでした");
+  const j=JSON.parse(jsonMatch[0]);
+  pwTag2=j.tag;
+  const isNew=!used.has(j.tag);
+  area.innerHTML=`<button class="tagchip on">${esc(j.label||j.tag)}${isNew?`<span class="newtag">はじめてのタグ</span>`:`<span class="usedtag">${used.get(j.tag)}回目</span>`}</button>
+   <div class="hint-note" style="margin-top:4px">${esc(j.desc||"")}<button class="mini" style="margin-left:8px" onclick="editPwTag()">✏️ 自分で書きかえる</button></div>`;
+ }catch(e){
+  area.innerHTML=`<div class="warnline">⚠️ 自動判定に失敗しました(${esc(e.message)})<button class="mini" style="margin-left:6px" onclick="editPwTag()">✏️ 自分でタグを書く</button></div>`;}}
+function editPwTag(){
+ const cur=pwTag2||"";
+ const area=qs("#pw_tagArea");
+ area.innerHTML=`<div class="inprow"><input type="text" id="pw_tagFree" value="${esc(cur)}" placeholder="例:符号ミス"><button class="mini mintB" onclick="confirmPwTag()">決定</button></div>`;
+ setTimeout(()=>{const e=qs("#pw_tagFree");if(e)e.focus();},50);}
+function confirmPwTag(){
+ const v=qs("#pw_tagFree").value.trim();if(!v)return;
+ pwTag2=v;
+ const used=allUsedTags();const isNew=!used.has(v);
+ qs("#pw_tagArea").innerHTML=`<button class="tagchip on">${esc(v)}${isNew?`<span class="newtag">はじめてのタグ</span>`:`<span class="usedtag">${used.get(v)}回目</span>`}</button>
+  <div class="hint-note" style="margin-top:4px"><button class="mini" onclick="editPwTag()">✏️ 書きかえる</button></div>`;}
 const RESULT_LABEL={green:"🟢 一発正解",yellow:"🟡 うっかり",orange:"🟠 教われば分かる",gray:"⚪ 未確認(答えを見て理解した)",red:"🔴 わからなかった"};
 async function addPaperWrong(){
  const sub=qs("#pw_sub").value,where=qs("#pw_where").value.trim();
@@ -1502,7 +1585,8 @@ async function addPaperWrong(){
    save();}
   qs("#pw_where").value="";qs("#pw_q").value="";qs("#pw_a").value="";qs("#pw_note").value="";qs("#pw_img").value="";
   pwResult=null;pwTag2=null;
-  qsa("#pw_result button, #pw_tag button").forEach(b=>b.classList.remove("on"));
+  qsa("#pw_result button").forEach(b=>b.classList.remove("on"));
+  renderPwTagDefault();
   const rule=ruleId?S.rules.find(x=>x.id===ruleId):null;
   msg.innerHTML=`✅ 登録しました。つづけて次のまちがいを入れられます。`
    +(rule&&rule.gen?`<br><button class="mini mintB" onclick="go('sChal',document.querySelector('[data-s=sChal]'));startRule('${rule.id}')" style="margin-top:6px">✏️ いま「${esc(rule.name)}」の類題をやる</button>`:"");
@@ -1541,18 +1625,22 @@ function renderPaperTrend(){
  const el=qs("#paperTrend");if(!el)return;
  const log=(S.paperLog||[]).filter(x=>daysBetween(x.date,today())<=30);
  if(!log.length){el.innerHTML="";return;}
- const bySub={};
+ const bySub={};const byTag={};
  log.forEach(x=>{if(x.result==="green")return; // 一発正解は苦手に数えない
   bySub[x.sub]=bySub[x.sub]||{total:0,tags:{}};
   bySub[x.sub].total++;
-  if(x.tag){bySub[x.sub].tags[x.tag]=(bySub[x.sub].tags[x.tag]||0)+1;}});
+  if(x.tag){bySub[x.sub].tags[x.tag]=(bySub[x.sub].tags[x.tag]||0)+1;
+   byTag[x.tag]=(byTag[x.tag]||0)+1;}});
  const rows=Object.entries(bySub).sort((a,b)=>b[1].total-a[1].total);
  if(!rows.length){el.innerHTML=`<div class="hint-note">まだ苦手の傾向は出ていません(30日分)。</div>`;return;}
+ const tagRows=Object.entries(byTag).sort((a,b)=>b[1]-a[1]).slice(0,5);
  el.innerHTML=`<div class="trendbox"><b>📊 この30日でまちがえたところ</b>
   ${rows.map(([sub,d])=>{
    const nm=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
    const topTag=Object.entries(d.tags).sort((a,b)=>b[1]-a[1])[0];
-   return `<div class="trend-row"><b>${esc(nm)}</b> ${d.total}回${topTag?`<span class="tag" style="margin-left:6px">${esc(TAGLABEL[topTag[0]]?TAGLABEL[topTag[0]].t:topTag[0])} ${topTag[1]}回</span>`:""}</div>`;}).join("")}
+   return `<div class="trend-row"><b>${esc(nm)}</b> ${d.total}回${topTag?`<span class="tag" style="margin-left:6px">${esc(topTag[0])} ${topTag[1]}回</span>`:""}</div>`;}).join("")}
+  ${tagRows.length?`<div style="margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line)"><b style="font-size:12.5px">よく出る間違いパターン</b>
+   ${tagRows.map(([t,n])=>`<div class="trend-row">${esc(t)} <b>${n}回</b></div>`).join("")}</div>`:""}
   </div>`;}
 function goRev(){go("sChal",qs('[data-s="sChal"]'));chalTab("rev");}
 
@@ -2239,10 +2327,9 @@ let wqSel=null;
 function renderWrong(){const t=today();const q=S.wrongQ.filter(w=>w.date===t);
  const pwSub=qs("#pw_sub");
  if(pwSub&&!pwSub.children.length)pwSub.innerHTML=SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
- const pwTag=qs("#pw_tag");
- if(pwTag&&!pwTag.children.length)pwTag.innerHTML=TAGS.map(t2=>`<button data-v="${t2}" onclick="setPwTag(this,'${t2}')"><b>${TAGLABEL[t2].t}</b><small>${TAGLABEL[t2].d}</small></button>`).join("");
  renderPaperTrend();
  renderPaperToday();
+ if(qs("#pw_tagArea")&&!pwTag2)renderPwTagDefault();
  qs("#wrongQueueList").innerHTML=q.length?q.map((w,i)=>`<button class="qx ${wqSel===i?"on":""} ${w.done?"done2":""}" onclick="wqSel=${i};renderWrong()">${esc(w.setName)} ${esc(w.label)}｜答えた:${esc(w.input)}${w.done?" ✓登録ずみ":""}</button>`).join("")
   :`<div class="hint-note">今日の×はまだありません。「ワークを解く」で答え合わせをすると、ここに自動で並びます。</div>`;
  if(wqSel===null&&q.length)wqSel=q.findIndex(w=>!w.done)>=0?q.findIndex(w=>!w.done):0;
@@ -2629,7 +2716,10 @@ function diagnoseStorage(){
   </table>`;
  if(embeddedN)html+=`<div class="warnline" style="margin-top:8px">⚠️ カードの中に画像が直接 ${embeddedN}枚(${mb(embedded)})入っています。「🩹 画像を専用の保存場所へ移す」で解決できます。</div>`;
  if(lsTotal>total*1.5&&lsRows.length>1)html+=`<div class="warnline" style="margin-top:8px">⚠️ まなびば以外の古いデータが残っているようです。<button class="mini" onclick="cleanOtherKeys()">🧹 まなびば以外の古いデータを消す</button></div>`;
- html+=`<div class="hint-note" style="margin-top:8px">デッキ ${deckN}件 / カード ${cardN}枚 / 誤答キュー ${(S.wrongQ||[]).length}件 / 復習キュー ${(S.reviewQ||[]).length}件</div></div>`;
+ const mlKeys=Object.keys(S.mainLog||{}).sort().slice(-7);
+ const mlHtml=mlKeys.length?`<div style="font-size:12px;font-weight:700;color:var(--ink-soft);margin-top:10px">直近のメイン学習履歴</div>
+  <table class="diagtable">${mlKeys.map(k=>`<tr><td>${esc(k)}</td><td>${(S.mainLog[k]||[]).map(id=>{const r=S.rules.find(x=>x.id===id);return r?esc(r.name):esc(id);}).join("、")||"(なし)"}</td></tr>`).join("")}</table>`:"";
+ html+=`<div class="hint-note" style="margin-top:8px">デッキ ${deckN}件 / カード ${cardN}枚 / 誤答キュー ${(S.wrongQ||[]).length}件 / 復習キュー ${(S.reviewQ||[]).length}件</div>${mlHtml}</div>`;
  qs("#diagResult").innerHTML=html;}
 /** このアプリ以外の、同じアドレスに残っている古いデータを削除する */
 function cleanOtherKeys(){
