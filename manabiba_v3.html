@@ -478,6 +478,11 @@ body.lv2 .step.guided,body.lv3 .step.guided{display:none}
 .stamp.wait{border:2px dashed var(--line);color:#B9C6C1;background:#fff}
 .stamp.near{border:2.5px solid var(--mint);background:var(--mint-soft);color:var(--mint)}
 .stamp.near::after{content:'あと1回!';position:absolute;bottom:-7px;background:var(--mint);color:#fff;font-size:8.5px;font-weight:900;padding:1px 7px;border-radius:99px}
+.stamp{cursor:default}
+.stamp.medal-gold{background:linear-gradient(160deg,#FFF6D6,#FFE08A);border:2.5px solid #E8B84B;color:#8A6510}
+.stamp.medal-silver{background:linear-gradient(160deg,#F3F5F7,#DCE2E7);border:2.5px solid #A9B4BC;color:#5B6670}
+.stamp.medal-bronze{background:linear-gradient(160deg,#F3DFC8,#E0B085);border:2.5px solid #C08048;color:#6E4420}
+.stamp.medal-none{border:2px dashed var(--line);color:#B9C6C1;background:#fff}
 .debt-list{display:none}
 body.parent .debt-list{display:block}
 .debt{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -515,6 +520,13 @@ body.parent .debt-list{display:block}
 .big-metric .v small{font-size:16px}
 .big-metric .lbl{font-size:12.5px;color:var(--ink-soft);font-weight:700}
 .tagbar{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13px}
+.reschips{display:flex;gap:8px;flex-wrap:wrap}
+.rchip{font-family:var(--disp);font-weight:800;font-size:13px;padding:6px 12px;border-radius:99px;border:1.5px solid var(--line);background:#fff}
+.rchip.green{border-color:var(--mint);background:var(--mint-soft)}
+.rchip.yellow{border-color:#E8B84B;background:#FDF6E3}
+.rchip.orange{border-color:#E08A4B;background:#FCE9DA}
+.rchip.gray{border-color:#999;background:#EEEEEE}
+.rchip.red{border-color:var(--red);background:#FDEBEB}
 .tagbar .nm2{width:130px;flex-shrink:0;font-weight:700}
 .tagbar .tr{flex:1;height:16px;background:var(--paper);border-radius:99px;overflow:hidden}
 .tagbar .fl{height:100%;background:var(--red);opacity:.65;border-radius:99px}
@@ -897,7 +909,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-30c)</span></div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-30d)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -1055,7 +1067,7 @@ function pdrillHtml(sub,keyword){
  const range=pages.length>1?`p.${Math.min(...pages)}〜${Math.max(...pages)}`:`p.${pages[0]}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>`<span class="pd-item">${x.no} ${esc(x.name)} <b>p.${x.page}</b></span>`).join("")}</div></div>`;}
-const BUILD_ID="2026-07-30c";
+const BUILD_ID="2026-07-30d";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1595,6 +1607,7 @@ async function addPaperWrong(){
   pwResult=null;pwTag2=null;
   qsa("#pw_result button").forEach(b=>b.classList.remove("on"));
   renderPwTagDefault();
+  checkMedalUpgrade(sub);save();
   const rule=ruleId?S.rules.find(x=>x.id===ruleId):null;
   msg.innerHTML=`✅ 登録しました。つづけて次のまちがいを入れられます。`
    +(rule&&rule.gen?`<br><button class="mini mintB" onclick="go('sChal',document.querySelector('[data-s=sChal]'));startRule('${rule.id}')" style="margin-top:6px">✏️ いま「${esc(rule.name)}」の類題をやる</button>`:"");
@@ -1627,6 +1640,7 @@ function reresultPaper(idx,newResult){
   S.reviewQ.push({id:"rvp"+Date.now(),ruleId:x.ruleId||"",kind:"paper",q:x.q||x.where,sub:x.sub,ans:x.a,pkind:"paper",
    due:addDays(today(),7),status:"due",src:"紙のドリル("+x.where+")",where:x.where});}
  if(!needsReview&&already){S.reviewQ=S.reviewQ.filter(r=>r!==already);}
+ checkMedalUpgrade(x.sub);
  save();renderPaperToday();renderPaperTrend();toast("結果を「"+RESULT_LABEL[newResult]+"」にしました");}
 /** 直近30日の紙の記録から、苦手傾向を集計する */
 function renderPaperTrend(){
@@ -2393,29 +2407,64 @@ function saveWrong(noRev){const q=S.wrongQ.filter(w=>w.date===today());const w=q
 
 /* ---------- ◎図鑑 ---------- */
 let zTab="math";
+/* ---------- 単元メダル(紙ドリルの記録から算出) ---------- */
+const MEDAL_RANK={red:0,gray:0,orange:1,yellow:2,green:3}; // 数字が大きいほど良い結果
+/** その教科の「教科書の単元」ごとに、記録から一番厳しい結果を集計してメダルを決める */
+function unitMedals(sub){
+ const arr=UNITMAP[sub];if(!arr)return [];
+ const log=(S.paperLog||[]).filter(x=>x.sub===sub);
+ return arr.map(([lo,hi,name])=>{
+  // そのページ範囲(またはunitが直接一致)の記録だけ集める
+  const recs=log.filter(x=>{
+   if(x.unit===name)return true;
+   const pm=String(x.where||"").match(/[Pp][\.\s]?(\d+)/);
+   if(pm){const pg=parseInt(pm[1],10);return pg>=lo&&pg<=hi;}
+   return false;});
+  if(!recs.length)return {name,medal:"none",count:0};
+  const worstRank=Math.min(...recs.map(r=>MEDAL_RANK[r.result]??0));
+  const medal=worstRank>=3?"gold":worstRank>=2?"silver":"bronze";
+  return {name,medal,count:recs.length};});}
+function allMedalCounts(){
+ const out={gold:0,silver:0,bronze:0,none:0};
+ SUBJECTS.forEach(s=>{unitMedals(s.id).forEach(u=>{out[u.medal]=(out[u.medal]||0)+1;});});
+ return out;}
+function medalPoints(){const c=allMedalCounts();return c.gold*2+c.silver*1;}
+/** メダルが上がったぶんだけポイントを加算する(買い物で減っても実績は消えない) */
+function checkMedalUpgrade(sub){
+ if(!S.medalBest)S.medalBest={};
+ if(!S.medalBest[sub])S.medalBest[sub]={};
+ const rank={none:0,bronze:1,silver:2,gold:3};
+ const pt={none:0,bronze:0,silver:1,gold:2};
+ let gained=0;
+ unitMedals(sub).forEach(u=>{
+  const prev=S.medalBest[sub][u.name]||"none";
+  if(rank[u.medal]>rank[prev]){gained+=pt[u.medal]-pt[prev];S.medalBest[sub][u.name]=u.medal;}});
+ if(gained>0){S.profile.points=(S.profile.points||0)+gained;toast(`🎉 メダルアップ! ポイント+${gained}pt`);}
+ return gained;}
+
 function renderZukan(){
- const subs=[{id:"all",name:"すべて"},...SUBJECTS];
+ const subs=[{id:"all",name:"すべて"},...SUBJECTS.filter(s=>UNITMAP[s.id])];
  qs("#zukanTabs").innerHTML=subs.map(s=>`<button class="ztab ${zTab===s.id?"on":""}" onclick="zTab='${s.id}';renderZukan()">${s.name}</button>`).join("");
- qs("#zukanSum").innerHTML=SUBJECTS.map(s=>{const rs=S.rules.filter(r=>r.sub===s.id);
-  return rs.length?`<span class="zs">${s.name} ${rs.filter(r=>r.status==="mastered").length}/${rs.length}</span>`:"";}).join("");
- const rs=S.rules.filter(r=>zTab==="all"||r.sub===zTab);
- const chapters=[...new Set(rs.map(r=>r.ch))];
- qs("#zukanBody").innerHTML=chapters.map((ch,i)=>{const list=rs.filter(r=>r.ch===ch);
-  const m=list.filter(r=>r.status==="mastered").length;const comp=m===list.length;
-  return `<div class="chapter ${i===0||!comp?"open":""}"><div class="chap-head" onclick="this.parentNode.classList.toggle('open')">${comp?"🏆":"📖"} ${esc(ch)}<span class="prog ${comp?"comp":""}">${m}/${list.length}${comp?" コンプリート!":""}</span></div>
-  <div class="chap-body"><div class="stampgrid">${list.map(r=>{
-   const cls=r.status==="mastered"?"got":r.status==="passed"?"near":"wait";
-   const mk=r.status==="mastered"?"◎":r.status==="passed"?"○":"・";
-   const dt=r.status==="mastered"?jdate(r.mastered):r.status==="passed"?jdate(r.passed)+" 通過":"";
-   return `<div class="stamp ${cls}" onclick="${r.gen?`startRule('${r.id}')`:`toast('この項目はワークで練習します')`}"><div class="mark2">${mk}</div><div class="nm">${esc(r.name)}</div><div class="dt">${dt}</div></div>`;}).join("")}</div></div></div>`;}).join("");
- // 台帳
- const debts=S.rules.filter(r=>r.status!=="mastered").sort((a,b)=>a.pr-b.pr);
- const mathDebt=debts.filter(r=>r.sub==="math").length;
- qs("#debtBody").innerHTML=`<div class="hint-note" style="margin:0 0 8px">左=登録からの経過日数。かりんさん側では日数は見えません(「取り戻しリスト」として表示)。</div>`+
-  debts.slice(0,14).map(r=>{const days=daysBetween(r.added,today());
-   const st=r.status==="passed"?`<span class="status s2">○通過(◎待ち)</span>`:r.streak?`<span class="status s1">類題 ${r.streak}/3</span>`:`<span class="status s0">未着手</span>`;
-   return `<div class="debt"><span class="days ${days>10?"hot":""}">${days}<small>日経過</small></span><div style="flex:1"><b>${SUBJECTS.find(s=>s.id===r.sub).name}｜${esc(r.name)}</b></div>${st}<span class="tag">📖 ${esc(r.ysp)}</span>${r.gen?`<button class="mini" onclick="startRule('${r.id}')">類題へ</button>`:""}</div>`;}).join("")
-  +(mathDebt>3?`<div class="alloc-note">⚠️ 数学の未通過が ${mathDebt} 件(3件超)。明日から数学タイムの大半を取り戻しに配分することをおすすめします。新規は学校フォローのみに。</div>`:"");}
+ const totalC=allMedalCounts();
+ qs("#zukanSum").innerHTML=`<span class="zs">🥇 金${totalC.gold}</span><span class="zs">🥈 銀${totalC.silver}</span><span class="zs">🥉 銅${totalC.bronze}</span>`
+  +SUBJECTS.filter(s=>UNITMAP[s.id]).map(s=>{const list=unitMedals(s.id);const got=list.filter(u=>u.medal!=="none").length;
+   return list.length?`<span class="zs">${s.name} ${got}/${list.length}</span>`:"";}).join("");
+ const targetSubs=zTab==="all"?SUBJECTS.filter(s=>UNITMAP[s.id]).map(s=>s.id):[zTab];
+ const MEDAL_ICON={gold:"🥇",silver:"🥈",bronze:"🥉",none:"⬜"};
+ const MEDAL_LABEL={gold:"金(ぜんぶ一発正解)",silver:"銀(一発正解・うっかりのみ)",bronze:"銅(記録あり)",none:"まだ"};
+ qs("#zukanBody").innerHTML=targetSubs.map(subId=>{
+  const subName=(SUBJECTS.find(s=>s.id===subId)||{}).name||subId;
+  const list=unitMedals(subId);
+  if(!list.length)return"";
+  const got=list.filter(u=>u.medal!=="none").length;const comp=got===list.length&&list.length>0;
+  return `<div class="chapter open"><div class="chap-head" onclick="this.parentNode.classList.toggle('open')">${comp?"🏆":"📖"} ${esc(subName)}<span class="prog ${comp?"comp":""}">${got}/${list.length}${comp?" コンプリート!":""}</span></div>
+   <div class="chap-body"><div class="stampgrid">${list.map(u=>{
+    return `<div class="stamp medal-${u.medal}" title="${esc(MEDAL_LABEL[u.medal])}"><div class="mark2">${MEDAL_ICON[u.medal]}</div><div class="nm">${esc(u.name)}</div><div class="dt">${u.count?u.count+"回の記録":""}</div></div>`;}).join("")}</div></div></div>`;}).join("");
+ // 台帳(苦手傾向)
+ qs("#debtBody").innerHTML=`<div class="hint-note" style="margin:0 0 8px">「誤答の登録」に記録した、まだメダルが揃っていない単元です。</div>`+
+  targetSubs.flatMap(subId=>unitMedals(subId).filter(u=>u.medal!=="none"&&u.medal!=="gold").map(u=>({...u,sub:subId})))
+   .slice(0,14).map(u=>`<div class="debt"><span class="tag ${u.medal==="bronze"?"pinkT":""}">${MEDAL_ICON[u.medal]}</span><div style="flex:1"><b>${(SUBJECTS.find(s=>s.id===u.sub)||{}).name}｜${esc(u.name)}</b></div><span class="tag">${u.count}回</span></div>`).join("")
+  ||"<div class='hint-note'>まだ記録がありません。誤答の登録から積み上げていきましょう。</div>";}
 
 /* ---------- ポメ(Claude API) ---------- */
 const POME_SYS=`あなたは「ポメ」。中学1年生・香凜(かりん)さんの学習サポートAI。犬のキャラクター。
@@ -2552,24 +2601,44 @@ function addTestRow(){S.tests.push({name:"新しいテスト",scores:{},avg:""})
 
 /* ---------- 週次レビュー ---------- */
 function renderWeek(){const t=today();const from=addDays(t,-6);qs("#weekRange").textContent=jdate(from)+"〜"+jdate(t);
- let maru=0,pass=0,cards=0,rui=0;
- for(let i=0;i<7;i++){const d=S.daily[addDays(t,-i)];if(d){maru+=d.maru||0;pass+=d.ruiPass||0;cards+=d.cards||0;rui+=d.rui||0;}}
- const tagCount={};S.rules.forEach(r=>r.tagHist.filter(x=>daysBetween(x.date,t)<=7).forEach(x=>tagCount[x.tag]=(tagCount[x.tag]||0)+1));
- const max=Math.max(1,...Object.values(tagCount));
- const debts=S.rules.filter(r=>r.status!=="mastered").sort((a,b)=>a.pr-b.pr).slice(0,3);
+ let cards=0,rui=0;
+ for(let i=0;i<7;i++){const d=S.daily[addDays(t,-i)];if(d){cards+=d.cards||0;rui+=d.rui||0;}}
+ // 今週の紙ドリル記録
+ const weekLog=(S.paperLog||[]).filter(x=>daysBetween(x.date,t)<=6);
+ const resCount={green:0,yellow:0,orange:0,gray:0,red:0};
+ weekLog.forEach(x=>resCount[x.result]=(resCount[x.result]||0)+1);
+ // 自由記入タグの集計(今週)
+ const tagCount={};weekLog.forEach(x=>{if(x.tag)tagCount[x.tag]=(tagCount[x.tag]||0)+1;});
+ const tagRows=Object.entries(tagCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+ const maxTag=Math.max(1,...tagRows.map(x=>x[1]));
+ // 今週獲得したメダル数(medalBestの中で、このみ週に上がったものは判定できないため、現在の合計を表示)
+ const mc=allMedalCounts();
+ // 来週やること=まだメダルが揃っていない単元トップ3(苦手優先)
+ const notDone=[];
+ SUBJECTS.filter(s=>UNITMAP[s.id]).forEach(s=>{unitMedals(s.id).forEach(u=>{if(u.medal!=="gold")notDone.push({...u,sub:s.id});});});
+ notDone.sort((a,b)=>{const rank={none:0,bronze:1,silver:2};return (rank[a.medal]??0)-(rank[b.medal]??0);});
+ const nextUp=notDone.slice(0,3);
  qs("#weekBody").innerHTML=`
  <div class="wk-grid">
-  <div class="card"><div class="big-metric"><div class="v" style="color:var(--pink-deep)">${maru}<small> 個</small></div><div class="lbl">今週ゲットした ◎(定着)</div></div></div>
-  <div class="card"><div class="big-metric"><div class="v" style="color:var(--mint)">${pass}<small> 個</small></div><div class="lbl">今週の ○(通過)</div></div></div></div>
- <div class="card"><h2>今週の活動</h2><div style="font-size:14px">暗記カード ${cards}枚 ／ 類題 ${rui}問 ／ 連続 ${calcStreak()}日</div></div>
- <div class="card"><h2>誤答タグの様子(今週)</h2>
-  ${TAGS.map(tg=>`<div class="tagbar"><span class="nm2">${tg}</span><div class="tr"><div class="fl" style="width:${(tagCount[tg]||0)/max*100}%"></div></div><span class="ct">${tagCount[tg]||0}</span></div>`).join("")}
-  <div class="hint-note">「再現性不足」が多いときは教え直しではなく、時間を計った反復が効きます。</div></div>
- <div class="card"><h2>来週の計画(台帳の上から)</h2>
-  ${debts.map(r=>`<div class="list-row"><b>${esc(r.name)}</b><span class="tag">📖 ${esc(r.ysp)}</span>${r.gen?`<button class="mini" onclick="startRule('${r.id}')">類題へ</button>`:""}</div>`).join("")||"<div>台帳は空です 🎉</div>"}
+  <div class="card"><div class="big-metric"><div class="v" style="color:#E8B84B">🥇${mc.gold}<small> 個</small></div><div class="lbl">金メダル(ぜんぶ一発正解)</div></div></div>
+  <div class="card"><div class="big-metric"><div class="v" style="color:#C08048">🥉${mc.bronze+mc.silver}<small> 個</small></div><div class="lbl">銀・銅メダル(取り組み中)</div></div></div></div>
+ <div class="card"><h2>今週の紙ドリル・学校のワーク</h2>
+  <div style="font-size:14px;margin-bottom:8px">合計 ${weekLog.length}問を登録 ／ 暗記カード ${cards}枚 ／ 類題 ${rui}問 ／ 連続 ${calcStreak()}日</div>
+  <div class="reschips">
+   <span class="rchip green">🟢 ${resCount.green}</span>
+   <span class="rchip yellow">🟡 ${resCount.yellow}</span>
+   <span class="rchip orange">🟠 ${resCount.orange}</span>
+   <span class="rchip gray">⚪ ${resCount.gray}</span>
+   <span class="rchip red">🔴 ${resCount.red}</span>
+  </div></div>
+ <div class="card"><h2>よく出た間違いパターン(今週)</h2>
+  ${tagRows.length?tagRows.map(([tg,n])=>`<div class="tagbar"><span class="nm2">${esc(tg)}</span><div class="tr"><div class="fl" style="width:${n/maxTag*100}%"></div></div><span class="ct">${n}</span></div>`).join(""):"<div class='hint-note'>今週はまだ記録がありません。</div>"}
+  </div>
+ <div class="card"><h2>来週やること(メダルが揃っていない単元)</h2>
+  ${nextUp.length?nextUp.map(u=>`<div class="list-row"><b>${(SUBJECTS.find(s=>s.id===u.sub)||{}).name}｜${esc(u.name)}</b><span class="tag">${u.medal==="none"?"⬜ 未着手":u.medal==="bronze"?"🥉 銅":"🥈 銀"}</span></div>`).join(""):"<div>今のところ、全単元で金メダルです 🎉</div>"}
   <div class="hint-note">復習テスト予定:${pendingReviews().length}件</div></div>
  <div class="card"><h2>ポイント精算</h2><div class="pt-box" style="display:flex;gap:14px;align-items:center;background:var(--pink-soft);border:1.5px solid #F2CFD9;border-radius:14px;padding:14px 18px">
-  <span>今週の◎ ${maru}個 → 合計</span><span style="font-family:var(--disp);font-weight:900;font-size:28px;color:var(--pink-deep)">${S.profile.points} pt</span>
+  <span>今もっている合計</span><span style="font-family:var(--disp);font-weight:900;font-size:28px;color:var(--pink-deep)">${S.profile.points||0} pt</span>
   <span class="hint-note" style="margin:0">きせかえで使えます</span></div></div>`;}
 
 /* ---------- モーダルの移動・サイズ変更 ---------- */
