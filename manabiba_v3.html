@@ -483,6 +483,7 @@ body.lv2 .step.guided,body.lv3 .step.guided{display:none}
 .stamp.medal-silver{background:linear-gradient(160deg,#F3F5F7,#DCE2E7);border:2.5px solid #A9B4BC;color:#5B6670}
 .stamp.medal-bronze{background:linear-gradient(160deg,#F3DFC8,#E0B085);border:2.5px solid #C08048;color:#6E4420}
 .stamp.medal-none{border:2px dashed var(--line);color:#B9C6C1;background:#fff}
+.stamp.medal-stuck{background:#FDEBEB;border:2.5px solid var(--red);color:#A34141}
 .debt-list{display:none}
 body.parent .debt-list{display:block}
 .debt{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
@@ -909,7 +910,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-30d)</span></div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-30e)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -1067,7 +1068,7 @@ function pdrillHtml(sub,keyword){
  const range=pages.length>1?`p.${Math.min(...pages)}〜${Math.max(...pages)}`:`p.${pages[0]}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>`<span class="pd-item">${x.no} ${esc(x.name)} <b>p.${x.page}</b></span>`).join("")}</div></div>`;}
-const BUILD_ID="2026-07-30d";
+const BUILD_ID="2026-07-30e";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1592,16 +1593,18 @@ async function addPaperWrong(){
   if(f){const raw=await compressImage(f);img=await storeImage(raw);}
   const ruleId=guessRule({text:q,ans:a,label:where},"")||"";
   if(!S.paperLog)S.paperLog=[];
-  S.paperLog.push({
+  const entry={
    id:"pw"+Date.now(),date:today(),sub,where,q,a,ruleId,
    result:pwResult,tag:pwTag2||"",note,img,
+   checkCount:0, // 7日後の復習に正解した回数(0=銅スタート、1=銀、2以上=金)
    nextDate: (pwResult==="green")?null:addDays(today(),7)
-  });
+  };
+  S.paperLog.push(entry);
   save();
-  // 🔴🟠🟡は7日後の復習にも積む(未確認/一発正解は積まない)
-  if(pwResult==="red"||pwResult==="orange"||pwResult==="yellow"){
+  // 🔴(まだ理解できていない)以外は、理解の第一歩=銅として、7日後の復習サイクルを始める
+  if(pwResult==="orange"||pwResult==="yellow"||pwResult==="gray"){
    S.reviewQ.push({id:"rvp"+Date.now(),ruleId,kind:"paper",q:q||where,sub,ans:a,pkind:"paper",
-    due:addDays(today(),7),status:"due",src:"紙のドリル("+where+")",where});
+    due:addDays(today(),7),status:"due",src:"紙のドリル("+where+")",where,paperLogId:entry.id});
    save();}
   qs("#pw_where").value="";qs("#pw_q").value="";qs("#pw_a").value="";qs("#pw_note").value="";qs("#pw_img").value="";
   pwResult=null;pwTag2=null;
@@ -1610,6 +1613,8 @@ async function addPaperWrong(){
   checkMedalUpgrade(sub);save();
   const rule=ruleId?S.rules.find(x=>x.id===ruleId):null;
   msg.innerHTML=`✅ 登録しました。つづけて次のまちがいを入れられます。`
+   +(pwResult==="green"?`<br><span class="tag mintT" style="margin-top:6px;display:inline-block">🥇 一発正解、金メダルです!</span>`
+    :(pwResult==="orange"||pwResult==="yellow"||pwResult==="gray")?`<br><span class="tag" style="margin-top:6px;display:inline-block">🥉 銅からスタート。7日後にもう一度確認します。</span>`:"")
    +(rule&&rule.gen?`<br><button class="mini mintB" onclick="go('sChal',document.querySelector('[data-s=sChal]'));startRule('${rule.id}')" style="margin-top:6px">✏️ いま「${esc(rule.name)}」の類題をやる</button>`:"");
   renderPaperTrend();
   renderPaperToday();
@@ -1633,12 +1638,13 @@ function renderPaperToday(){
 function reresultPaper(idx,newResult){
  const x=S.paperLog[idx];if(!x)return;
  const old=x.result;x.result=newResult;
- // 復習キューへの出し入れを結果に応じて調整
- const needsReview=(newResult==="red"||newResult==="orange"||newResult==="yellow");
- const already=S.reviewQ.find(r=>r.kind==="paper"&&r.where===x.where&&r.q===(x.q||x.where)&&daysBetween(r.due,addDays(today(),7))===0);
+ // 復習キューへの出し入れを結果に応じて調整(🟢一発正解・🔴わからなかった、は復習サイクルに乗せない)
+ const needsReview=(newResult==="orange"||newResult==="yellow"||newResult==="gray");
+ const already=S.reviewQ.find(r=>r.kind==="paper"&&r.paperLogId===x.id&&r.status==="due");
  if(needsReview&&!already){
+  x.checkCount=0; // 結果が変わったので、確認回数はリセットして銅からやり直し
   S.reviewQ.push({id:"rvp"+Date.now(),ruleId:x.ruleId||"",kind:"paper",q:x.q||x.where,sub:x.sub,ans:x.a,pkind:"paper",
-   due:addDays(today(),7),status:"due",src:"紙のドリル("+x.where+")",where:x.where});}
+   due:addDays(today(),7),status:"due",src:"紙のドリル("+x.where+")",where:x.where,paperLogId:x.id});}
  if(!needsReview&&already){S.reviewQ=S.reviewQ.filter(r=>r!==already);}
  checkMedalUpgrade(x.sub);
  save();renderPaperToday();renderPaperTrend();toast("結果を「"+RESULT_LABEL[newResult]+"」にしました");}
@@ -2221,6 +2227,25 @@ function judgeRev(id){const r=S.reviewQ.find(x=>x.id===id);if(!r)return;
  else ok=normAns(v)===normAns(r.ans)||(parseFloat(v)===parseFloat(r.ans)&&!isNaN(parseFloat(v)));
  const d=D();d.rev++;
  const res=qs("#rvres_"+id);
+ if(r.kind==="paper"){
+  // 紙のドリル由来の復習:正解のたびに銅→銀→金と段位が上がる
+  const entry=(S.paperLog||[]).find(x=>x.id===r.paperLogId);
+  if(ok){
+   d.revPass++;
+   if(entry){entry.checkCount=(entry.checkCount||0)+1;
+    const tier=entry.checkCount>=2?"gold":entry.checkCount>=1?"silver":"bronze";
+    if(entry.checkCount<2){
+     r.due=addDays(today(),7);r.status="due"; // まだ金でなければ、もう一度7日後に確認
+     res.innerHTML=`<span style="color:var(--mint)">◎ 正解! ${tier==="silver"?"🥈 銀メダルになりました。もう1回正解すると🥇金です。":""}</span>`;
+    }else{
+     r.status="passed";
+     res.innerHTML=`<span style="color:var(--mint)">◎ 正解! 🥇 金メダル(定着)になりました!</span>`;}
+    checkMedalUpgrade(entry.sub);
+   }else res.innerHTML=`<span style="color:var(--mint)">◎ 正解!</span>`;
+  }else{
+   r.due=addDays(today(),7);r.status="due"; // 段位は下げず、もう一度7日後に
+   res.innerHTML=`<span style="color:var(--red)">✕ 正解は ${esc(r.ans)}。段位はそのままで、7日後にもう一度確認します。</span>`;}
+  save();setTimeout(()=>{renderRev();renderChal();},1600);return;}
  if(ok){r.status="passed";d.revPass++;
   const rule=S.rules.find(x=>x.id===r.ruleId);
   if(rule&&rule.status!=="mastered"){rule.status="mastered";rule.mastered=today();S.profile.points++;d.maru=(d.maru||0)+1;
@@ -2408,21 +2433,28 @@ function saveWrong(noRev){const q=S.wrongQ.filter(w=>w.date===today());const w=q
 /* ---------- ◎図鑑 ---------- */
 let zTab="math";
 /* ---------- 単元メダル(紙ドリルの記録から算出) ---------- */
-const MEDAL_RANK={red:0,gray:0,orange:1,yellow:2,green:3}; // 数字が大きいほど良い結果
+const MEDAL_RANK={gold:3,silver:2,bronze:1,none:0};
+/** 1問の記録から、その時点のメダル段位を決める。
+ *  🟢一発正解=金。それ以外(🟡🟠⚪)は理解の一歩目=銅、7日後の復習に正解するたび銀→金と上がる。🔴はまだ対象外。 */
+function entryMedal(x){
+ if(x.result==="green")return "gold";
+ if(x.result==="red")return "none";
+ const c=x.checkCount||0;
+ return c>=2?"gold":c===1?"silver":"bronze";}
 /** その教科の「教科書の単元」ごとに、記録から一番厳しい結果を集計してメダルを決める */
 function unitMedals(sub){
  const arr=UNITMAP[sub];if(!arr)return [];
  const log=(S.paperLog||[]).filter(x=>x.sub===sub);
  return arr.map(([lo,hi,name])=>{
-  // そのページ範囲(またはunitが直接一致)の記録だけ集める
   const recs=log.filter(x=>{
    if(x.unit===name)return true;
    const pm=String(x.where||"").match(/[Pp][\.\s]?(\d+)/);
    if(pm){const pg=parseInt(pm[1],10);return pg>=lo&&pg<=hi;}
    return false;});
   if(!recs.length)return {name,medal:"none",count:0};
-  const worstRank=Math.min(...recs.map(r=>MEDAL_RANK[r.result]??0));
-  const medal=worstRank>=3?"gold":worstRank>=2?"silver":"bronze";
+  const medals=recs.map(entryMedal);
+  const worstRank=Math.min(...medals.map(m=>MEDAL_RANK[m]));
+  const medal=worstRank===0?"stuck":Object.keys(MEDAL_RANK).find(k=>MEDAL_RANK[k]===worstRank);
   return {name,medal,count:recs.length};});}
 function allMedalCounts(){
  const out={gold:0,silver:0,bronze:0,none:0};
@@ -2433,8 +2465,8 @@ function medalPoints(){const c=allMedalCounts();return c.gold*2+c.silver*1;}
 function checkMedalUpgrade(sub){
  if(!S.medalBest)S.medalBest={};
  if(!S.medalBest[sub])S.medalBest[sub]={};
- const rank={none:0,bronze:1,silver:2,gold:3};
- const pt={none:0,bronze:0,silver:1,gold:2};
+ const rank={stuck:0,none:0,bronze:1,silver:2,gold:3};
+ const pt={stuck:0,none:0,bronze:0,silver:1,gold:2};
  let gained=0;
  unitMedals(sub).forEach(u=>{
   const prev=S.medalBest[sub][u.name]||"none";
@@ -2450,8 +2482,8 @@ function renderZukan(){
   +SUBJECTS.filter(s=>UNITMAP[s.id]).map(s=>{const list=unitMedals(s.id);const got=list.filter(u=>u.medal!=="none").length;
    return list.length?`<span class="zs">${s.name} ${got}/${list.length}</span>`:"";}).join("");
  const targetSubs=zTab==="all"?SUBJECTS.filter(s=>UNITMAP[s.id]).map(s=>s.id):[zTab];
- const MEDAL_ICON={gold:"🥇",silver:"🥈",bronze:"🥉",none:"⬜"};
- const MEDAL_LABEL={gold:"金(ぜんぶ一発正解)",silver:"銀(一発正解・うっかりのみ)",bronze:"銅(記録あり)",none:"まだ"};
+ const MEDAL_ICON={gold:"🥇",silver:"🥈",bronze:"🥉",stuck:"🔴",none:"⬜"};
+ const MEDAL_LABEL={gold:"金(ぜんぶ一発正解、または7日後の復習に2回連続正解)",silver:"銀(7日後の復習に1回正解ずみ・もう1回で金)",bronze:"銅(理解の一歩目・7日後にもう一度確認します)",stuck:"まだわからない問題が残っています",none:"まだ記録なし"};
  qs("#zukanBody").innerHTML=targetSubs.map(subId=>{
   const subName=(SUBJECTS.find(s=>s.id===subId)||{}).name||subId;
   const list=unitMedals(subId);
@@ -2635,7 +2667,7 @@ function renderWeek(){const t=today();const from=addDays(t,-6);qs("#weekRange").
   ${tagRows.length?tagRows.map(([tg,n])=>`<div class="tagbar"><span class="nm2">${esc(tg)}</span><div class="tr"><div class="fl" style="width:${n/maxTag*100}%"></div></div><span class="ct">${n}</span></div>`).join(""):"<div class='hint-note'>今週はまだ記録がありません。</div>"}
   </div>
  <div class="card"><h2>来週やること(メダルが揃っていない単元)</h2>
-  ${nextUp.length?nextUp.map(u=>`<div class="list-row"><b>${(SUBJECTS.find(s=>s.id===u.sub)||{}).name}｜${esc(u.name)}</b><span class="tag">${u.medal==="none"?"⬜ 未着手":u.medal==="bronze"?"🥉 銅":"🥈 銀"}</span></div>`).join(""):"<div>今のところ、全単元で金メダルです 🎉</div>"}
+  ${nextUp.length?nextUp.map(u=>`<div class="list-row"><b>${(SUBJECTS.find(s=>s.id===u.sub)||{}).name}｜${esc(u.name)}</b><span class="tag">${u.medal==="none"?"⬜ 未着手":u.medal==="stuck"?"🔴 まだわからない":u.medal==="bronze"?"🥉 銅":"🥈 銀"}</span></div>`).join(""):"<div>今のところ、全単元で金メダルです 🎉</div>"}
   <div class="hint-note">復習テスト予定:${pendingReviews().length}件</div></div>
  <div class="card"><h2>ポイント精算</h2><div class="pt-box" style="display:flex;gap:14px;align-items:center;background:var(--pink-soft);border:1.5px solid #F2CFD9;border-radius:14px;padding:14px 18px">
   <span>今もっている合計</span><span style="font-family:var(--disp);font-weight:900;font-size:28px;color:var(--pink-deep)">${S.profile.points||0} pt</span>
