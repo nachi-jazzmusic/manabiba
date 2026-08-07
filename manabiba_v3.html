@@ -55,6 +55,10 @@ h1{font-family:var(--disp);font-weight:900;font-size:24px;margin-bottom:4px}
 h1 .tag{vertical-align:middle}
 .sub{color:var(--ink-soft);font-size:13.5px;margin-bottom:20px}
 .card{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:18px 20px;margin-bottom:16px}
+details.card summary{cursor:pointer;list-style:none}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary::before{content:"▸ ";color:var(--ink-soft);font-size:13px}
+details.card[open] summary::before{content:"▾ "}
 .card h2{font-family:var(--disp);font-weight:700;font-size:16px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:99px;background:var(--paper);color:var(--ink-soft);border:1px solid var(--line)}
 .tag.pinkT{background:var(--pink-soft);color:var(--pink-deep);border-color:#F2CFD9}
@@ -556,7 +560,6 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <button class="nav-label fold" data-g="study" onclick="toggleGroup('study')"><span class="caret">▾</span>問題をとく</button>
   <div class="nav-group" data-g="study">
     <button class="nav-btn" data-s="sCards" onclick="go('sCards',this)"><span class="ic">🃏</span><span class="txt">暗記カード</span></button>
-    <button class="nav-btn" data-s="sResult" onclick="go('sResult',this)"><span class="ic">✅</span><span class="txt">ワークを解く</span></button>
     <button class="nav-btn" data-s="sChal" onclick="go('sChal',this)"><span class="ic">✏️</span><span class="txt">類題チャレンジ</span></button>
   </div>
 
@@ -680,7 +683,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <button class="tomenu" onclick="go('sMenu',document.querySelector('[data-s=sMenu]'))">← 今日のメニューにもどる</button>
   <h1>誤答の登録 <span class="tag pinkT">おうちメニュー</span></h1>
   <div class="card" style="background:var(--mint-soft);border-color:var(--mint)">
-    <h2>📝 紙のドリル・ワークから登録</h2>
+    <h2>📝 紙のドリル・学校のワークから登録</h2>
     <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">丸つけのとき、まちがえた問題をここに登録します。所要時間の目安は<b>1ページ15分</b>です。</p>
     <div class="pform">
       <div class="pf-row"><label>教科</label><select id="pw_sub"></select></div>
@@ -707,9 +710,9 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <div id="paperToday" style="margin-top:12px"></div>
     <div id="paperTrend" style="margin-top:12px"></div>
   </div>
-  <p class="sub">下は「アプリのワークを解く」を使ったときだけ、自動でたまる欄です。今は紙のドリルが中心なので、基本は上のフォームだけ使えばOKです。</p>
+  <p class="sub">下は今は使っていない旧機能の名残りです。今は紙のドリル・学校のワークが中心なので、上のフォームだけ使えばOKです。</p>
   <div class="card" style="background:var(--blue-soft);border-color:#CCDEF0">
-    <h2>📥 アプリのワークで見つかった×(あれば)</h2>
+    <h2>📥 アプリの旧ワーク機能で見つかった×(使っていなければ空のままでOK)</h2>
     <div id="wrongQueueList"></div>
   </div>
   <div class="card" id="wrongForm"></div>
@@ -836,15 +839,16 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <div style="margin-top:8px"><button class="btn" onclick="importDeck()">デッキを追加</button></div>
     <div id="deckManage" style="margin-top:14px"></div>
   </div>
-  <div class="card"><h2>📕 ワークの問題と答えを登録</h2>
-    <p class="hint-note" style="margin-bottom:8px">1行目にセット名(例:数学ワーク p.40-41)。以降は1行に1問。<br>
+  <details class="card">
+    <summary><h2 style="display:inline">📕 ワークの問題と答えを登録<span class="hint-note" style="margin-left:8px;font-weight:500">(今は使っていません・紙のドリルに移行ずみ)</span></h2></summary>
+    <p class="hint-note" style="margin-bottom:8px;margin-top:10px">1行目にセット名(例:数学ワーク p.40-41)。以降は1行に1問。<br>
     <b>おすすめ:</b>「ラベル<b>|</b>問題文<b>=</b>答え」…問題文もアプリに表示され、香凜さんが画面を見て解けます。<br>
     問題文なし(「ラベル=答え」)でも登録できますが、その場合は紙のワークを見ながら答えだけ入力する形になります。<br>
     <b>注意:</b>問題文の中に「=」は使わないでください(「3 + 6 を計算しなさい」のように書く)。最初の「=」より後ろが答えとして読まれます。</p>
     <textarea class="big" id="ansImport" placeholder="数学ワーク p.40-41&#10;大問1(1)|3 + 6 を計算しなさい=9&#10;大問1(2)|-5 + 2 を計算しなさい=-3&#10;大問2(1)|2a + 3a を計算しなさい=5a"></textarea>
-    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="importAnsSet()">ワークを追加</button><button class="btn sub2" onclick="addSampleAns()">🧪 サンプル2問を入れて試す</button></div>
+    <div style="margin-top:8px"><button class="btn" onclick="importAnsSet()">ワークを追加</button></div>
     <div id="ansManage" style="margin-top:14px"></div>
-  </div>
+  </details>
 </section>
 
 <!-- ===== 設定(親) ===== -->
@@ -893,7 +897,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-30a)</span></div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-30c)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -1051,7 +1055,7 @@ function pdrillHtml(sub,keyword){
  const range=pages.length>1?`p.${Math.min(...pages)}〜${Math.max(...pages)}`:`p.${pages[0]}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>`<span class="pd-item">${x.no} ${esc(x.name)} <b>p.${x.page}</b></span>`).join("")}</div></div>`;}
-const BUILD_ID="2026-07-30a";
+const BUILD_ID="2026-07-30c";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1282,6 +1286,10 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
  else{
   const picks=pickSubjectsForToday();
   recordMainPicks(picks);
+  if(!S.holiday&&!S.longBreak&&!todaySubs().length){
+   h+=`<div class="card" style="background:#FDF6E3;border-color:#E8B84B"><b>📝 今日の入力がまだです</b>
+    <div style="font-size:13px;margin-top:4px">下の2教科は、今日の授業がわからないので<b>苦手なところ</b>から選んでいます。「今日の入力」で教科を入れると、授業に合わせたメニューになります。
+     <button class="mini" onclick="go('sInput',document.querySelector('[data-s=sInput]'))" style="margin-left:4px">📝 今日の入力をひらく</button></div></div>`;}
   h+=`<div class="timeline">`;
   // ---- すきま時間(毎日固定・暗記もの) ----
   const kanji=nextMemoDeck("jpn"), eitan=nextMemoDeck("eng");
@@ -1405,8 +1413,8 @@ function pickSubjectsForToday(){
    const unit=unitOf(sub,ent[sub].page);
    const rule=S.rules.filter(r=>r.sub===sub&&r.status!=="mastered"&&r.gen).sort((a,b)=>a.pr-b.pr)[0]||null;
    out.push({kind:"today",sub,label:`${nm}「${unit}」`,why:"今日の授業",rule,unit});usedSub[sub]=1;}
-  // 足りなければ苦手で埋める
-  if(out.length<2){for(const r of topDebts(4)){if(out.length>=2)break;if(usedSub[r.sub]||usedRule[r.id])continue;
+  // 足りなければ苦手で埋める(類題が作れる=gen付きのものだけ)
+  if(out.length<2){for(const r of topDebts(6).filter(r=>r.gen)){if(out.length>=2)break;if(usedSub[r.sub]||usedRule[r.id])continue;
    out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🎯 苦手",rule:r});usedSub[r.sub]=1;usedRule[r.id]=1;}}
  }
  return out.slice(0,2);}
@@ -1442,7 +1450,7 @@ function stepFlowHtml(pk,key){
   <div class="sf-row"><span class="sf-no">⑤</span><div class="sf-body">
     <b>類題でしあげ(任意)</b><span class="tag mintT">ひとりで</span><span class="sf-min">5分</span>
     <div class="hint-note" style="margin:0 0 6px">時間が余ったときだけでOK。誤答の登録画面からも同じ型の類題を出せます。</div>
-    ${r?A("✏️","類題3問連続にちょうせん",r.status==="passed"?"○ずみ":"",`startRule('${r.id}')`):A("📱","類題チャレンジ","","go('sChal',document.querySelector('[data-s=sChal]'))")}
+    ${r&&r.gen?A("✏️","類題3問連続にちょうせん",r.status==="passed"?"○ずみ":"",`startRule('${r.id}')`):r?`<div class="hint-note">この単元は類題を作れないタイプです。②③④の紙のドリルで仕上げてください。</div>`:A("📱","類題チャレンジ","","go('sChal',document.querySelector('[data-s=sChal]'))")}
   </div></div>
  </div>`;}
 /** 教科を指定して暗記カード一覧を開く */
@@ -2068,7 +2076,7 @@ function renderProb(){const r=curRule,p=curProb;const four=p.kind==="subst";
   <span class="lvsel">
    <button class="lv ${r.lv===3?"on":""}" onclick="setLv(3)">Lv3</button><button class="lv ${r.lv===2?"on":""}" onclick="setLv(2)">Lv2</button><button class="lv ${r.lv===1?"on":""}" onclick="setLv(1)">Lv1</button>
    <span class="helpico" title="Lv3=なにも見ない / Lv2=やり方の手順だけ見る / Lv1=手順＋ヒントも全部ひらく。まずLv3で、むずかしかったら下げてください。">?</span></span>
-  <span class="helpico" title="戻り先:📖 ${esc(r.ysp)}${r.wbp?" / "+esc(r.wbp):""}。3問連続で正解すると通過○です。">?</span>
+  <span class="helpico" title="戻り先:📖 ${esc(r.ysp)}${r.wbp?" / "+(r.wbp.includes("ワーク")?"":"学校の")+esc(r.wbp):""}。3問連続で正解すると通過○です。">?</span>
   ${r.vid?`<a class="mini" href="${plURL(r.sub,r.vid)}" target="_blank">🎥</a>`:""}
  </div>
  <div class="work-area"><div class="work-left">
@@ -2285,7 +2293,7 @@ function openWhy(si,ii){const it=S.ansSets[si].items[ii];const w=S.wrongQ.find(x
  qs("#qModalBody").innerHTML=`<div class="qtitle">${jdate(today())} ${esc(S.ansSets[si].name)} ${esc(it.label)}</div>
  <div class="qbody">${qtext?esc(qtext):"(問題文は「誤答の登録」で追加できます)"}</div>
  <div class="q-ans"><span class="ng2">じぶんの答え:${esc(it.input)}</span><span class="ok2">正しい答え:${esc(it.ans)}</span></div>
- ${rule?`<div class="whyrule">📖 この問題は「<b>${esc(rule.name)}</b>」の型。戻り先:${esc(rule.ysp)}${rule.wbp?" / "+esc(rule.wbp):""}</div>`:""}
+ ${rule?`<div class="whyrule">📖 この問題は「<b>${esc(rule.name)}</b>」の型。戻り先:${esc(rule.ysp)}${rule.wbp?" / "+(rule.wbp.includes("ワーク")?"":"学校の")+esc(rule.wbp):""}</div>`:""}
  ${rule&&STEPGUIDE[rule.gen]?`<div class="stepguide" style="text-align:left"><b>📓 この型のやり方</b><br>${STEPGUIDE[rule.gen].map((t,i)=>`${i+1}. ${esc(t)}`).join("<br>")}</div>`:""}
  <div class="pome-line"><span class="pface">🐶</span><div>じぶんの答えと正しい答えを、<b>となりに並べて見くらべてみよう</b>。ぜんぶ解き直さなくていいよ。<b>途中のどこでちがう数になったか</b>、その1か所を見つければOK!</div></div>
  <div class="q-actions"><button class="btn pome" onclick="openPomeModal('ワークのまちがい:${esc(S.ansSets[si].name)} ${esc(it.label)}',${JSON.stringify(JSON.stringify({q:qtext,mine:it.input,ans:it.ans})).replace(/"/g,"&quot;")})">🐶 ポメに聞いてみる(この画面のまま)</button>
