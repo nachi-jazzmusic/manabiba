@@ -695,9 +695,20 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 <section class="screen" id="sWrong">
   <button class="tomenu" onclick="go('sMenu',document.querySelector('[data-s=sMenu]'))">← 今日のメニューにもどる</button>
   <h1>誤答の登録 <span class="tag pinkT">おうちメニュー</span></h1>
+  <div class="card" style="background:#fff;border-color:var(--line)">
+    <h2>✅ まとめて「できた」を記録</h2>
+    <p class="hint-note" style="margin-bottom:8px">1問ずつ登録しなくてOK。「このページはほぼできた」というときに、まとめて正解として記録します。</p>
+    <div class="pform">
+      <div class="pf-row"><label>教科</label><select id="pq_sub"></select></div>
+      <div class="pf-row"><label>どこの問題か</label><div class="inprow"><input type="text" id="pq_where" placeholder="例:パターンドリル数学 p.27"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pq_where',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pq_where')">✍️</button></span></div></div>
+      <div class="pf-row"><label>できた問題数</label><div class="inprow"><input type="number" id="pq_n" placeholder="例:9" min="1" style="max-width:100px"><span class="hint-note" style="margin:0">問、一発正解として登録します</span></div></div>
+      <button class="btn mintB" onclick="addQuickGreen()">まとめて登録</button>
+      <span class="hint-note" id="pqMsg"></span>
+    </div>
+  </div>
   <div class="card" style="background:var(--mint-soft);border-color:var(--mint)">
     <h2>📝 紙のドリル・学校のワークから登録</h2>
-    <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">丸つけのとき、まちがえた問題をここに登録します。所要時間の目安は<b>1ページ15分</b>です。</p>
+    <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">丸つけのとき、まちがえた問題(または迷った問題)をここに登録します。所要時間の目安は<b>1ページ15分</b>です。</p>
     <div class="pform">
       <div class="pf-row"><label>教科</label><select id="pw_sub"></select></div>
       <div class="pf-row"><label>どこの問題か</label><div class="inprow"><input type="text" id="pw_where" placeholder="例:パターンドリル数学 p.27 (3)"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pw_where',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pw_where')">✍️</button></span></div></div>
@@ -910,7 +921,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-30e)</span></div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-07-30f)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -1068,7 +1079,7 @@ function pdrillHtml(sub,keyword){
  const range=pages.length>1?`p.${Math.min(...pages)}〜${Math.max(...pages)}`:`p.${pages[0]}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>`<span class="pd-item">${x.no} ${esc(x.name)} <b>p.${x.page}</b></span>`).join("")}</div></div>`;}
-const BUILD_ID="2026-07-30e";
+const BUILD_ID="2026-07-30f";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1578,6 +1589,22 @@ function confirmPwTag(){
  qs("#pw_tagArea").innerHTML=`<button class="tagchip on">${esc(v)}${isNew?`<span class="newtag">はじめてのタグ</span>`:`<span class="usedtag">${used.get(v)}回目</span>`}</button>
   <div class="hint-note" style="margin-top:4px"><button class="mini" onclick="editPwTag()">✏️ 書きかえる</button></div>`;}
 const RESULT_LABEL={green:"🟢 一発正解",yellow:"🟡 うっかり",orange:"🟠 教われば分かる",gray:"⚪ 未確認(答えを見て理解した)",red:"🔴 わからなかった"};
+/** まとめて「できた」をN問ぶん一発正解として登録する(1問ずつ打たなくていい簡易入力) */
+function addQuickGreen(){
+ const sub=qs("#pq_sub").value,where=qs("#pq_where").value.trim();
+ const n=parseInt(qs("#pq_n").value,10);
+ const msg=qs("#pqMsg");
+ if(!where){msg.textContent="「どこの問題か」を入れてください";return;}
+ if(!n||n<1){msg.textContent="できた問題数を入れてください";return;}
+ if(!S.paperLog)S.paperLog=[];
+ for(let i=0;i<n;i++){
+  S.paperLog.push({id:"pw"+Date.now()+"_"+i,date:today(),sub,where,q:"",a:"",ruleId:"",
+   result:"green",tag:"",note:"",img:null,checkCount:0});}
+ save();
+ qs("#pq_where").value="";qs("#pq_n").value="";
+ msg.textContent=`✅ ${n}問を一発正解として登録しました。`;
+ checkMedalUpgrade(sub);save();
+ renderPaperTrend();renderPaperToday();}
 async function addPaperWrong(){
  const sub=qs("#pw_sub").value,where=qs("#pw_where").value.trim();
  const q=qs("#pw_q").value.trim(),a=qs("#pw_a").value.trim();
@@ -2374,6 +2401,8 @@ let wqSel=null;
 function renderWrong(){const t=today();const q=S.wrongQ.filter(w=>w.date===t);
  const pwSub=qs("#pw_sub");
  if(pwSub&&!pwSub.children.length)pwSub.innerHTML=SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
+ const pqSub=qs("#pq_sub");
+ if(pqSub&&!pqSub.children.length)pqSub.innerHTML=SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
  renderPaperTrend();
  renderPaperToday();
  if(qs("#pw_tagArea")&&!pwTag2)renderPwTagDefault();
