@@ -303,6 +303,21 @@ details.card[open] summary::before{content:"▾ "}
 #pw_result button[data-v="gray"].on{border-color:#999;background:#EEEEEE}
 #pw_result button[data-v="red"].on{border-color:var(--red);background:#FDEBEB}
 .trendbox{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
+.planlist{display:flex;flex-direction:column;gap:8px}
+.plan-row{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff}
+.plan-row.plan-done{opacity:.55;background:var(--mint-soft)}
+.plan-row.plan-excluded{opacity:.4}
+.plan-rank{flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--pink-soft);color:var(--pink-deep);font-family:var(--disp);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+.plan-main{flex:1;min-width:0;font-size:13.5px}
+.plan-acts{display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap}
+.planbadge{display:inline-flex;align-items:center;gap:6px;font-family:var(--disp);font-weight:800;font-size:13px;padding:8px 15px;border-radius:99px;border:2px solid var(--pink-deep);background:var(--pink-soft);color:var(--pink-deep);cursor:pointer}
+.planbadge-empty{border-color:var(--line);background:#fff;color:var(--ink-soft)}
+.planbadge-stale{border-color:#E8B84B;background:#FDF6E3;color:#8A6510}
+.planbadge-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#E8B84B}
+.planprog{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.planprog-bar{flex:1;height:9px;background:var(--line);border-radius:99px;overflow:hidden}
+.planprog-fill{height:100%;background:var(--mint);border-radius:99px;transition:width .3s}
+.planprog span{font-family:var(--disp);font-weight:800;font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
 .trendbox>b{font-family:var(--disp);font-size:13.5px;display:block;margin-bottom:6px}
 .trend-row{font-size:13px;padding:5px 0;border-bottom:1px dashed var(--line)}
 .tagarea{width:100%}
@@ -629,6 +644,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 <!-- ===== 今日のメニュー ===== -->
 <section class="screen" id="sMenu">
   <h1>今日のメニュー <span class="tag" id="menuDate"></span></h1>
+  <div id="menuPlanBadge" style="margin-bottom:10px"></div>
   <p class="sub">やることの横のマーク:<b>📱=アプリの中(タップで開く・自動✓)</b>/<b>✏️=紙・口頭(終わったら「おわった!」)</b>/<b>🎥=予習動画(やらなくてもOK・よゆうがある日だけ)</b></p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
     <button class="btn sub2" onclick="remakeMenu()">✏️ 入力をまちがえた → メニューを作り直す</button>
@@ -695,6 +711,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 <section class="screen" id="sWrong">
   <button class="tomenu" onclick="go('sMenu',document.querySelector('[data-s=sMenu]'))">← 今日のメニューにもどる</button>
   <h1>誤答の登録 <span class="tag pinkT">おうちメニュー</span></h1>
+  <div id="wrongPlanBadge" style="margin-bottom:10px"></div>
   <div class="card" style="background:#fff;border-color:var(--line)">
     <h2>✅ まとめて「できた」を記録</h2>
     <p class="hint-note" style="margin-bottom:8px">1問ずつ登録しなくてOK。「このページはほぼできた」というときに、まとめて正解として記録します。</p>
@@ -900,6 +917,14 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <div class="q-grip" id="qGrip" title="ドラッグでサイズ変更"></div>
   </div>
 </div>
+<div class="pad-modal" id="planModal" onclick="if(event.target===this)closePlan()">
+  <div class="pad-card" style="max-width:720px;max-height:88vh;overflow-y:auto">
+    <button class="q-x" style="position:absolute;top:12px;right:12px" onclick="closePlan()" title="とじる">✕</button>
+    <h2 style="margin-top:0">📋 対策プラン<span class="tag" style="margin-left:8px">まちがいの多い順</span></h2>
+    <div id="planBody"></div>
+    <div style="margin-top:12px"><button class="mini" onclick="regenPlan()">🔄 最新の記録で作り直す</button></div>
+  </div>
+</div>
 <div class="pad-modal" id="peekModal" onclick="if(event.target===this)closePeek()">
   <div class="pad-card" style="max-width:820px;max-height:88vh;overflow-y:auto">
     <button class="q-x" style="position:absolute;top:12px;right:12px" onclick="closePeek()" title="とじる">✕</button>
@@ -921,7 +946,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-08-08b)</span></div>
+<div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-08-09b)</span></div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -1096,7 +1121,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-08b";
+const BUILD_ID="2026-08-09b";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1312,9 +1337,15 @@ function markBlock(key,btn){const t=today();if(!S.menuManual[t])S.menuManual[t]=
   const ruleId=S.lastPicks[t][+m[1]];
   if(!S.doneRuleLog)S.doneRuleLog={};
   S.doneRuleLog[t]=[...new Set([...(S.doneRuleLog[t]||[]),ruleId])];}
+ // 対策プラン由来の項目なら、プラン側も自動で「済み」にする
+ if(m&&S.lastPlanIds&&S.lastPlanIds[t]&&S.lastPlanIds[t][+m[1]]&&S.plan&&S.plan.items){
+  const pid=S.lastPlanIds[t][+m[1]];
+  const item=S.plan.items.find(x=>x.id===pid);
+  if(item)item.done=true;}
  save();renderMenu();}
 const A=(icon,label,badge,jump)=>jump?`<button class="act applink" onclick="${jump}">${icon} ${label} ${badge?`<span class="am auto">${badge}</span>`:""}<span class="jump">ひらく →</span></button>`:`<div class="act">${icon} ${label} ${badge?`<span class="am manu">${badge}</span>`:""}</div>`;
 function renderMenu(){qs("#menuDate").textContent=jdate(today());
+ const mpb=qs("#menuPlanBadge");if(mpb)mpb.innerHTML=planBadgeHtml();
  qs("#holidayChk").checked=S.holiday;
  const lb=qs("#longBreakChk");if(lb)lb.checked=!!S.longBreak;
  const d=D();const ent=S.input.entries;const entSubs=Object.keys(ent);
@@ -1391,6 +1422,8 @@ function recordMainPicks(picks){
  const prev=S.mainLog[t]||[];
  const merged=[...new Set([...prev,...ids])];
  S.lastPicks[t]=picks.map(p=>p.rule?p.rule.id:null); // ①②の位置ごとに、今出しているruleIdを覚えておく("終わった"の紐付け用)
+ S.lastPlanIds=S.lastPlanIds||{};
+ S.lastPlanIds[t]=picks.map(p=>p.planId||null); // 対策プラン由来の項目なら、そのplanIdも覚えておく
  if(merged.length!==prev.length){S.mainLog[t]=merged;
   // 30日より古い記録は捨てる
   Object.keys(S.mainLog).forEach(k=>{if(daysBetween(k,t)>30)delete S.mainLog[k];});
@@ -1420,6 +1453,13 @@ function pickSubjectsForToday(){
   const nm=(SUBJECTS.find(s=>s.id===q.sub)||{}).name||q.sub;
   out.push({kind:"quiz",sub:q.sub,label:`${nm}:小テスト対策(${q.range})`,why:"📢 小テスト",rule:null});
   usedSub[q.sub]=1;});
+ // ①.5 対策プランの1位が未着手なら、小テストの次に優先(手動で外した/済みにしたものはスキップ)
+ const plan=topPlanItem();
+ if(plan&&out.length<2&&!usedSub[plan.sub]){
+  const nm=(SUBJECTS.find(s=>s.id===plan.sub)||{}).name||plan.sub;
+  const rule=S.rules.filter(r=>r.sub===plan.sub&&r.status!=="mastered"&&r.gen).sort((a,b)=>a.pr-b.pr)[0]||null;
+  out.push({kind:"plan",sub:plan.sub,label:`${nm}:${plan.tag}`,why:"📋 対策プラン",rule,planId:plan.id});
+  usedSub[plan.sub]=1;}
  /** 候補リストから、最近やっていないものを優先して詰める */
  const fill=(cands0,opt)=>{
   const o=opt||{};
@@ -1471,7 +1511,7 @@ function stepFlowHtml(pk,key){
  <div class="stepflow">
   <div class="sf-row"><span class="sf-no">①</span><div class="sf-body">
     <b>紙のドリルを、まずひとりで最後まで解く</b><span class="tag mintT">ひとりで</span><span class="sf-min">1ページ15分めやす</span>
-    ${pdrillHtml(pk.sub,(r?r.name:"")||pk.unit||"")}
+    ${pdrillHtml(pk.sub,(r?r.name:"")||pk.unit||(pk.kind==="plan"?pk.label:"")||"")}
     <div class="hint-note">わからない問題があっても<b>止まらず、印だけつけて先に進む</b>のがコツです。</div>
   </div></div>
   <div class="sf-row"><span class="sf-no">②</span><div class="sf-body">
@@ -1715,6 +1755,115 @@ function renderPaperTrend(){
    ${tagRows.map(([t,n])=>`<div class="trend-row">${esc(t)} <b>${n}回</b></div>`).join("")}</div>`:""}
   </div>`;}
 function goRev(){go("sChal",qs('[data-s="sChal"]'));chalTab("rev");}
+
+/* ---------- 対策プラン(苦手優先の学習計画・母が編集可) ---------- */
+/** paperLogのタグ集計から、優先順位付きの対策プランを自動生成する */
+function suggestPlan(days){
+ const log=(S.paperLog||[]).filter(x=>daysBetween(x.date,today())<=(days||30)&&x.result!=="green");
+ const byTag={};
+ log.forEach(x=>{
+  if(!x.tag)return;
+  const key=x.sub+"|"+x.tag;
+  if(!byTag[key])byTag[key]={sub:x.sub,tag:x.tag,count:0,wheres:new Set()};
+  byTag[key].count++;
+  if(x.where)byTag[key].wheres.add(x.where);});
+ const items=Object.values(byTag).sort((a,b)=>b.count-a.count).map((x,i)=>({
+  id:"pl"+i+"_"+Date.now(),sub:x.sub,tag:x.tag,count:x.count,
+  wheres:[...x.wheres].slice(0,3),done:false,excluded:false}));
+ return items;}
+/** そのタグに対応する直近の記録が green(自力一発正解)になっていれば、自動で「解消ずみ」とみなす */
+function isTagResolved(item){
+ const recs=(S.paperLog||[]).filter(x=>x.sub===item.sub&&x.tag===item.tag).sort((a,b)=>a.date<b.date?-1:1);
+ if(!recs.length)return false;
+ return recs[recs.length-1].result==="green";}
+function planStatus(item){return item.done||isTagResolved(item)?"done":item.excluded?"excluded":"active";}
+/** プラン作成後に増えた、関連する新しい記録の件数(鮮度の目安)。日付ではなく件数のスナップショットで判定する */
+function planFreshness(){
+ if(!S.plan)return null;
+ const daysOld=daysBetween(S.plan.createdAt,today());
+ const before=S.plan.logCountAtCreate||0;
+ const nowCount=(S.paperLog||[]).length;
+ const newCount=Math.max(0,nowCount-before);
+ return {daysOld,newCount};}
+/** 対策プランを開く。既存があれば編集、無ければ自動生成 */
+function openPlanEditor(){
+ if(!S.plan||!S.plan.items||!S.plan.items.length){
+  const items=suggestPlan(30);
+  if(!items.length){toast("まだ苦手の記録が少ないので、プランを作れません。誤答の登録をいくつか行ってから、もう一度お試しください。");return;}
+  S.plan={createdAt:today(),items,logCountAtCreate:(S.paperLog||[]).length};
+  save();}
+ renderPlan();
+ qs("#planModal").classList.add("open");}
+function closePlan(){qs("#planModal").classList.remove("open");}
+function regenPlan(){
+ if(!confirm("今の並び替え・除外はリセットされます。最新の記録から作り直しますか?"))return;
+ const items=suggestPlan(30);
+ S.plan={createdAt:today(),items,logCountAtCreate:(S.paperLog||[]).length};save();renderPlan();}
+function renderPlan(){
+ const el=qs("#planBody");if(!el||!S.plan)return;
+ const items=S.plan.items;
+ const withStatus=items.map(x=>({x,status:planStatus(x)}));
+ const active=withStatus.filter(w=>w.status==="active");
+ const doneN=withStatus.filter(w=>w.status==="done").length;
+ const totalN=withStatus.filter(w=>w.status!=="excluded").length;
+ const fresh=planFreshness();
+ const freshHtml=fresh?(fresh.newCount>0
+   ?`<div class="warnline" style="margin-bottom:10px">⚠️ このプランを作ってから${fresh.daysOld}日、新しく${fresh.newCount}件の記録が増えています。<button class="mini" onclick="regenPlan()" style="margin-left:6px">🔄 作り直す</button></div>`
+   :`<div class="okline" style="margin-bottom:10px">✅ ${fresh.daysOld===0?"今日":fresh.daysOld+"日前"}に作った、最新の内容です</div>`):"";
+ el.innerHTML=freshHtml+`
+  <div class="planprog"><div class="planprog-bar"><div class="planprog-fill" style="width:${totalN?Math.round(doneN/totalN*100):0}%"></div></div><span>${doneN} / ${totalN} 解消</span></div>
+  <p class="hint-note" style="margin:8px 0 10px">まちがいの多い順に並んでいます。同じタグの記録が最後に🟢になると、自動で「解消ずみ」になります。</p>
+  <div class="planlist">
+   ${withStatus.map(({x,status},i)=>{
+    const nm=(SUBJECTS.find(s=>s.id===x.sub)||{}).name||x.sub;
+    const rank=status==="active"?active.findIndex(w=>w.x===x)+1:null;
+    return `<div class="plan-row ${status==="excluded"?"plan-excluded":""} ${status==="done"?"plan-done":""}">
+     <span class="plan-rank">${status==="done"?"✅":status==="excluded"?"➖":rank}</span>
+     <div class="plan-main">
+      <b>${esc(nm)}｜${esc(x.tag)}</b><span class="tag" style="margin-left:6px">${x.count}回</span>
+      ${status==="done"&&!x.done?`<span class="tag mintT" style="margin-left:4px">自動で解消</span>`:""}
+      ${x.wheres&&x.wheres.length?`<div class="hint-note" style="margin:2px 0 0">${x.wheres.map(w=>esc(w)).join(" / ")}</div>`:""}
+     </div>
+     <div class="plan-acts">
+      <button class="mini" title="上へ" onclick="movePlan(${i},-1)">↑</button>
+      <button class="mini" title="下へ" onclick="movePlan(${i},1)">↓</button>
+      <button class="mini" onclick="togglePlanDone(${i})">${x.done?"戻す":"済みにする"}</button>
+      <button class="mini" onclick="togglePlanExclude(${i})">${x.excluded?"戻す":"✕ 外す"}</button>
+     </div>
+    </div>`;}).join("")}
+  </div>
+  <div class="pform" style="margin-top:14px;border-top:1.5px dashed var(--line);padding-top:12px">
+   <div class="pf-row"><label>教科</label><select id="pl_sub"></select></div>
+   <div class="pf-row"><label>追加したい項目</label><input type="text" id="pl_tag" placeholder="例:比例のグラフの読み取り"></div>
+   <button class="btn sub2" onclick="addPlanItem()">＋ 手動で追加</button>
+  </div>`;
+ const sel=qs("#pl_sub");
+ if(sel&&!sel.children.length)sel.innerHTML=SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");}
+function movePlan(i,dir){
+ const items=S.plan.items;const j=i+dir;if(j<0||j>=items.length)return;
+ [items[i],items[j]]=[items[j],items[i]];save();renderPlan();}
+function togglePlanDone(i){S.plan.items[i].done=!S.plan.items[i].done;save();renderPlan();}
+function togglePlanExclude(i){S.plan.items[i].excluded=!S.plan.items[i].excluded;save();renderPlan();}
+function addPlanItem(){
+ const sub=qs("#pl_sub").value,tag=qs("#pl_tag").value.trim();
+ if(!tag){toast("追加したい項目を入力してください");return;}
+ S.plan.items.push({id:"pl_manual"+Date.now(),sub,tag,count:0,wheres:[],done:false,excluded:false,manual:true});
+ qs("#pl_tag").value="";save();renderPlan();}
+/** 今日のメニューで案内する、対策プランの上位1件(未完了・未除外) */
+function topPlanItem(){
+ if(!S.plan||!S.plan.items)return null;
+ return S.plan.items.find(x=>planStatus(x)==="active")||null;}
+/** ヘッダーに出す、対策プランの状態バッジ(入口をどこからでも見えるように) */
+function planBadgeHtml(){
+ if(!S.plan||!S.plan.items||!S.plan.items.length)
+  return `<button class="planbadge planbadge-empty" onclick="openPlanEditor()">📋 対策プランをつくる</button>`;
+ const items=S.plan.items;
+ const withStatus=items.map(x=>planStatus(x));
+ const doneN=withStatus.filter(s=>s==="done").length;
+ const totalN=withStatus.filter(s=>s!=="excluded").length;
+ const fresh=planFreshness();
+ const stale=fresh&&fresh.newCount>0;
+ return `<button class="planbadge ${stale?"planbadge-stale":""}" onclick="openPlanEditor()">📋 対策プラン ${doneN}/${totalN}${stale?` <span class="planbadge-dot"></span>`:""}</button>`;}
 
 /* ---------- 暗記カード ---------- */
 let curDeck=0,deckManual=false,cardBusy=false;
@@ -2416,6 +2565,7 @@ async function sendInlinePome(){
 /* ---------- 誤答の登録(親) ---------- */
 let wqSel=null;
 function renderWrong(){const t=today();const q=S.wrongQ.filter(w=>w.date===t);
+ const wpb=qs("#wrongPlanBadge");if(wpb)wpb.innerHTML=planBadgeHtml();
  const pwSub=qs("#pw_sub");
  if(pwSub&&!pwSub.children.length)pwSub.innerHTML=SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
  const pqSub=qs("#pq_sub");
@@ -2711,6 +2861,8 @@ function renderWeek(){const t=today();const from=addDays(t,-6);qs("#weekRange").
   </div></div>
  <div class="card"><h2>よく出た間違いパターン(今週)</h2>
   ${tagRows.length?tagRows.map(([tg,n])=>`<div class="tagbar"><span class="nm2">${esc(tg)}</span><div class="tr"><div class="fl" style="width:${n/maxTag*100}%"></div></div><span class="ct">${n}</span></div>`).join(""):"<div class='hint-note'>今週はまだ記録がありません。</div>"}
+  <div style="margin-top:10px"><button class="btn mintB" onclick="openPlanEditor()">📋 対策プランをつくる・見なおす</button>
+   <span class="hint-note" style="margin-left:6px">まちがいの多い順に自動で並べます。順番の入れかえや、外すこともできます。</span></div>
   </div>
  <div class="card"><h2>来週やること(メダルが揃っていない単元)</h2>
   ${nextUp.length?nextUp.map(u=>`<div class="list-row"><b>${(SUBJECTS.find(s=>s.id===u.sub)||{}).name}｜${esc(u.name)}</b><span class="tag">${u.medal==="none"?"⬜ 未着手":u.medal==="stuck"?"🔴 まだわからない":u.medal==="bronze"?"🥉 銅":"🥈 銀"}</span></div>`).join(""):"<div>今のところ、全単元で金メダルです 🎉</div>"}
