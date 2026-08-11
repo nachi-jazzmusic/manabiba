@@ -47,14 +47,21 @@ body.parent .nav-group.parent-only.closed{display:none}
 .rail-foot{margin-top:auto;padding:8px 10px;font-size:11px;color:var(--ink-soft)}
 .holiday-toggle{display:flex;align-items:center;gap:8px;padding:7px 10px;margin:4px 0;background:var(--paper);border-radius:10px;font-size:12px;font-weight:700;color:var(--ink-soft)}
 .holiday-toggle input{accent-color:var(--mint)}
-.main{flex:1;padding:26px 34px 60px;max-width:1360px}
+.menutop{width:100%;font-size:15px;padding:11px 24px;margin-bottom:10px}
+.holidaybar{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;padding:9px 16px;margin-bottom:10px}
+.hchk{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:var(--ink-soft);white-space:nowrap}
+.hchk input{accent-color:var(--mint)}
+.hsep{color:var(--line);font-weight:700}
+.lbrange{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink-soft);white-space:nowrap}
+.lbrange input[type=date]{font-size:11px;padding:2px 3px;border:1.5px solid var(--line);border-radius:6px;max-width:118px}
+.main{flex:1;padding:18px 34px 40px;max-width:1360px}
 .screen{display:none}
 .screen.on{display:block;animation:fadein .18s ease}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-h1{font-family:var(--disp);font-weight:900;font-size:24px;margin-bottom:4px}
+h1{font-family:var(--disp);font-weight:900;font-size:20px;margin-bottom:3px}
 h1 .tag{vertical-align:middle}
-.sub{color:var(--ink-soft);font-size:13.5px;margin-bottom:20px}
-.card{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:18px 20px;margin-bottom:16px}
+.sub{color:var(--ink-soft);font-size:13px;margin-bottom:10px}
+.card{background:#fff;border:1.5px solid var(--line);border-radius:16px;padding:14px 18px;margin-bottom:12px}
 details.card summary{cursor:pointer;list-style:none}
 details.card summary::-webkit-details-marker{display:none}
 details.card summary::before{content:"▸ ";color:var(--ink-soft);font-size:13px}
@@ -77,7 +84,7 @@ details.card[open] summary::before{content:"▾ "}
 .mini.pome{background:var(--pome-soft);border-color:#E7D6BC}
 .hint-note{font-size:12px;color:var(--ink-soft);margin-top:6px}
 .mic{font-size:14px;background:var(--pome-soft);border:1.5px solid #E7D6BC;border-radius:9px;padding:5px 9px}
-.streakbar{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,var(--pink-soft),#fff 55%,var(--mint-soft));border:1.5px solid #F2CFD9;border-radius:16px;padding:10px 18px;margin-bottom:16px}
+.streakbar{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,var(--pink-soft),#fff 55%,var(--mint-soft));border:1.5px solid #F2CFD9;border-radius:16px;padding:7px 18px;margin-bottom:10px}
 .streak-num{font-family:var(--disp);font-weight:900;font-size:24px;line-height:1}
 .streak-num small{font-size:13px;font-weight:700;color:var(--ink-soft)}
 .streak-side{margin-left:auto;text-align:right;font-size:12.5px;color:var(--ink-soft)}
@@ -336,7 +343,7 @@ details.card[open] summary::before{content:"▾ "}
 .pome-line.user{justify-content:flex-end}
 .pome-line.user>div{background:var(--blue-soft);border-radius:14px;padding:8px 12px;font-size:13.5px}
 .ip-in{display:flex;gap:8px}
-.ip-in input{flex:1;padding:9px 12px;border:2px solid var(--line);border-radius:12px;font-size:14px}
+.ip-in input,.ip-in textarea{flex:1;padding:9px 12px;border:2px solid var(--line);border-radius:12px;font-size:14px}
 .roundbar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;max-width:420px;margin:10px auto 4px}
 .roundbar-in{height:100%;background:var(--mint);border-radius:99px;transition:width .35s}
 .roundnum{text-align:center;font-size:12.5px;color:var(--ink-soft);font-weight:700;font-family:var(--disp);margin-bottom:10px}
@@ -455,7 +462,8 @@ body.lv2 .step.guided,body.lv3 .step.guided{display:none}
 .chat-scroll{flex:1;overflow-y:auto;padding-right:6px;display:flex;flex-direction:column}
 .chat-scroll .spacer{flex:1}
 .chat-in{display:flex;gap:8px;margin-top:10px;flex-shrink:0}
-.chat-in input{flex:1;padding:11px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff}
+.chat-in input,.chat-in textarea{flex:1;padding:11px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff}
+.autoTA{font-family:inherit;font-size:14px;resize:none;overflow-y:auto;max-height:120px;line-height:1.4}
 .msg{display:flex;gap:10px;margin-bottom:12px}
 .msg .pface{font-size:26px;flex-shrink:0}
 .bubble{background:var(--pome-soft);border:1.5px solid #E7D6BC;border-radius:4px 16px 16px 16px;padding:10px 14px;font-size:14px;white-space:pre-wrap;max-width:85%}
@@ -574,10 +582,6 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 
 <nav class="rail">
   <div class="logo">まなびば<small>v3.0</small></div>
-  <div class="mode-switch">
-    <button id="mKarin" class="on" onclick="setMode(false)">かりん</button>
-    <button id="mParent" onclick="setMode(true)">おうち</button>
-  </div>
 
   <button class="nav-btn pome-top" data-s="sPome" onclick="go('sPome',this)"><span class="ic" style="font-size:22px">🐶</span><span class="txt">ポメに聞く</span></button>
 
@@ -607,8 +611,6 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <button class="nav-btn" data-s="sSet" onclick="go('sSet',this)"><span class="ic">⚙️</span><span class="txt">設定</span></button>
   </div>
 
-  <label class="holiday-toggle"><input type="checkbox" id="holidayChk" onchange="toggleHoliday(this.checked)"><span class="txt2">🏖 学校がない日</span></label>
-  <label class="holiday-toggle"><input type="checkbox" id="longBreakChk" onchange="toggleLongBreak(this.checked)"><span class="txt2">🌴 長い休み</span></label>
   <div class="rail-foot">データはこの端末に自動保存。<br>バックアップは「データ管理」から。</div>
 </nav>
 
@@ -616,15 +618,20 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 
 <!-- ===== 今日の入力 ===== -->
 <section class="screen on" id="sInput">
+  <button class="btn pinkB menutop" onclick="makeMenu()">🗓️ 今日のメニューを作る →</button>
+  <div class="card holidaybar">
+    <label class="hchk"><input type="checkbox" id="holidayChk" onchange="toggleHoliday(this.checked)"><span>🏖 学校休み</span></label>
+    <label class="hchk"><input type="checkbox" id="longBreakChk" onchange="toggleLongBreak(this.checked)"><span>🌴 長期休み</span></label>
+    <span class="lbrange">期間<input type="date" id="lbStart" onchange="setLongBreakRange()">〜<input type="date" id="lbEnd" onchange="setLongBreakRange()"></span>
+    <span class="hsep">｜</span>
+    <label class="hchk"><input type="checkbox" id="offChk" onchange="toggleOff()"><span>🏠 自宅勉オフ日</span></label>
+  </div>
   <div class="streakbar">
     <svg class="mini-ava" viewBox="0 0 200 220" id="avaMini"></svg>
     <div><div class="streak-num">🌸 <span id="streakN">0</span><small> 日目</small></div><div style="font-size:11.5px;color:var(--ink-soft)">お休みの日はお花が閉じて、また続きから咲くよ</div></div>
     <div class="streak-side">今週の ◎<br><b id="weekMaru">0個</b> ゲット!</div>
   </div>
-  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap">
-    <div><h1>今日、学校でやったのは?</h1><p class="sub">授業があった教科をタップ → 進んだページを入れるだけ(30秒)</p></div>
-    <button class="offday-btn" id="offbtn" onclick="toggleOff()">🏖 今日はお出かけ・オフ日にする</button>
-  </div>
+  <div><h1>今日、学校でやったのは?</h1><p class="sub">授業があった教科をタップ → 進んだページを入れるだけ(30秒)</p></div>
   <div class="card"><div id="subjList"></div>
     <div class="hint-note">ページの途中まででも、そのページ数でOK。授業がなかった教科は触らない。</div>
     <div style="margin-top:14px">
@@ -638,7 +645,6 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
       <div id="quizList" style="margin-top:8px"></div>
     </div>
   </div>
-  <button class="btn pinkB" style="font-size:16px;padding:13px 30px" onclick="makeMenu()">今日のメニューを作る →</button>
 </section>
 
 <!-- ===== 今日のメニュー ===== -->
@@ -781,7 +787,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <div class="card chat-fixed">
       <div class="chat-scroll" id="pomeMsgs"><div class="spacer"></div></div>
       <div class="chat-in">
-        <input type="text" id="pomeInput" placeholder="ポメにメッセージ…" onkeydown="if(event.key==='Enter')sendPome()">
+        <textarea id="pomeInput" rows="1" class="autoTA" placeholder="ポメにメッセージ…" onkeydown="chatKeydown(event,sendPome)" oninput="autoGrow(this)"></textarea>
         <span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pomeInput',null,this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pomeInput')">✍️</button></span>
         <button class="btn pome" onclick="sendPome()" id="pomeSend">送る</button>
       </div>
@@ -798,7 +804,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <div class="card chat-fixed" style="height:calc(100vh - 220px)">
     <div class="chat-scroll" id="ppomeMsgs"><div class="spacer"></div></div>
     <div class="chat-in">
-      <input type="text" id="ppomeInput" placeholder="親ポメに相談…" onkeydown="if(event.key==='Enter')sendPPome()">
+      <textarea id="ppomeInput" rows="1" class="autoTA" placeholder="親ポメに相談…" onkeydown="chatKeydown(event,sendPPome)" oninput="autoGrow(this)"></textarea>
       <button class="btn pome" onclick="sendPPome()" id="ppomeSend">送る</button>
     </div>
     <div class="hint-note">親ポメは進捗・誤答タグ・活動ログをふまえて答えます(直接助言型)。</div>
@@ -989,7 +995,6 @@ const SUBJECTS=[
  {id:"geo",name:"地理",book:"東京書籍"},
  {id:"his",name:"歴史",book:"東京書籍"},
  {id:"jpn",name:"国語",book:"光村図書"},
- {id:"pe",name:"保健体育",book:""},
  {id:"other",name:"その他",book:""}
 ];
 const UNITMAP={
@@ -1121,7 +1126,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-09d";
+const BUILD_ID="2026-08-11b";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1149,6 +1154,7 @@ function defaultState(){
 }
 function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultState();}catch(e){S=defaultState();}
  if(!S.cardLog)S.cardLog={};
+ if(!S.longBreakRange)S.longBreakRange={start:"",end:""};
  if(!S.lvMigrated){(S.rules||[]).forEach(r=>{r.lv=3;});S.lvMigrated=true;}
  (S.ansSets||[]).forEach(a=>(a.items||[]).forEach(i=>{if(i.text===undefined)i.text="";}));
  // 動作確認用に入っていたサンプルのワークが残っていたら取り除く(1回だけ)
@@ -1195,12 +1201,13 @@ function applyGroups(){
  const nc=S.navClosed||{};
  qsa(".nav-label.fold").forEach(b=>b.classList.toggle("closed",!!nc[b.dataset.g]));
  qsa(".nav-group").forEach(d=>d.classList.toggle("closed",!!nc[d.dataset.g]));}
-function setMode(p){S.parent=p;document.body.classList.toggle("parent",p);
- qs("#mKarin").classList.toggle("on",!p);qs("#mParent").classList.toggle("on",p);save();
- if(!p){const cur=qs(".screen.on").id;if(["sWrong","sPPome","sWeek","sData","sSet"].includes(cur))go("sInput",qs('[data-s="sInput"]'));
-  if(cur==="sCards"&&cardViewTab==="log")cardTab("do");}}
-function toggleHoliday(v){S.holiday=v;save();renderMenu();}
-function toggleLongBreak(v){S.longBreak=v;if(v)S.holiday=true;save();renderMenu();}
+function setMode(p){S.parent=p;document.body.classList.toggle("parent",p);save();}
+function inLongBreakRange(d){const r=S.longBreakRange;return !!(r&&r.start&&r.end&&d>=r.start&&d<=r.end);}
+function curLongBreak(){return !!S.longBreak||inLongBreakRange(today());}
+function curHoliday(){return !!S.holiday||curLongBreak();}
+function toggleHoliday(v){S.holiday=v;save();renderInput();renderMenu();}
+function toggleLongBreak(v){S.longBreak=v;if(v)S.holiday=true;save();renderInput();renderMenu();}
+function setLongBreakRange(){S.longBreakRange={start:qs("#lbStart").value,end:qs("#lbEnd").value};save();renderInput();renderMenu();}
 function toggleOff(){const d=D();d.off=!d.off;S.input.off=d.off;save();renderInput();}
 
 /* ---------- アバター ---------- */
@@ -1239,8 +1246,12 @@ function ensureToday(){if(S.input.date!==today()){S.input={date:today(),entries:
 function renderInput(){ensureToday();renderAva();
  qs("#streakN").textContent=calcStreak();
  qs("#weekMaru").textContent=weekMaruCount()+"個";
- const off=D().off;const ob=qs("#offbtn");ob.classList.toggle("on",off);
- ob.textContent=off?"🏖 今日はオフ日(連続記録はおやすみ中)":"🏖 今日はお出かけ・オフ日にする";
+ const off=D().off;const offc=qs("#offChk");if(offc)offc.checked=off;
+ qs("#holidayChk").checked=curHoliday();
+ const lb=qs("#longBreakChk");if(lb)lb.checked=curLongBreak();
+ const lbs=qs("#lbStart"),lbe=qs("#lbEnd");
+ if(lbs)lbs.value=(S.longBreakRange&&S.longBreakRange.start)||"";
+ if(lbe)lbe.value=(S.longBreakRange&&S.longBreakRange.end)||"";
  const box=qs("#subjList");box.innerHTML="";
  SUBJECTS.forEach(s=>{const e=S.input.entries[s.id];const on=!!e;
   const row=document.createElement("div");row.className="subj-row2"+(on?" on":"");
@@ -1346,8 +1357,8 @@ function markBlock(key,btn){const t=today();if(!S.menuManual[t])S.menuManual[t]=
 const A=(icon,label,badge,jump)=>jump?`<button class="act applink" onclick="${jump}">${icon} ${label} ${badge?`<span class="am auto">${badge}</span>`:""}<span class="jump">ひらく →</span></button>`:`<div class="act">${icon} ${label} ${badge?`<span class="am manu">${badge}</span>`:""}</div>`;
 function renderMenu(){qs("#menuDate").textContent=jdate(today());
  const mpb=qs("#menuPlanBadge");if(mpb)mpb.innerHTML=planBadgeHtml();
- qs("#holidayChk").checked=S.holiday;
- const lb=qs("#longBreakChk");if(lb)lb.checked=!!S.longBreak;
+ qs("#holidayChk").checked=curHoliday();
+ const lb=qs("#longBreakChk");if(lb)lb.checked=curLongBreak();
  const d=D();const ent=S.input.entries;const entSubs=Object.keys(ent);
  const dow=new Date().getDay();
  const revN=pendingReviews().length;
@@ -1358,7 +1369,7 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
  else{
   const picks=pickSubjectsForToday();
   recordMainPicks(picks);
-  if(!S.holiday&&!S.longBreak&&!todaySubs().length){
+  if(!curHoliday()&&!todaySubs().length){
    h+=`<div class="card" style="background:#FDF6E3;border-color:#E8B84B"><b>📝 今日の入力がまだです</b>
     <div style="font-size:13px;margin-top:4px">下の2教科は、今日の授業がわからないので<b>苦手なところ</b>から選んでいます。「今日の入力」で教科を入れると、授業に合わせたメニューになります。
      <button class="mini" onclick="go('sInput',document.querySelector('[data-s=sInput]'))" style="margin-left:4px">📝 今日の入力をひらく</button></div></div>`;}
@@ -1480,11 +1491,11 @@ function pickSubjectsForToday(){
    if(usedRule[r.id])continue;
    out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🔁 きのうのつづき",rule:r});
    usedSub[r.sub]=1;usedRule[r.id]=1;}};
- if(S.longBreak){
+ if(curLongBreak()){
   // ③長い休み:苦手優先だが教科が偏らないように
   const debts=S.rules.filter(r=>r.status!=="mastered"&&r.gen).sort((a,b)=>a.pr-b.pr);
   fill(debts,{avoidSameSub:true});
- }else if(S.holiday){
+ }else if(curHoliday()){
   // ②お休みの日:苦手から2つ
   fill(S.rules.filter(r=>r.status!=="mastered"&&r.gen).sort((a,b)=>a.pr-b.pr));
  }else{
@@ -1517,7 +1528,7 @@ function stepFlowHtml(pk,key){
   <div class="sf-row"><span class="sf-no">②</span><div class="sf-body">
     <b>お母さんが丸つけして、まちがいを登録する</b><span class="tag blueT">お母さんと</span><span class="sf-min">5〜10分</span>
     <div class="hint-note">まちがえた問題を「誤答の登録」に記録します。まだ結果を聞かず、まず記録だけでOKです。
-     <button class="mini" onclick="setMode(true);go('sWrong',document.querySelector('[data-s=sWrong]'));focusPaperForm()">📌 誤答の登録をひらく</button></div>
+     <button class="mini" onclick="go('sWrong',document.querySelector('[data-s=sWrong]'));focusPaperForm()">📌 誤答の登録をひらく</button></div>
   </div></div>
   <div class="sf-row"><span class="sf-no">③</span><div class="sf-body">
     <b>まちがえた問題だけ、もう一度ひとりで解き直す</b><span class="tag mintT">ひとりで</span><span class="sf-min">5〜10分</span>
@@ -2543,12 +2554,12 @@ function openPomeModal(title,ctxJson){
  inlineMsgs=[];
  const box=qs("#pomeInline");
  box.innerHTML=`<div class="inline-pome"><div class="ip-log" id="ipLog"><div class="pome-line"><span class="pface">🐶</span><div>いっしょに探そう!　「ここまでは分かった」「ここで止まった」って、思ったことを書いてみて。</div></div></div>
- <div class="ip-in"><input id="ipInput" placeholder="ポメに話しかける…" onkeydown="if(event.key==='Enter')sendInlinePome()"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('ipInput',null,this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('ipInput')">✍️</button></span><button class="btn pome" id="ipSend" onclick="sendInlinePome()">送る</button></div>
+ <div class="ip-in"><textarea id="ipInput" rows="1" class="autoTA" placeholder="ポメに話しかける…" onkeydown="chatKeydown(event,sendInlinePome)" oninput="autoGrow(this)"></textarea><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('ipInput',null,this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('ipInput')">✍️</button></span><button class="btn pome" id="ipSend" onclick="sendInlinePome()">送る</button></div>
  <div class="hint-note" style="margin:6px 0 0">APIキーが未設定のときは動きません(おうちメニュー→設定)。</div></div>`;
  setTimeout(()=>{const e=qs("#ipInput");if(e)e.focus();},60);}
 async function sendInlinePome(){
  const inp=qs("#ipInput");if(!inp)return;const txt=inp.value.trim();if(!txt)return;
- inp.value="";inlineMsgs.push({role:"user",content:txt});
+ inp.value="";inp.style.height="auto";inlineMsgs.push({role:"user",content:txt});
  const log=qs("#ipLog");
  log.innerHTML+=`<div class="pome-line user"><div>${esc(txt)}</div></div>`;
  const btn=qs("#ipSend");btn.disabled=true;btn.textContent="…";
@@ -2773,7 +2784,7 @@ async function callClaude(system,messages,onText){
  const data=await res.json();
  return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n");}
 async function sendPome(){const inp=qs("#pomeInput"),txt=inp.value.trim();if(!txt)return;
- const c=curChat();c.msgs.push({role:"user",content:txt});inp.value="";
+ const c=curChat();c.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";
  if(c.title==="新しい会話"||c.title==="はじめての会話")c.title=txt.slice(0,18);
  save();renderPome();
  const btn=qs("#pomeSend");btn.disabled=true;btn.textContent="…";
@@ -2789,7 +2800,7 @@ function renderPPome(){const c=S.pchats[0]||{msgs:[]};if(!S.pchats.length)S.pcha
   :`<div class="msg"><span class="pface">🐕</span><div class="bubble">${esc(ctxSummary())}\n\n何について相談しますか?(例:「説明タイムで代入をどう聞けばいい?」)</div></div>`);
  qs("#ppomeMsgs").scrollTop=qs("#ppomeMsgs").scrollHeight;}
 async function sendPPome(){const inp=qs("#ppomeInput"),txt=inp.value.trim();if(!txt)return;
- const pc=S.pchats[0];pc.msgs.push({role:"user",content:txt});inp.value="";save();renderPPome();
+ const pc=S.pchats[0];pc.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";save();renderPPome();
  const btn=qs("#ppomeSend");btn.disabled=true;btn.textContent="…";
  try{const out=await callClaude(PPOME_SYS+"\n\n"+ctxSummary(),pc.msgs.map(m=>({role:m.role,content:m.content})));
   pc.msgs.push({role:"assistant",content:out});}
@@ -2899,8 +2910,28 @@ function closeQ(){qs("#qModal").classList.remove("open");}
 })();
 
 /* ---------- 入力補助(音声・手書き) ---------- */
+// チャット入力共通:Enterで送信、Shift+Enterで改行
+function chatKeydown(e,fn){
+ if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();fn();}
+}
+// テキストエリアの高さを内容に合わせて自動調整(最大約5行分)
+function autoGrow(el){
+ el.style.height="auto";
+ el.style.height=Math.min(el.scrollHeight,120)+"px";
+}
 let recog=null;
 let recogBtn=null;
+let recogSelStart=null,recogSelEnd=null;
+// テキスト挿入:カーソル位置(選択範囲があれば選択範囲を置き換え)に文字列を差し込む
+function insertAtCursor(el,text,selStart,selEnd){
+ const s=(selStart!=null)?selStart:el.value.length;
+ const en=(selEnd!=null)?selEnd:el.value.length;
+ const before=el.value.slice(0,s),tail=el.value.slice(en);
+ el.value=before+text+tail;
+ const newPos=s+text.length;
+ el.focus();
+ try{el.setSelectionRange(newPos,newPos);}catch(e){}
+}
 function voiceInput(targetId,after,btnEl){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){alert("この端末・ブラウザでは音声入力が使えません。Chrome または Edge でお試しください。");return;}
@@ -2909,6 +2940,9 @@ function voiceInput(targetId,after,btnEl){
  if(recog){try{recog.stop();}catch(e){}recog=null;
   if(recogBtn){recogBtn.classList.remove("listening");recogBtn.textContent=recogBtn.dataset.orig||"🎤";}
   recogBtn=null;return;}
+ // 押した時点のカーソル位置(選択範囲)を記録しておく。手入力の途中から音声に切り替えても続きから入る
+ recogSelStart=(el.selectionStart!=null)?el.selectionStart:el.value.length;
+ recogSelEnd=(el.selectionEnd!=null)?el.selectionEnd:el.value.length;
  recog=new SR();recog.lang="ja-JP";recog.interimResults=false;recog.maxAlternatives=1;
  recogBtn=btnEl||(event&&event.target&&event.target.closest("button"))||null;
  if(recogBtn){recogBtn.dataset.orig=recogBtn.dataset.orig||recogBtn.textContent;}
@@ -2918,13 +2952,19 @@ function voiceInput(targetId,after,btnEl){
      .replace(/ぶんの/g,"/").replace(/分の/g,"/")
      .replace(/マイナス|まいなす/g,"-").replace(/プラス|ぷらす/g,"+")
      .replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
-  el.value=t;el.dispatchEvent(new Event("input",{bubbles:true}));if(typeof after==="function")after();toast("✅ 入力しました:"+t);};
+  insertAtCursor(el,t,recogSelStart,recogSelEnd);
+  el.dispatchEvent(new Event("input",{bubbles:true}));if(typeof after==="function")after();toast("✅ 入力しました:"+t);};
  recog.onerror=e=>{toast("音声入力エラー:"+e.error);
   if(recogBtn){recogBtn.classList.remove("listening");recogBtn.textContent=recogBtn.dataset.orig||"🎤";}recogBtn=null;recog=null;};
  recog.onend=()=>{if(recogBtn){recogBtn.classList.remove("listening");recogBtn.textContent=recogBtn.dataset.orig||"🎤";}recogBtn=null;recog=null;};
  try{recog.start();}catch(e){toast("音声入力を開始できませんでした");recogBtn=null;recog=null;}}
 let padTarget=null,padAfter=null,padCtx=null,padDrawing=false,padDirty=false;
+let padSelStart=null,padSelEnd=null;
 function openPad(targetId,after){padTarget=targetId;padAfter=after||null;
+ // 開いた時点のカーソル位置(選択範囲)を記録。手入力の途中から手書きに切り替えても続きから入る
+ const tel=document.getElementById(targetId);
+ padSelStart=tel&&tel.selectionStart!=null?tel.selectionStart:(tel?tel.value.length:0);
+ padSelEnd=tel&&tel.selectionEnd!=null?tel.selectionEnd:(tel?tel.value.length:0);
  qs("#padModal").classList.add("open");qs("#padMsg").textContent="";
  setTimeout(()=>{const c=qs("#padCanvas");const r=c.getBoundingClientRect();
   c.width=Math.round(r.width*2);c.height=Math.round(r.height*2);
@@ -2954,7 +2994,7 @@ async function readPad(){
   const t=(j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").trim();
   if(!t||t==="?"){msg.textContent="読み取れませんでした。もう少し大きく書いてみてください。";}
   else{const el=document.getElementById(padTarget);
-   if(el){el.value=t;el.dispatchEvent(new Event("input",{bubbles:true}));if(typeof padAfter==="function")padAfter();}
+   if(el){insertAtCursor(el,t,padSelStart,padSelEnd);el.dispatchEvent(new Event("input",{bubbles:true}));if(typeof padAfter==="function")padAfter();}
    msg.textContent="読み取り:"+t;toast("入力しました:"+t);setTimeout(closePad,700);}
  }catch(e){msg.textContent="失敗:"+e.message.slice(0,60);}
  btn.disabled=false;}
@@ -3313,8 +3353,7 @@ async function testApi(){const el=qs("#apiTestRes");el.textContent="接続中…
 
 /* ---------- 起動 ---------- */
 load();
-document.body.classList.toggle("parent",!!S.parent);
-qs("#mKarin").classList.toggle("on",!S.parent);qs("#mParent").classList.toggle("on",!!S.parent);
+S.parent=true;document.body.classList.add("parent");
 if(S.profile.lastActive!==today()){S.profile.lastActive=today();save();}
 ensureToday();renderAva();renderInput();applyGroups();
 window.S=S;window.save=save;
