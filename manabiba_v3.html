@@ -872,6 +872,11 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <span class="hint-note" id="v2ImportMsg" style="margin-left:10px"></span>
     <p class="hint-note" style="margin-top:8px">やり直したいとき用のボタンです。「imp」または「v2_」ではじまるID(v2引っ越しで追加したデッキの目印)を持つデッキだけを削除します。手動で作ったデッキや、写真つきカードには影響しません。</p>
   </div>
+  <div class="card" style="background:var(--pink-soft);border-color:var(--pink)">
+    <h2>🗑️ 暗記カードを全部消して作り直す</h2>
+    <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">中1・1学期のうちに、暗記カードを整理し直します。押すと今ある暗記カード(ドリル電子化の残り・写真つきカード・手動で作ったもの、すべて)が消えます。消したあとは、下の「デッキ追加」から、漢字・英単語・理科用語・社会の用語(仕上げ確認用)だけを新しく登録していく想定です。</p>
+    <button class="btn sub2" onclick="wipeAllDecks()" style="border-color:var(--pink);color:var(--pink-deep)">🗑️ 暗記カードを全部消す</button>
+  </div>
   <div class="card"><h2>📷 写真つきカードを1枚追加</h2>
     <p class="hint-note" style="margin-bottom:8px">地図・図・グラフなど「画像がないと解けない」問題はここから。写真を撮って選ぶだけで登録できます。</p>
     <div class="pform">
@@ -887,7 +892,8 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     </div>
   </div>
   <div class="card"><h2>🃏 暗記カードのデッキ追加</h2>
-    <p class="hint-note" style="margin-bottom:8px">Claudeで変換したデッキを貼り付け。形式:1行目「デッキ名|教科」、以降は「問題：」「答え：」「解説：」のブロック(空行区切り)、またはJSON。</p>
+    <p class="hint-note" style="margin-bottom:8px">ここは「見た瞬間にヒントなしで答えが出るか」を確認するもの専用です。<b>漢字の読み書き・英単語/熟語・理科の用語・社会の用語(仕上げ確認)</b>だけを登録してください。文法ルールや計算の手順、文章読解は暗記カードには向かないので、紙のドリル→誤答の登録(ルール型・類題)の方で扱います。<br>
+    Claudeで変換したデッキを貼り付け。形式:1行目「デッキ名|教科」、以降は「問題：」「答え：」「解説：」のブロック(空行区切り)、またはJSON。</p>
     <textarea class="big" id="deckImport" placeholder="英語｜英検3級｜単語｜Unit1|eng&#10;&#10;問題：apple&#10;答え：りんご&#10;解説：果物"></textarea>
     <div style="margin-top:8px"><button class="btn" onclick="importDeck()">デッキを追加</button></div>
     <div id="deckManage" style="margin-top:14px"></div>
@@ -1132,7 +1138,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-11c";
+const BUILD_ID="2026-08-11d";
 let S=null;
 function defaultState(){
  const t=today();
@@ -3286,6 +3292,18 @@ async function removeV2Import(){
  S.decks=S.decks.filter(d=>!d.id.startsWith("imp"));
  save();renderData();
  qs("#v2ImportMsg").textContent=`🗑️ ${targets.length}デッキ・${cardCount}枚を削除しました。続けて新しいファイルを取り込めます。`;}
+async function wipeAllDecks(){
+ const n=S.decks.length,cardCount=S.decks.reduce((a,d)=>a+d.cards.length,0);
+ if(!n){toast("暗記カードのデッキは1件もありません");return;}
+ if(!confirm(`⚠️ 暗記カードを全部消します(${n}デッキ・${cardCount}枚)。\n古いドリル電子化ぶんも、写真つきカードも、手動で作ったものも、すべて対象です。\nこの操作は取り消せません。先に「バックアップを保存(JSON)」を取ることをおすすめします。\n本当によろしいですか?`))return;
+ if(!confirm("最終確認です。本当に全部消してよろしいですか?"))return;
+ for(const d of S.decks){
+  for(const c of d.cards){
+   if(c.img&&c.img.startsWith("idb:"))await idbDelete(c.img).catch(()=>{});
+   if(c.imgBack&&c.imgBack.startsWith("idb:"))await idbDelete(c.imgBack).catch(()=>{});}}
+ S.decks=[];
+ save();renderData();
+ toast(`🗑️ 暗記カード ${n}デッキ・${cardCount}枚を全部削除しました`);}
 /** デッキ名からページ番号やUnit番号を拾い、UNITMAPで単元名を推測する。わからなければnull */
 function guessUnit(sub,name){
  // 暗記もの(漢字ドリル・英単語)は専用グループにまとめる
