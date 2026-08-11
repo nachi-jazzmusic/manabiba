@@ -538,6 +538,11 @@ body.parent .debt-list{display:block}
 .test-table td:first-child{text-align:left;font-family:var(--body)}
 .test-table input{width:56px;text-align:center;border:1px solid var(--line);border-radius:8px;padding:4px}
 .test-table .down{color:var(--red)}
+.chartcard h2{margin-bottom:10px}
+.linechart{width:100%;height:auto;display:block}
+.chartleg-row{display:flex;flex-wrap:wrap;gap:12px 16px;margin-top:8px}
+.chartleg{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-soft);font-weight:700}
+.chartleg i{display:inline-block;width:12px;height:3px;border-radius:2px}
 .wk-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .big-metric{text-align:center;padding:10px 0}
 .big-metric .v{font-family:var(--disp);font-weight:900;font-size:42px;line-height:1}
@@ -827,6 +832,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <p class="sub">大きいテストの結果を残して、◎図鑑の成長と点数のつながりを見ます。<span class="parent-label" style="display:none">おうちモードで編集できます。</span></p>
   <div class="card"><h2>点数のうつりかわり</h2><div id="testTable"></div>
   <div class="parent-only" style="display:none;margin-top:10px"><button class="mini" onclick="addTestRow()">+ テストを追加</button></div></div>
+  <div id="testCharts"></div>
 </section>
 
 <!-- ===== 週次レビュー ===== -->
@@ -1126,7 +1132,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-11b";
+const BUILD_ID="2026-08-11c";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1146,8 +1152,8 @@ function defaultState(){
   ansSets:[],
   wrongQ:[], reviewQ:[],
   chats:[], pchats:[],
-  tests:[{name:"1学期 中間(5月)",scores:{math:"",eng:"",sci:"",soc:"",jpn:""},avg:"80"},
-         {name:"1学期 期末(6月)",scores:{math:"54",eng:"",sci:"",soc:"",jpn:""},avg:"70"}],
+  tests:[{name:"1学期 中間(5月)",scores:{math:"",eng:"",sci:"",soc:"",jpn:""},avg:"80",rank:""},
+         {name:"1学期 期末(6月)",scores:{math:"54",eng:"",sci:"",soc:"",jpn:""},avg:"70",rank:""}],
   daily:{}, quizzes:[], input:{date:t,entries:{},off:false}, holiday:false,
   menuManual:{}, cardLog:{}
  };
@@ -1155,6 +1161,7 @@ function defaultState(){
 function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultState();}catch(e){S=defaultState();}
  if(!S.cardLog)S.cardLog={};
  if(!S.longBreakRange)S.longBreakRange={start:"",end:""};
+ (S.tests||[]).forEach(t=>{if(t.rank===undefined)t.rank="";});
  if(!S.lvMigrated){(S.rules||[]).forEach(r=>{r.lv=3;});S.lvMigrated=true;}
  (S.ansSets||[]).forEach(a=>(a.items||[]).forEach(i=>{if(i.text===undefined)i.text="";}));
  // 動作確認用に入っていたサンプルのワークが残っていたら取り除く(1回だけ)
@@ -2831,12 +2838,56 @@ function buy(cat,id,cost){if(S.profile.points<cost){toast("ポイントが足り
 
 /* ---------- テスト記録 ---------- */
 function renderTests(){const cols=[["math","数学"],["eng","英語"],["sci","理科"],["soc","社会"],["jpn","国語"]];
- qs("#testTable").innerHTML=`<table class="test-table"><tr><th></th>${cols.map(c=>`<th>${c[1]}</th>`).join("")}<th>5教科平均</th></tr>
+ qs("#testTable").innerHTML=`<table class="test-table"><tr><th></th>${cols.map(c=>`<th>${c[1]}</th>`).join("")}<th>5教科平均</th><th>学年順位</th></tr>
  ${S.tests.map((t,i)=>`<tr><td>${S.parent?`<input value="${esc(t.name)}" style="width:150px" oninput="S.tests[${i}].name=this.value;save()">`:esc(t.name)}</td>
   ${cols.map(c=>`<td>${S.parent?`<input value="${esc(t.scores[c[0]]||"")}" oninput="S.tests[${i}].scores['${c[0]}']=this.value;save()">`:(t.scores[c[0]]||"—")}</td>`).join("")}
-  <td class="${i>0&&parseFloat(t.avg)<parseFloat(S.tests[i-1].avg)?"down":""}">${S.parent?`<input value="${esc(t.avg||"")}" oninput="S.tests[${i}].avg=this.value;save()">`:(t.avg||"—")}</td></tr>`).join("")}</table>
- <div class="hint-note">◎図鑑が増えると点数がどう動くか、ここで見ていきます。</div>`;}
-function addTestRow(){S.tests.push({name:"新しいテスト",scores:{},avg:""});save();renderTests();}
+  <td class="${i>0&&parseFloat(t.avg)<parseFloat(S.tests[i-1].avg)?"down":""}">${S.parent?`<input value="${esc(t.avg||"")}" oninput="S.tests[${i}].avg=this.value;save()">`:(t.avg||"—")}</td>
+  <td class="${i>0&&parseFloat(t.rank)&&parseFloat(S.tests[i-1].rank)&&parseFloat(t.rank)>parseFloat(S.tests[i-1].rank)?"down":""}">${S.parent?`<input value="${esc(t.rank||"")}" style="width:60px" oninput="S.tests[${i}].rank=this.value;save()">`:(t.rank||"—")}</td></tr>`).join("")}</table>
+ <div class="hint-note">◎図鑑が増えると点数がどう動くか、ここで見ていきます。</div>`;
+ renderTestCharts(cols);}
+function addTestRow(){S.tests.push({name:"新しいテスト",scores:{},avg:"",rank:""});save();renderTests();}
+
+/* ---------- テスト記録:折れ線グラフ ---------- */
+function lineChartSVG(o){
+ const W=o.width||680,H=o.height||220,mL=34,mR=14,mT=14,mB=30;
+ const iw=W-mL-mR,ih=H-mT-mB,n=o.xLabels.length;
+ const xPos=i=>n<=1?mL+iw/2:mL+(iw*i/(n-1));
+ const yMin=o.yMin,yMax=o.yMax;
+ const yPos=v=>{let t=(yMax===yMin)?0.5:(v-yMin)/(yMax-yMin);if(o.invert)t=1-t;return mT+ih-(t*ih);};
+ const ticks=o.yTicks||4;
+ let svg=`<svg viewBox="0 0 ${W} ${H}" class="linechart" xmlns="http://www.w3.org/2000/svg">`;
+ for(let k=0;k<=ticks;k++){const v=yMin+(yMax-yMin)*k/ticks;const y=yPos(v);
+  svg+=`<line x1="${mL}" y1="${y.toFixed(1)}" x2="${mL+iw}" y2="${y.toFixed(1)}" stroke="#DDE9E4" stroke-width="1"/>`;
+  svg+=`<text x="${mL-6}" y="${(y+3).toFixed(1)}" font-size="9" text-anchor="end" fill="#71858C">${Math.round(v)}</text>`;}
+ o.xLabels.forEach((lb,i)=>{svg+=`<text x="${xPos(i).toFixed(1)}" y="${H-10}" font-size="9" text-anchor="middle" fill="#71858C">${esc(lb)}</text>`;});
+ o.series.forEach(s=>{
+  const pts=s.data.map(v=>(v===null||v===undefined||isNaN(v))?null:v);
+  let d="",started=false;
+  pts.forEach((v,i)=>{if(v===null){started=false;return;}
+   const x=xPos(i).toFixed(1),y=yPos(v).toFixed(1);
+   d+=(started?"L":"M")+x+" "+y+" ";started=true;});
+  svg+=`<path d="${d.trim()}" fill="none" stroke="${s.color}" stroke-width="${s.width||2.2}" stroke-dasharray="${s.dash||""}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  pts.forEach((v,i)=>{if(v===null)return;svg+=`<circle cx="${xPos(i).toFixed(1)}" cy="${yPos(v).toFixed(1)}" r="3" fill="${s.color}"/>`;});});
+ svg+="</svg>";return svg;}
+function renderTestCharts(cols){
+ const box=qs("#testCharts");if(!box)return;
+ const tests=S.tests.filter(t=>cols.some(c=>t.scores[c[0]]!==undefined&&t.scores[c[0]]!=="")||t.avg!=="");
+ if(tests.length<2){box.innerHTML=`<div class="hint-note">テストが2回分以上たまると、ここに折れ線グラフが出ます。</div>`;return;}
+ const xLabels=tests.map(t=>t.name);
+ const SUBCOLOR={math:"#7FAAD6",eng:"#5FB597",sci:"#E0A73B",soc:"#9B7FD6",jpn:"#E799AC"};
+ const scoreSeries=cols.map(c=>({label:c[1],color:SUBCOLOR[c[0]],data:tests.map(t=>t.scores[c[0]]!==undefined&&t.scores[c[0]]!==""?parseFloat(t.scores[c[0]]):null)}));
+ scoreSeries.push({label:"5教科平均",color:"#3D4B54",width:3,dash:"5 3",data:tests.map(t=>t.avg!==""&&t.avg!==undefined?parseFloat(t.avg):null)});
+ const scoreSvg=lineChartSVG({xLabels,series:scoreSeries,yMin:0,yMax:100,yTicks:4});
+ const scoreLegend=scoreSeries.map(s=>`<span class="chartleg"><i style="background:${s.color}"></i>${esc(s.label)}</span>`).join("");
+ const rankVals=tests.map(t=>t.rank!==""&&t.rank!==undefined?parseFloat(t.rank):null);
+ const hasRank=rankVals.some(v=>v!==null);
+ let rankBlock="";
+ if(hasRank){
+  const nums=rankVals.filter(v=>v!==null);
+  const rMax=Math.max(...nums,1),rMin=1;
+  const rankSvg=lineChartSVG({xLabels,series:[{label:"学年順位",color:"#C96F87",width:2.6,data:rankVals}],yMin:rMin,yMax:Math.max(rMax,rMin+1),yTicks:Math.min(4,rMax-rMin)||1,invert:true});
+  rankBlock=`<div class="card chartcard"><h2>学年順位のうつりかわり<span class="hint-note" style="margin:2px 0 0">上が上位(数字が小さいほど上)</span></h2>${rankSvg}</div>`;}
+ box.innerHTML=`<div class="card chartcard"><h2>点数のうつりかわり(5教科＋平均)</h2>${scoreSvg}<div class="chartleg-row">${scoreLegend}</div></div>${rankBlock}`;}
 
 /* ---------- 週次レビュー ---------- */
 function renderWeek(){const t=today();const from=addDays(t,-6);qs("#weekRange").textContent=jdate(from)+"〜"+jdate(t);
