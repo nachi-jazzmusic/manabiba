@@ -235,9 +235,9 @@ details.card[open] summary::before{content:"▾ "}
 .cimg-load{font-size:12px;color:var(--ink-soft);padding:16px;text-align:center;background:var(--paper);border-radius:10px}
 .face.has-img{justify-content:flex-start;padding-top:14px}
 .face.back{transform:rotateY(180deg);background:var(--mint-soft);border-color:#C4E5D7}
-.face .q{font-family:var(--disp);font-weight:700;font-size:19px}
-.face .a{font-family:var(--disp);font-weight:900;font-size:24px;color:var(--mint)}
-.face .exp{font-size:13px;color:var(--ink-soft);margin-top:10px}
+.face .q{font-family:var(--disp);font-weight:700;font-size:19px;white-space:pre-line}
+.face .a{font-family:var(--disp);font-weight:900;font-size:24px;color:var(--mint);white-space:pre-line}
+.face .exp{font-size:13px;color:var(--ink-soft);margin-top:10px;white-space:pre-line}
 .selfjudge{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
 .selfjudge button{font-size:14px;font-family:var(--disp);font-weight:700;padding:11px 20px;border-radius:14px;border:2px solid var(--line);background:#fff}
 .selfjudge small{display:block;font-size:10.5px;font-weight:500;color:var(--ink-soft)}
@@ -1138,7 +1138,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-11d";
+const BUILD_ID="2026-08-11f";
 let S=null;
 function defaultState(){
  const t=today();
@@ -3348,6 +3348,7 @@ function importDeckFile(inp){const f=inp.files[0];if(!f)return;const r=new FileR
  }catch(e){msg.textContent="読み込めませんでした:"+e.message;}};
  r.readAsText(f);inp.value="";}
 async function importDeck(){const txt=qs("#deckImport").value.trim();if(!txt)return;
+ let taggedN=0,totalN=0;
  try{
   if(txt.startsWith("{")||txt.startsWith("[")){const j=JSON.parse(txt);const arr=Array.isArray(j)?j:[j];
    for(const d of arr){
@@ -3357,14 +3358,21 @@ async function importDeck(){const txt=qs("#deckImport").value.trim();if(!txt)ret
      if(img&&!img.startsWith("idb:"))img=await storeImage(img);
      if(imgBack&&!imgBack.startsWith("idb:"))imgBack=await storeImage(imgBack);
      cards.push({q:c.q,a:c.a,exp:c.exp||"",lv:0,last:null,gs:0,img,imgBack});}
-    S.decks.push({id:"d"+Date.now()+Math.random().toString(36).slice(2,5),name:d.name||"新しいデッキ",sub:SUBJECTS.find(s=>s.id===d.sub)?d.sub:"other",cards});}}
+    const sub=SUBJECTS.find(s=>s.id===d.sub)?d.sub:"other";
+    const unit=(d.unit||"").trim()||guessUnit(sub,d.name||"")||"";
+    if(unit)taggedN++;totalN++;
+    S.decks.push({id:"d"+Date.now()+Math.random().toString(36).slice(2,5),name:d.name||"新しいデッキ",sub,unit,cards});}}
   else{const lines=txt.split("\n");const head=lines[0].split("|");const name=head[0].trim(),sub=(head[1]||"math").trim();
+   const unitHead=(head[2]||"").trim();
    const body=lines.slice(1).join("\n");const blocks=body.split(/\n\s*\n/).filter(b=>b.trim());
    const cards=blocks.map(b=>{const g=k=>{const m=b.match(new RegExp(k+"[：:](.*)"));return m?m[1].trim():"";};
     return {q:g("問題"),a:g("答え"),exp:g("解説"),lv:0,last:null,gs:0};}).filter(c=>c.q&&c.a);
    if(!cards.length)throw new Error("カードが読み取れません");
-   S.decks.push({id:"d"+Date.now(),name,sub,cards});}
-  save();qs("#deckImport").value="";renderData();toast("デッキを追加しました");
+   const unit=unitHead||guessUnit(sub,name)||"";
+   if(unit)taggedN++;totalN++;
+   S.decks.push({id:"d"+Date.now(),name,sub,unit,cards});}
+  save();qs("#deckImport").value="";renderData();
+  toast(totalN>1?`デッキを追加しました(${taggedN}/${totalN}件に単元タグつき)`:(taggedN?"デッキを追加しました(単元タグつき)":"デッキを追加しました(単元は未設定・あとで手動でも設定できます)"));
  }catch(e){alert("読み込めませんでした:"+e.message);}}
 function importAnsSet(){const txt=qs("#ansImport").value.trim();if(!txt)return;
  const lines=txt.split("\n").filter(l=>l.trim());const name=lines[0].trim();
