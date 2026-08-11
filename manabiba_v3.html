@@ -79,6 +79,8 @@ details.card[open] summary::before{content:"▾ "}
 .btn.pinkB{background:var(--pink);color:#fff}
 .btn.pome{background:var(--pome-soft);color:var(--ink);border:1.5px solid #E7D6BC}
 .mini{font-size:12px;font-family:var(--disp);font-weight:700;padding:6px 12px;border-radius:9px;border:1.5px solid var(--line);background:#fff}
+.pastezone{font-size:12px;font-family:var(--disp);font-weight:700;padding:6px 12px;border-radius:9px;border:1.5px dashed var(--mint);background:var(--mint-soft);color:var(--ink);cursor:text;outline:none;user-select:none}
+.pastezone:focus{border-style:solid}
 .mini.listening{background:#FDEBEB;border-color:var(--red);color:#A33;animation:micpulse 1s infinite}
 @keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(224,110,110,.45)}50%{box-shadow:0 0 0 7px rgba(224,110,110,0)}}
 .mini.pome{background:var(--pome-soft);border-color:#E7D6BC}
@@ -888,9 +890,9 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
       <div class="pf-row"><label>教科</label><select id="pf_sub"></select></div>
       <div class="pf-row"><label>デッキ名</label><input type="text" id="pf_deck" placeholder="例:社会｜1学期中テ｜地図問題"></div>
       <div class="pf-row"><label>問題文</label><input type="text" id="pf_q" placeholder="例:右の地図のA地点の都市名は?"></div>
-      <div class="pf-row"><label>問題の写真<span class="hint-note" style="margin:0">(あれば)</span></label><input type="file" accept="image/*" id="pf_imgQ"><span class="mini" id="pf_imgQ_prev"></span></div>
+      <div class="pf-row"><label>問題の写真<span class="hint-note" style="margin:0">(あれば)</span></label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" accept="image/*" id="pf_imgQ"><span class="pastezone" id="pf_pasteQ" contenteditable="true" onpaste="pastePhoto(event,'q')" oninput="this.textContent='📋 ここに貼り付け(Ctrl+V)'">📋 ここに貼り付け(Ctrl+V)</span><span class="mini" id="pf_imgQ_prev"></span></div></div>
       <div class="pf-row"><label>答え</label><input type="text" id="pf_a" placeholder="例:大阪"></div>
-      <div class="pf-row"><label>答えの写真<span class="hint-note" style="margin:0">(あれば)</span></label><input type="file" accept="image/*" id="pf_imgA"><span class="mini" id="pf_imgA_prev"></span></div>
+      <div class="pf-row"><label>答えの写真<span class="hint-note" style="margin:0">(あれば)</span></label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" accept="image/*" id="pf_imgA"><span class="pastezone" id="pf_pasteA" contenteditable="true" onpaste="pastePhoto(event,'a')" oninput="this.textContent='📋 ここに貼り付け(Ctrl+V)'">📋 ここに貼り付け(Ctrl+V)</span><span class="mini" id="pf_imgA_prev"></span></div></div>
       <div class="pf-row"><label>解説</label><input type="text" id="pf_exp" placeholder="例:近畿地方の中心都市(省略可)"></div>
       <button class="btn mintB" onclick="addPhotoCard()">このカードを追加</button>
       <span class="hint-note" id="pfMsg"></span>
@@ -1143,7 +1145,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-11g";
+const BUILD_ID="2026-08-11h";
 let S=null;
 function defaultState(){
  const t=today();
@@ -3206,10 +3208,22 @@ function compressImage(file,maxSide){
    img.src=r.result;};
   r.onerror=()=>reject(new Error("ファイルを読み込めませんでした"));
   r.readAsDataURL(file);});}
+let pfImgQFile=null,pfImgAFile=null;
+function pastePhoto(e,which){
+ e.preventDefault();
+ const items=(e.clipboardData||e.originalEvent&&e.originalEvent.clipboardData)?.items;
+ if(!items)return;
+ for(const item of items){
+  if(item.type&&item.type.indexOf("image")===0){
+   const f=item.getAsFile();
+   if(which==="q"){pfImgQFile=f;qs("#pf_imgQ_prev").textContent="📋 貼り付けた画像あり";}
+   else{pfImgAFile=f;qs("#pf_imgA_prev").textContent="📋 貼り付けた画像あり";}
+   e.target.textContent="✅ 貼り付け済み";
+   break;}}}
 async function addPhotoCard(){
  const sub=qs("#pf_sub").value,deckName=qs("#pf_deck").value.trim();
  const q=qs("#pf_q").value.trim(),a=qs("#pf_a").value.trim(),exp=qs("#pf_exp").value.trim();
- const fQ=qs("#pf_imgQ").files[0],fA=qs("#pf_imgA").files[0];
+ const fQ=pfImgQFile||qs("#pf_imgQ").files[0],fA=pfImgAFile||qs("#pf_imgA").files[0];
  const msg=qs("#pfMsg");
  if(!deckName){msg.textContent="デッキ名を入れてください";return;}
  if(!q||!a){msg.textContent="問題文と答えは両方入れてください";return;}
@@ -3224,6 +3238,9 @@ async function addPhotoCard(){
   deck.cards.push({q,a,exp,lv:0,last:null,gs:0,img,imgBack});
   save();
   qs("#pf_q").value="";qs("#pf_a").value="";qs("#pf_exp").value="";qs("#pf_imgQ").value="";qs("#pf_imgA").value="";
+  pfImgQFile=null;pfImgAFile=null;
+  qs("#pf_imgQ_prev").textContent="";qs("#pf_imgA_prev").textContent="";
+  const pq=qs("#pf_pasteQ"),pa=qs("#pf_pasteA");if(pq)pq.textContent="📋 ここに貼り付け(Ctrl+V)";if(pa)pa.textContent="📋 ここに貼り付け(Ctrl+V)";
   msg.textContent="✅ 追加しました。続けて次のカードを入力できます。";
   renderData();
  }catch(e){msg.textContent="失敗:"+e.message;}}
@@ -3427,12 +3444,24 @@ function renderPendingPhotoList(){
     ${src?`<div class="hint-note" style="margin:2px 0 0">📍 ${esc(src)}</div>`:""}
    </div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    <label class="mini" style="cursor:pointer">表の写真<input type="file" accept="image/*" style="display:none" onchange="attachCardImage(${di},${ci},'img',this)"></label>
-    <label class="mini" style="cursor:pointer">裏の写真<input type="file" accept="image/*" style="display:none" onchange="attachCardImage(${di},${ci},'imgBack',this)"></label>
+    <label class="mini" style="cursor:pointer">📁 ファイル<input type="file" accept="image/*" style="display:none" onchange="attachCardImage(${di},${ci},'img',this)"></label>
+    <span class="pastezone" contenteditable="true" onpaste="pastePendingPhoto(event,${di},${ci},'img')" oninput="this.textContent='📋 貼り付け(表)'">📋 貼り付け(表)</span>
    </div>
   </div>`;}).join("");}
 async function attachCardImage(di,ci,side,inp){
  const f=inp.files[0];if(!f)return;
+ await attachCardImageFile(di,ci,side,f);}
+async function pastePendingPhoto(e,di,ci,side){
+ e.preventDefault();
+ const items=(e.clipboardData||e.originalEvent&&e.originalEvent.clipboardData)?.items;
+ if(!items)return;
+ for(const item of items){
+  if(item.type&&item.type.indexOf("image")===0){
+   const f=item.getAsFile();
+   e.target.textContent="保存中…";
+   await attachCardImageFile(di,ci,side,f);
+   break;}}}
+async function attachCardImageFile(di,ci,side,f){
  const d=S.decks[di];if(!d)return;const c=d.cards[ci];if(!c)return;
  try{
   const raw=await compressImage(f);
