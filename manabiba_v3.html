@@ -877,8 +877,13 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">中1・1学期のうちに、暗記カードを整理し直します。押すと今ある暗記カード(ドリル電子化の残り・写真つきカード・手動で作ったもの、すべて)が消えます。消したあとは、下の「デッキ追加」から、漢字・英単語・理科用語・社会の用語(仕上げ確認用)だけを新しく登録していく想定です。</p>
     <button class="btn sub2" onclick="wipeAllDecks()" style="border-color:var(--pink);color:var(--pink-deep)">🗑️ 暗記カードを全部消す</button>
   </div>
+  <div class="card" id="pendingPhotoCard" style="background:#FDF6E3;border-color:#E8B84B;display:none">
+    <h2>📷 写真待ちのカード<span class="tag" id="pendingPhotoCount"></span></h2>
+    <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">JSONで一括登録したカードのうち、まだ写真がついていないもの一覧です。教材の該当ページを撮って、それぞれ選んで追加してください(表面だけでOKなことが多いです)。追加した時点でこの一覧から消えます。</p>
+    <div id="pendingPhotoList"></div>
+  </div>
   <div class="card"><h2>📷 写真つきカードを1枚追加</h2>
-    <p class="hint-note" style="margin-bottom:8px">地図・図・グラフなど「画像がないと解けない」問題はここから。写真を撮って選ぶだけで登録できます。</p>
+    <p class="hint-note" style="margin-bottom:8px">上の一覧にない、新しい「画像がないと解けない」問題はここから。写真を撮って選ぶだけで登録できます。</p>
     <div class="pform">
       <div class="pf-row"><label>教科</label><select id="pf_sub"></select></div>
       <div class="pf-row"><label>デッキ名</label><input type="text" id="pf_deck" placeholder="例:社会｜1学期中テ｜地図問題"></div>
@@ -1138,7 +1143,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-11f";
+const BUILD_ID="2026-08-11g";
 let S=null;
 function defaultState(){
  const t=today();
@@ -3400,9 +3405,45 @@ async function deleteDeckAt(i){const d=S.decks[i];if(!d)return;
   if(c.img&&c.img.startsWith("idb:"))await idbDelete(c.img).catch(()=>{});
   if(c.imgBack&&c.imgBack.startsWith("idb:"))await idbDelete(c.imgBack).catch(()=>{});}
  S.decks.splice(i,1);save();renderData();}
+/** exp が📷ではじまり、まだ画像がついていないカードを全デッキから集める */
+function pendingPhotoCards(){
+ const out=[];
+ S.decks.forEach((d,di)=>{d.cards.forEach((c,ci)=>{
+  if((c.exp||"").indexOf("📷")===0&&!c.img&&!c.imgBack)out.push({di,ci,d,c});});});
+ return out;}
+function renderPendingPhotoList(){
+ const wrap=qs("#pendingPhotoCard"),list=qs("#pendingPhotoList"),cnt=qs("#pendingPhotoCount");
+ if(!wrap)return;
+ const pend=pendingPhotoCards();
+ if(!pend.length){wrap.style.display="none";return;}
+ wrap.style.display="";
+ cnt.textContent=`${pend.length}枚`;
+ list.innerHTML=pend.map(({di,ci,d,c})=>{
+  const src=(c.exp.match(/📷\[([^\]]*)\]/)||[])[1]||"";
+  return `<div class="list-row" style="align-items:flex-start;flex-wrap:wrap">
+   <div style="flex:1;min-width:200px">
+    <span class="tag">${esc(d.name)}</span>
+    <div style="font-weight:700;margin-top:4px">${esc(c.q)}</div>
+    ${src?`<div class="hint-note" style="margin:2px 0 0">📍 ${esc(src)}</div>`:""}
+   </div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <label class="mini" style="cursor:pointer">表の写真<input type="file" accept="image/*" style="display:none" onchange="attachCardImage(${di},${ci},'img',this)"></label>
+    <label class="mini" style="cursor:pointer">裏の写真<input type="file" accept="image/*" style="display:none" onchange="attachCardImage(${di},${ci},'imgBack',this)"></label>
+   </div>
+  </div>`;}).join("");}
+async function attachCardImage(di,ci,side,inp){
+ const f=inp.files[0];if(!f)return;
+ const d=S.decks[di];if(!d)return;const c=d.cards[ci];if(!c)return;
+ try{
+  const raw=await compressImage(f);
+  const id=await storeImage(raw);
+  c[side]=id;
+  save();renderData();toast("✅ 写真を追加しました");
+ }catch(e){alert("失敗しました:"+e.message);}}
 function renderData(){
  const pfSub=qs("#pf_sub");
  if(pfSub&&!pfSub.children.length)pfSub.innerHTML=SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
+ renderPendingPhotoList();
  idbAll().then(imgs=>{const el=qs("#storageUsage");if(!el)return;
   const n=Object.keys(imgs).length;
   const bytes=Object.values(imgs).reduce((a,v)=>a+(v?v.length:0),0);
