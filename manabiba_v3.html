@@ -1170,7 +1170,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-11s";
+const BUILD_ID="2026-08-11t";
 let S=null;
 function defaultState(){
  const t=today();
@@ -1460,7 +1460,10 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
   // ---- すきま時間(毎日固定・暗記もの) ----
   const kanji=nextMemoDeck("jpn"), eitan=nextMemoDeck("eng");
   const memoLine=(icon,label,dk,sub)=>{
-   if(!dk)return `<div class="act">${icon} ${label}<span class="am manu">デッキ未登録</span></div>`;
+   if(!dk){
+    const hasAny=memoDecks(sub).length>0;
+    const msg=hasAny?"登録ずみだが、まだ習っていない単元だけ":"デッキ未登録";
+    return `<div class="act">${icon} ${label}<span class="am manu">${msg}</span></div>`;}
    const nm=dk.name.replace(/^[^｜]+｜/,"");const done=deckDoneCount(dk),tot=dk.cards.length;
    return `<button class="act applink" onclick="startMemo('${sub}')">${icon} ${label}
      <span class="nextdeck">👉 ${esc(nm)}<span class="nd-st">${done}/${tot}枚</span></span>
@@ -1649,9 +1652,16 @@ function isMemoDeck(d){
  if(MEMO_EXCLUDE.some(p=>p.test(d.name))&&!/漢ド/.test(d.name))return false;
  return pats.some(p=>p.test(d.name));}
 function memoDecks(sub){return S.decks.filter(d=>d.sub===sub&&isMemoDeck(d));}
-/** 次にやるべき暗記デッキを1つ決める(まだ終わってないもの→進み具合が少ない順) */
+/** そのデッキの単元(d.unit)が、教科書の目次(UNITMAP)の中で、まだ習っていないページより先かどうか。
+ * 単元がUNITMAPに無い(漢字の独自くくり等)ときは、判定できないので「習った扱い」にする(従来通り出す)。 */
+function isAheadOfProgress(sub,unit){
+ if(!unit)return false;
+ const t=(UNITMAP[sub]||[]).find(u=>u[2]===unit||chapterMatch(u[2],unit));
+ if(!t)return false;
+ return t[0]>(S.pages[sub]||0);}
+/** 次にやるべき暗記デッキを1つ決める(まだ終わってないもの→進み具合が少ない順・習った単元のみ) */
 function nextMemoDeck(sub){
- const list=memoDecks(sub);
+ const list=memoDecks(sub).filter(d=>!isAheadOfProgress(sub,d.unit));
  if(!list.length)return null;
  const undone=list.filter(d=>deckDoneCount(d)<d.cards.length);
  const pool=undone.length?undone:list;
