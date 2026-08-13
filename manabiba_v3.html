@@ -404,6 +404,12 @@ body.lv2 .step.guided,body.lv3 .step.guided{display:none}
 .correct-burst.show{display:block}
 .progress3{display:flex;gap:6px;justify-content:center;margin-top:6px}
 .goalbox{margin-top:14px;padding-top:14px;border-top:1.5px dashed var(--line)}
+.explaincheck{background:var(--pome-soft);border-color:#E7D6BC}
+.explaincheck .pome-line{display:flex;gap:8px;margin-bottom:8px;align-items:flex-start}
+.explaincheck .pome-line.me{flex-direction:row-reverse}
+.explaincheck .pome-line div:not(.pface){background:#fff;border-radius:4px 14px 14px 14px;padding:8px 12px;font-size:13.5px;max-width:85%}
+.explaincheck .pome-line.me div{background:var(--mint-soft);border-radius:14px 4px 14px 14px}
+.explaincheck .pface{font-size:18px;flex-shrink:0}
 .goaltxt{font-size:13.5px;text-align:center;margin-bottom:10px;line-height:1.6;color:var(--ink);font-weight:500}
 .goalacts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 .progress3.pop .p3.ok{animation:dotpop .5s ease}
@@ -1067,7 +1073,7 @@ const INIT_RULES=[
  {id:"m0_4",sub:"math",ch:"0章 小学校の総復習",name:"単位の換算",gen:"unit",ysp:"p.10",wbp:"スタートDASH p.6",pr:3},
  {id:"m0_5",sub:"math",ch:"0章 小学校の総復習",name:"代表値(平均・中央値・最頻値)",gen:"stats",ysp:"—",wbp:"スタートDASH p.8",pr:3},
  // 数学1章 正負の数
- {id:"m1_1",sub:"math",ch:"1章 正負の数",name:"分数の乗除(3項以上)",gen:"fracmul",ysp:"Lesson1-2 p.16",wbp:"ワーク p.28-29",vid:12,pr:1},
+ {id:"m1_1",sub:"math",ch:"1章 正負の数",name:"分数の乗除(3項以上)",gen:"fracmul",ysp:"Lesson1-2 p.16",wbp:"ワーク p.28-29",vid:12,pr:1,explainPilot:true},
  {id:"m1_2",sub:"math",ch:"1章 正負の数",name:"かっこ+累乗の四則混合",gen:"order",ysp:"Lesson2 p.22",wbp:"ワーク p.28-29",vid:12,pr:1},
  {id:"m1_3",sub:"math",ch:"1章 正負の数",name:"3数以上の加減(小数含む)",gen:"addsub3",ysp:"Lesson1 p.16",wbp:"ワーク p.18-19",pr:3},
  {id:"m1_4",sub:"math",ch:"1章 正負の数",name:"分配法則のくふう計算",gen:null,ysp:"Lesson2 p.22",wbp:"ワーク p.28",pr:3},
@@ -1170,7 +1176,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-11t";
+const BUILD_ID="2026-08-11u";
 let S=null;
 function defaultState(){
  const t=today();
@@ -2480,17 +2486,25 @@ function correct(){const r=curRule,d=D();
  r.streak=(r.streak||0)+1;d.rui++;
  let msg=`🎉 正解!`;
  const filledDots=r.streak; // ドット表示用に、リセット前の連続数を保持
- let passed=false,firstPass=false;
+ let passed=false,firstPass=false,needsExplain=false;
  if(r.streak>=3){
   passed=true;
-  if(r.status==="none"||!r.status){r.status="passed";r.passed=today();d.ruiPass++;firstPass=true;
-   S.reviewQ.push({id:"rv"+Date.now(),ruleId:r.id,kind:"gen",q:curProb.q,sub:curProb.sub,ans:curProb.ans,pkind:curProb.kind,due:addDays(today(),7),status:"due",src:"類題通過"});
-   msg=`🎉🎉🎉 3問連続クリア!<br>「${r.name}」が ○通過 になりました!`;}
-  else msg=`🎉🎉🎉 3問連続クリア!<br>「${r.name}」は今日も好調!`;
+  firstPass=(r.status==="none"||!r.status);
+  needsExplain=firstPass&&!!r.explainPilot;
+  if(!needsExplain){
+   if(firstPass){r.status="passed";r.passed=today();d.ruiPass++;
+    S.reviewQ.push({id:"rv"+Date.now(),ruleId:r.id,kind:"gen",q:curProb.q,sub:curProb.sub,ans:curProb.ans,pkind:curProb.kind,due:addDays(today(),7),status:"due",src:"類題通過"});
+    msg=`🎉🎉🎉 3問連続クリア!<br>「${r.name}」が ○通過 になりました!`;}
+   else msg=`🎉🎉🎉 3問連続クリア!<br>「${r.name}」は今日も好調!`;}
   r.streak=0;
   if(r.lv<3)r.lv++;
  } else msg+=` あと${3-r.streak}問で「通過○」`;
  const b=qs("#burst");
+ if(passed&&needsExplain){
+  b.innerHTML=msg+`<div class="progress3 pop">${[0,1,2].map(i=>`<div class="p3 ok"></div>`).join("")}</div>`;
+  b.classList.add("show");save();
+  startExplainCheck(r,curProb);
+  return;}
  if(passed){
   b.innerHTML=msg+`<div class="progress3 pop">${[0,1,2].map(i=>`<div class="p3 ok"></div>`).join("")}</div>
    <div class="goalbox">
@@ -2504,6 +2518,83 @@ function correct(){const r=curRule,d=D();
  b.innerHTML=msg+`<div class="progress3">${[0,1,2].map(i=>`<div class="p3 ${i<filledDots?"ok":""}"></div>`).join("")}</div>`;b.classList.add("show");
  save();
  nextProbTimer=setTimeout(()=>{nextProbTimer=null;nextProb();},1400);}
+/* ---------- ポメ説明チェック(パイロット:m1_1のみ) ---------- */
+let explainState=null;
+function EXPLAIN_SYS(r,prob){
+ return `あなたは中学1年生の家庭学習サポートAI「ポメ」です。犬のキャラクターで、優しく親しみやすい話し方をします。
+生徒が数学の類題を3問連続で正解しました。単に答えを覚えたのではなく、ちゃんと理解して解けているかを、短い対話で確認するのがあなたの役目です。
+
+【今回解いた問題】
+問題:${prob.q}
+答え:${prob.ans}
+単元:${r.name}
+
+【進め方】
+1. まだ何も聞いていなければ、「どうやって解いたか」を一言で聞いてください(1文、優しく、絵文字を1つまで)。
+2. 返事が来たら、理由や手順が含まれているか見てください。「わからない」「なんとなく」のような中身のない返事や、答えを繰り返しただけの返事は、もう少し具体的に聞き返してください(例:「じゃあ、最初に何をした?」)。
+3. 手順や考え方が短くても筋が通って説明できていたら、しっかり褒めて、返信の最後に半角で"[OK]"とだけ書いてください(この文字は生徒には見えません)。厳しく採点しすぎないでください。
+4. 難しい言葉や数式記号("×","÷"以外)は使わず、小学校高学年にもわかる言葉で話してください。
+5. 1回の返信は2〜3文以内、短く。`;}
+function startExplainCheck(r,prob){
+ explainState={rule:r,prob,msgs:[],turns:0};
+ renderExplainCheck();
+ explainAsk(true);}
+function renderExplainCheck(){
+ const es=explainState;if(!es)return;
+ const old=qs("#explainBox");if(old)old.remove();
+ const b=qs("#burst");if(!b)return;
+ const chatHtml=es.msgs.map(m=>m.role==="assistant"
+  ?`<div class="pome-line"><span class="pface">🐶</span><div>${esc(m.content).replace(/\n/g,"<br>")}</div></div>`
+  :`<div class="pome-line me"><div>${esc(m.content).replace(/\n/g,"<br>")}</div></div>`).join("")
+  ||`<div class="pome-line"><span class="pface">🐶</span><div>考え中…</div></div>`;
+ b.insertAdjacentHTML("beforeend",`<div class="explaincheck card" id="explainBox" style="margin-top:10px;text-align:left">
+  <b>🐶 ポメに説明してみよう</b><span class="hint-note" style="margin:4px 0 8px;display:block">(お試し中の新機能です)</span>
+  <div class="pome-chatlog" id="explainLog" style="max-height:220px;overflow-y:auto;margin-bottom:8px">${chatHtml}</div>
+  <div class="ip-in"><textarea id="explainInput" rows="1" class="autoTA" placeholder="説明してみよう…" onkeydown="chatKeydown(event,sendExplain)" oninput="autoGrow(this)"></textarea><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('explainInput',null,this)">🎤</button></span><button class="btn pome" onclick="sendExplain()">送る</button></div>
+  <div style="margin-top:8px"><button class="mini" onclick="explainManualPass()">🙋 お母さんが確認:できてるからOK</button></div>
+ </div>`);
+ const log=qs("#explainLog");if(log)log.scrollTop=log.scrollHeight;}
+async function explainAsk(isFirst){
+ const es=explainState;if(!es)return;
+ const sys=EXPLAIN_SYS(es.rule,es.prob);
+ try{
+  const msgs=isFirst?[{role:"user",content:"(生徒が3問連続正解しました。まず質問を1つしてください)"}]:es.msgs.map(m=>({role:m.role,content:m.content}));
+  const out=await callClaude(sys,msgs);
+  const ok=/\[OK\]/.test(out);
+  const clean=out.replace(/\[OK\]\s*$/,"").trim();
+  if(!explainState)return; // 途中で手動OKされていたら何もしない
+  es.msgs.push({role:"assistant",content:clean});
+  renderExplainCheck();
+  if(ok)finishExplainCheck(false);
+ }catch(e){if(!explainState)return;es.msgs.push({role:"assistant",content:"⚠️ "+e.message});renderExplainCheck();}}
+async function sendExplain(){
+ const es=explainState;if(!es)return;
+ const inp=qs("#explainInput");if(!inp)return;const txt=inp.value.trim();if(!txt)return;
+ inp.value="";inp.style.height="auto";
+ es.msgs.push({role:"user",content:txt});es.turns++;
+ renderExplainCheck();
+ if(es.turns>=3){finishExplainCheck(true);return;}
+ await explainAsk(false);}
+function explainManualPass(){finishExplainCheck(false);}
+/** ポメ説明チェックを完了させ、通常の合格処理(メダル・7日後レビュー登録)につなげる。
+ * capped=trueのときは、3往復しても決着しなかった場合。失敗としては扱わない。 */
+function finishExplainCheck(capped){
+ const es=explainState;if(!es)return;
+ const r=es.rule,d=D(),prob=es.prob;
+ explainState=null;
+ if(r.status==="none"||!r.status){r.status="passed";r.passed=today();d.ruiPass++;
+  S.reviewQ.push({id:"rv"+Date.now(),ruleId:r.id,kind:"gen",q:prob.q,sub:prob.sub,ans:prob.ans,pkind:prob.kind,due:addDays(today(),7),status:"due",src:"類題通過"});}
+ save();
+ const b=qs("#burst");if(!b)return;
+ const old=qs("#explainBox");if(old)old.remove();
+ b.insertAdjacentHTML("beforeend",`🎉🎉🎉 「${esc(r.name)}」が ○通過 になりました!${capped?`<div class="hint-note" style="margin-top:4px">(今日はここまでにしよう。また今度つづきを聞いてみるね)</div>`:""}
+  <div class="goalbox">
+   <div class="goaltxt">✅ <b>今日のゴールはここまで</b>でOKです。7日後の復習テストでもう一度会います。</div>
+   <div class="goalacts">
+    <button class="checkbtn" onclick="finishRuleToday()">✅ ここで終わる</button>
+    <button class="btn sub2" onclick="nextProb()">🔁 もっと練習する</button>
+   </div>
+  </div>`);}
 function finishRuleToday(){qs("#burst").classList.remove("show");
  const rs=S.rules.filter(r=>r.gen).sort((a,b)=>a.pr-b.pr);
  const next=rs.find(r=>r.status!=="mastered"&&r.status!=="passed"&&r.id!==(curRule&&curRule.id));
