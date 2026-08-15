@@ -1178,7 +1178,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-11y";
+const BUILD_ID="2026-08-11z";
 let S=null;
 function defaultState(){
  const t=today();
@@ -2128,7 +2128,9 @@ function renderCards(){renderExtLinks();const dp=qs("#deckPicker");
  const ts=todaySubs();
  const subName=id=>((SUBJECTS.find(x=>x.id===id)||{}).name||id);
  const subCounts={};S.decks.forEach(d=>{subCounts[d.sub]=(subCounts[d.sub]||0)+1;});
- const subsPresent=Object.keys(subCounts);
+ // デッキが無くても、その教科向けの外部リンクが登録されていればタブを出す(デジタル教材だけの教科のため)
+ const linkSubs=new Set();(S.extLinks||[]).forEach(l=>{(l.subs||[]).forEach(s=>linkSubs.add(s));});
+ const subsPresent=Array.from(new Set([...Object.keys(subCounts),...linkSubs]));
  const hasTodayDeck=subsPresent.some(s=>ts.includes(s));
  if(!deckSubManual&&S.decks.length>20){
   const pick=(ts.find(s=>subsPresent.includes(s)))||subsPresent.sort((a,b)=>subCounts[b]-subCounts[a])[0];
@@ -2159,7 +2161,7 @@ function renderCards(){renderExtLinks();const dp=qs("#deckPicker");
  qs("#cardArea").innerHTML="";cardQ=[];cardIdx=0;curCard=null;
  qs("#deckSubTabs").innerHTML=`<button class="subtab ${deckSub==="all"?"on":""}" onclick="deckSub='all';deckSubManual=true;ruleFilter=null;extLinkExpanded=false;renderCards()">すべて<span class="st">${S.decks.length}</span></button>`
   +subsPresent.sort((a,b)=>(ts.includes(b)?1:0)-(ts.includes(a)?1:0)).map(s=>
-   `<button class="subtab ${deckSub===s?"on":""}" onclick="deckSub='${s}';deckSubManual=true;ruleFilter=null;extLinkExpanded=false;renderCards()">${ts.includes(s)?"⭐ ":""}${subName(s)}<span class="st">${subCounts[s]}</span></button>`).join("");
+   `<button class="subtab ${deckSub===s?"on":""}" onclick="deckSub='${s}';deckSubManual=true;ruleFilter=null;extLinkExpanded=false;renderCards()">${ts.includes(s)?"⭐ ":""}${subName(s)}<span class="st">${subCounts[s]||0}</span></button>`).join("");
  qs("#deckToolbar").innerHTML=`
   <label class="hidedone"><input type="checkbox" ${hideDone?"checked":""} onchange="hideDone=this.checked;renderCards()">まだのだけ表示</label>
   <button class="vsbtn sm" onclick="showImageDecks()">📷 画像入りをさがす</button>
@@ -2175,7 +2177,11 @@ function renderCards(){renderExtLinks();const dp=qs("#deckPicker");
      :`📚 <b>${esc(ruleFilter.label)}</b> のドリルをうまく絞り込めなかったので、同じ章のもの(${list.length}件)を出しています`}
     <button class="mini" onclick="ruleFilter=null;renderCards()">✕ すべて表示にもどす</button></div>`;}
   else{filterBar.style.display="none";filterBar.innerHTML="";}}
- if(!list.length){dp.innerHTML=`<div class="hint-note">見つかりませんでした。検索や教科をかえてみてください。</div>`;return;}
+ if(!list.length){
+  dp.innerHTML=(subCounts[deckSub]===0)
+   ?`<div class="hint-note">このタブは今のところデジタル教材のみです。暗記カードはまだ登録されていません。</div>`
+   :`<div class="hint-note">見つかりませんでした。検索や教科をかえてみてください。</div>`;
+  return;}
  const tail=(ts.length&&!hasTodayDeck?`<div class="warnline">⚠️ 今日の教科(${ts.map(subName).join("・")})のデッキは未登録です<span class="helpico" title="おうちメニュー →「データ管理」→「暗記カードのデッキ追加」から増やせます。">?</span></div>`:"");
  const deckBtn=(i,ctxUnit)=>{const d=S.decks[i];const hot=ts.includes(d.sub);const done=deckDoneCount(d),tot=d.cards.length,complete=done>=tot&&tot>0;
   const imgN=deckImgCount(d);
