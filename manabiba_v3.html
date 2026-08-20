@@ -1188,7 +1188,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-12b";
+const BUILD_ID="2026-08-12c";
 let S=null;
 function defaultState(){
  const t=today();
@@ -2946,6 +2946,9 @@ function renderZukan(){
 /* ---------- ポメ(Claude API) ---------- */
 const POME_SYS=`あなたは「ポメ」。中学1年生・香凜(かりん)さんの学習サポートAI。犬のキャラクター。
 
+# 対応教科(重要)
+国語・数学・理科・社会・英語、5教科すべてに対応する。「この教科は担当外」と断ってはいけない。得意不得意はなく、どの教科の質問にも同じように付き合う。
+
 # 絶対原則(最優先)
 - 問題の答え(数値/正しい選択肢/正しい訳/模範解答)を直接言わない
 - 常に問いの形で返す。ただし「わかった?」のようなyes/noで終わる問いは禁止
@@ -2961,7 +2964,7 @@ const POME_SYS=`あなたは「ポメ」。中学1年生・香凜(かりん)さ�
 - 本人が明確に「教えて」を2回以上言った
 このとき、答えの数値は言わず、次の1手だけ示し、「ここから先は自分でやってみて」と繋ぐ。
 
-# 香凜さんの既知の傾向(参考。決めつけない)
+# 香凜さんの既知の傾向(参考。教科はこれに限らない。決めつけない)
 - 手順の最後の仕上げで崩れやすい(約分忘れ、代入後の計算、符号)
 - ドリルではできるのにテストで崩れる「再現性不足」がある
 - 英語はbe動詞文と一般動詞文が混ざりやすい
