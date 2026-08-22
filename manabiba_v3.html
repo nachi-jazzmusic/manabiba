@@ -1188,7 +1188,7 @@ function pdrillHtml(sub,keyword){
  const range=`p.${Math.min(...pages)}〜${Math.max(...pages)}`;
  return `<div class="pdrill">📕 <b>${esc(r.book)}</b> ${esc(range)}
    <div class="pd-items">${r.items.map(x=>{const [s,e]=pdPageRange(x);const pg=s===e?`p.${s}`:`p.${s}〜${e}`;return `<span class="pd-item">${x.no} ${esc(x.name)} <b>${pg}</b></span>`;}).join("")}</div></div>`;}
-const BUILD_ID="2026-08-12c";
+const BUILD_ID="2026-08-12d";
 let S=null;
 function defaultState(){
  const t=today();
@@ -2025,7 +2025,7 @@ function planBadgeHtml(){
 
 /* ---------- 暗記カード ---------- */
 let curDeck=0,deckManual=false,cardBusy=false;
-let cardQ=[],cardIdx=0,roundWrong=[],roundLog=[],cardViewTab="do";
+let cardQ=[],cardIdx=0,roundWrong=[],roundLog=[],cardViewTab="do",lastJudge=null,cardAdvanceTimer=null;
 function todaySubs(){return Object.keys(S.input.entries||{});}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function cardTab(t){cardViewTab=t;
@@ -2317,7 +2317,7 @@ function drawCard(){cardBusy=false;const deck=S.decks[curDeck];
  const backImgSlot=curCard.imgBack?`<div class="cimg-slot" id="cimgBack"><div class="cimg-load">画像を読み込み中…</div></div>`:"";
  qs("#cardArea").innerHTML=`
  <div class="roundbar"><div class="roundbar-in" style="width:${pct}%"></div></div>
- <div class="roundnum">${cardIdx+1} / ${cardQ.length} 枚目　<span style="opacity:.65">おぼえた ${green}/${poolCards.length}・今日 ${D().cards}枚</span></div>
+ <div class="roundnum">${cardIdx+1} / ${cardQ.length} 枚目　<span style="opacity:.65">おぼえた ${green}/${poolCards.length}・今日 ${D().cards}枚</span>${lastJudge?` <button class="mini" onclick="undoLastJudge()">↩️ 直前を取り消す</button>`:""}</div>
  <div class="flip-wrap"><div class="flip" id="flipC" onclick="this.classList.toggle('flipped')">
    <div class="face front ${curCard.img?"has-img":""}">${frontImgSlot}<div class="q">${esc(curCard.q)}</div>
      ${curCard.exp?`<button class="hintbtn" onclick="event.stopPropagation();toggleFrontHint(this)">💡 ヒントを見る</button><div class="fronthint" style="display:none">${esc(curCard.exp)}</div>`:""}
@@ -2352,13 +2352,28 @@ function judgeCard(v,btn){if(!curCard||cardBusy)return;cardBusy=true;const t=tod
  const fl=qs("#jFlash");
  if(fl)fl.innerHTML=(v===2?"🟢 <b>おぼえた!</b> と記録しました":v===1?"🟡 <b>もう少し</b> と記録しました":"🔴 <b>まだ</b> と記録しました")
    +`<span style="font-weight:500;color:var(--ink-soft)"> … 次のカードへ</span>`;
+ lastJudge={card:curCard,prevLv:curCard.lv,prevLast:curCard.last,prevGs:curCard.gs,wasGreen:v===2};
  curCard.lv=v;curCard.last=t;curCard.gs=v===2?(curCard.gs||0)+1:0;
  const d=D();d.cards++;if(v===2)d.green++;
  todayCardLog().push({q:curCard.q,a:curCard.a,v:v,deck:S.decks[curDeck].name});
  roundLog.push({q:curCard.q,v:v});
  if(v<2)roundWrong.push(curCard);
  cardIdx++;save();
- setTimeout(()=>drawCard(),1300);}
+ cardAdvanceTimer=setTimeout(()=>{cardAdvanceTimer=null;drawCard();},1300);}
+/** ひとつ前のカード判定を取り消す(ボタンの押し間違い対策) */
+function undoLastJudge(){
+ if(!lastJudge)return;
+ if(cardAdvanceTimer){clearTimeout(cardAdvanceTimer);cardAdvanceTimer=null;}
+ const lj=lastJudge;
+ lj.card.lv=lj.prevLv;lj.card.last=lj.prevLast;lj.card.gs=lj.prevGs;
+ const d=D();d.cards=Math.max(0,d.cards-1);if(lj.wasGreen)d.green=Math.max(0,d.green-1);
+ const log=todayCardLog();if(log.length)log.pop();
+ if(roundLog.length)roundLog.pop();
+ if(roundWrong.length&&roundWrong[roundWrong.length-1]===lj.card)roundWrong.pop();
+ cardIdx=Math.max(0,cardIdx-1);
+ curCard=lj.card;
+ lastJudge=null;cardBusy=false;
+ save();drawCard();toast("↩️ 取り消しました");}
 function roundResult(){
  const deck=S.decks[curDeck];
  const poolCards=unitRoundIdxs?unitRoundIdxs.flatMap(i=>S.decks[i].cards):deck.cards;
@@ -3148,7 +3163,7 @@ function renderWeek(){const t=today();const from=addDays(t,-6);qs("#weekRange").
  SUBJECTS.filter(s=>UNITMAP[s.id]).forEach(s=>{unitMedals(s.id).forEach(u=>{if(u.medal!=="gold")notDone.push({...u,sub:s.id});});});
  notDone.sort((a,b)=>{const rank={none:0,bronze:1,silver:2};return (rank[a.medal]??0)-(rank[b.medal]??0);});
  const nextUp=notDone.slice(0,3);
- weekRepeatItems=repeatMissItems("sci");
+ weekRepeatItems={sci:repeatMissItems("sci"),geo:repeatMissItems("geo"),his:repeatMissItems("his")};
  qs("#weekBody").innerHTML=`
  <div class="wk-grid">
   <div class="card"><div class="big-metric"><div class="v" style="color:#E8B84B">🥇${mc.gold}<small> 個</small></div><div class="lbl">金メダル(ぜんぶ一発正解)</div></div></div>
@@ -3173,9 +3188,14 @@ function renderWeek(){const t=today();const from=addDays(t,-6);qs("#weekRange").
  <div class="card"><h2>ポイント精算</h2><div class="pt-box" style="display:flex;gap:14px;align-items:center;background:var(--pink-soft);border:1.5px solid #F2CFD9;border-radius:14px;padding:14px 18px">
   <span>今もっている合計</span><span style="font-family:var(--disp);font-weight:900;font-size:28px;color:var(--pink-deep)">${S.profile.points||0} pt</span>
   <span class="hint-note" style="margin:0">きせかえで使えます</span></div></div>
- <div class="card" style="background:#FDF6E3;border-color:#E8B84B"><h2>🃏 くり返し間違えている理科(カード化候補)</h2>
-  <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">誤答登録で同じ問題を2回以上まちがえているものを自動で拾っています。問題文・答えは登録ずみのものをそのまま使うので、写真もJSON貼り付けも不要です。ボタン1つでカードになります。</p>
-  ${weekRepeatItems.length?weekRepeatItems.map((it,i)=>`<div class="list-row"><span style="flex:1">${esc(it.q)}<br><span class="hint-note" style="margin:0">答え:${esc(it.a)}／${it.misses}回まちがい</span></span><button class="mini mintB" onclick="addRepeatCardAt(${i})">🃏 カードにする</button></div>`).join(""):"<div class='hint-note'>今のところ、くり返しまちがいはありません。</div>"}
+ <div class="card" style="background:#FDF6E3;border-color:#E8B84B"><h2>🃏 くり返し間違えている理科・社会(カード化候補)</h2>
+  <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">誤答登録(メクリカ・さくスタで気づいたものも手動で登録すればここに含まれます)で同じ問題を2回以上まちがえているものを自動で拾っています。問題文・答えは登録ずみのものをそのまま使うので、写真もJSON貼り付けも不要です。ボタン1つでカードになります。</p>
+  ${["sci","geo","his"].map(sub=>{
+    const items=weekRepeatItems[sub];if(!items.length)return"";
+    const subName=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
+    return `<div class="hint-note" style="margin:10px 0 4px;font-weight:800;color:var(--ink)">${subName}</div>`+
+     items.map((it,i)=>`<div class="list-row"><span style="flex:1">${esc(it.q)}<br><span class="hint-note" style="margin:0">答え:${esc(it.a)}／${it.misses}回まちがい</span></span><button class="mini mintB" onclick="addRepeatCardAt('${sub}',${i})">🃏 カードにする</button></div>`).join("");
+   }).join("")||"<div class='hint-note'>今のところ、くり返しまちがいはありません。</div>"}
  </div>`;}
 
 /* ---------- モーダルの移動・サイズ変更 ---------- */
@@ -3734,7 +3754,7 @@ async function testApi(){const el=qs("#apiTestRes");el.textContent="接続中…
  catch(e){el.textContent="❌ "+e.message.slice(0,80);el.style.color="var(--red)";}}
 
 /* ---------- くり返しまちがい→暗記カード化 ---------- */
-let weekRepeatItems=[];
+let weekRepeatItems={};
 /** 誤答登録(paperLog)から、同じ問題を2回以上まちがえていて、まだ暗記カードになっていないものを拾う */
 function repeatMissItems(sub){
  const log=(S.paperLog||[]).filter(x=>x.sub===sub&&x.q&&x.a);
@@ -3749,11 +3769,11 @@ function repeatMissItems(sub){
    const latest=items[items.length-1];
    out.push({q,a:latest.a,misses});}});
  return out.sort((a,b)=>b.misses-a.misses).slice(0,10);}
-function addRepeatCardAt(i){
- const it=weekRepeatItems[i];if(!it)return;
- const subName=(SUBJECTS.find(s=>s.id==="sci")||{}).name||"理科";
- let deck=S.decks.find(d=>d.name===subName+"｜くり返しまちがいまとめ"&&d.sub==="sci");
- if(!deck){deck={id:"d"+Date.now(),name:subName+"｜くり返しまちがいまとめ",sub:"sci",unit:"くり返しまちがい",cards:[]};S.decks.push(deck);}
+function addRepeatCardAt(sub,i){
+ const it=(weekRepeatItems[sub]||[])[i];if(!it)return;
+ const subName=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
+ let deck=S.decks.find(d=>d.name===subName+"｜くり返しまちがいまとめ"&&d.sub===sub);
+ if(!deck){deck={id:"d"+Date.now(),name:subName+"｜くり返しまちがいまとめ",sub,unit:"くり返しまちがい",cards:[]};S.decks.push(deck);}
  deck.cards.push({q:it.q,a:it.a,exp:"",lv:0,last:null,gs:0});
  save();renderWeek();toast("✅ 暗記カードにしました("+deck.cards.length+"枚目)");}
 /* ---------- 参考情報(やさまる・NHK等) ---------- */
