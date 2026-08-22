@@ -836,6 +836,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <div class="chat-scroll" id="ppomeMsgs"><div class="spacer"></div></div>
     <div class="chat-in">
       <textarea id="ppomeInput" rows="1" class="autoTA" placeholder="親ポメに相談…" onkeydown="chatKeydown(event,sendPPome)" oninput="autoGrow(this)"></textarea>
+      <span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('ppomeInput',null,this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('ppomeInput')">✍️</button></span>
       <button class="btn pome" onclick="sendPPome()" id="ppomeSend">送る</button>
     </div>
     <div class="hint-note">親ポメは進捗・誤答タグ・活動ログをふまえて答えます(直接助言型)。</div>
