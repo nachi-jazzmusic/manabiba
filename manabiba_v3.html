@@ -1005,6 +1005,19 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
+<div class="pad-modal" id="diagModal" onclick="if(event.target===this)closeDiagConfirm()">
+  <div class="pad-card" style="max-width:480px">
+    <button class="q-x" style="position:absolute;top:12px;right:12px" onclick="closeDiagConfirm()" title="とじる">✕</button>
+    <h3>🐕 この診断を反映しますか?</h3>
+    <div class="hint-note" style="margin:0 0 10px">チェックが入っているものだけ、理解度の記録に反映します。ちがうと思うものはチェックを外してください。</div>
+    <div id="diagList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="pad-acts">
+      <button class="btn" onclick="confirmDiagReflect()">反映する</button>
+      <button class="btn sub2" onclick="closeDiagConfirm()">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-08-09d)</span></div>
 <div class="toast" id="toast"></div>
 <script>
@@ -1200,7 +1213,7 @@ function defaultState(){
     unlocked:{styles:["down","pony","twin","bun"],accs:["none","ribbon"]},
     lastActive:null},
   pages:{math:68,eng:42,sci:79,geo:53,his:29,jpn:60},
-  rules:INIT_RULES.map(r=>({...r,status:"none",lv:3,streak:0,added:t,tagHist:[],passed:null,mastered:null})),
+  rules:INIT_RULES.map(r=>({...r,status:"none",lv:3,streak:0,added:t,tagHist:[],diagHist:[],passed:null,mastered:null})),
   decks:[{id:"d1",name:"理科｜1学期｜用語｜金属の性質",sub:"sci",cards:[
     {q:"みがくと光る金属の性質を何という?",a:"金属光沢",exp:"金属共通の性質のひとつ",lv:0,last:null,gs:0},
     {q:"金属をたたくとうすく広がる性質は?",a:"展性",exp:"引っぱるとのびるのは延性",lv:0,last:null,gs:0},
@@ -1280,6 +1293,7 @@ function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultS
  if(!S.longBreakRange)S.longBreakRange={start:"",end:""};
  (S.tests||[]).forEach(t=>{if(t.rank===undefined)t.rank="";});
  if(!S.lvMigrated){(S.rules||[]).forEach(r=>{r.lv=3;});S.lvMigrated=true;}
+ (S.rules||[]).forEach(r=>{if(!r.diagHist)r.diagHist=[];}); // 親ポメ診断用の記録領域(tagHistとは別)を後付けで補う
  (S.ansSets||[]).forEach(a=>(a.items||[]).forEach(i=>{if(i.text===undefined)i.text="";}));
  // 動作確認用に入っていたサンプルのワークが残っていたら取り除く(1回だけ)
  if(S.ansSets&&S.ansSets.some(a=>a.id==="a_sample")){S.ansSets=S.ansSets.filter(a=>a.id!=="a_sample");save();}}
@@ -2443,7 +2457,10 @@ function renderChal(){const n=pendingReviews().length;qs("#revCount").textConten
  qs("#rulePick").innerHTML=show.map(r=>{const st=r.status==="mastered"?"◎":r.status==="passed"?"○":r.streak?("●".repeat(r.streak)):"";
   const isNext=next&&next.id===r.id&&!(curRule&&curRule.id===r.id);
   const mastered=r.status==="mastered";
-  return `<button class="rule-chip ${curRule&&curRule.id===r.id?"on":""} ${mastered?"complete":""}" style="${isNext?"border-color:var(--pink-deep);box-shadow:0 0 0 3px rgba(224,140,160,.22)":""}" onclick="startRule('${r.id}')">${isNext?"👉 ":mastered?"✅ ":""}${esc(r.name)} <span class="st">${st}</span></button>`;}).join("");
+  // 親ポメの診断で◎が見直された直後かどうか(その後まだ再定着していない場合だけ表示)
+  const lastDiag=r.diagHist&&r.diagHist.length?r.diagHist[r.diagHist.length-1]:null;
+  const resetNote=(r.status==="none"&&lastDiag&&lastDiag.statusReset)?`<span class="tag pinkT" style="margin-left:4px;font-size:10px;vertical-align:middle" title="親ポメとの相談で見直しました(${jdate(lastDiag.date)})">🐕見直し</span>`:"";
+  return `<button class="rule-chip ${curRule&&curRule.id===r.id?"on":""} ${mastered?"complete":""}" style="${isNext?"border-color:var(--pink-deep);box-shadow:0 0 0 3px rgba(224,140,160,.22)":""}" onclick="startRule('${r.id}')">${isNext?"👉 ":mastered?"✅ ":""}${esc(r.name)} <span class="st">${st}</span>${resetNote}</button>`;}).join("");
  const mb=qs("#ruleMore");if(mb)mb.innerHTML=ruleAll?"少なく表示 ▴":`すべて見る(${rs.length}) ▾`;
  if(!curRule)qs("#genArea").innerHTML=`<div class="card" style="text-align:center"><div style="font-size:13px;color:var(--ink-soft)">今日はここから</div><b style="font-size:18px;font-family:var(--disp)">${esc(next.name)}</b><div style="margin-top:12px"><button class="checkbtn" onclick="startRule('${next.id}')">▶ はじめる</button></div></div>`;
  renderRev();}
@@ -3006,7 +3023,14 @@ const PPOME_SYS=`あなたは「親ポメ」。中学1年生・香凜さんの�
 - 声かけの例文を求められたら、実際に使える言い回しをそのまま示す
 - 「わかった?」のようなyes/noで終わる質問を親が使わないよう促す
 - 香凜さんの傾向:仕上げで崩れる、テストで再現できない、応用で止まりやすい、期末の結果にショックを受けた経験がある(自信を折らない配慮が要る)
-- 学習量を増やす提案より、続く仕組みを優先する。親の負担が増える提案は慎重に`;
+- 学習量を増やす提案より、続く仕組みを優先する。親の負担が増える提案は慎重に
+
+# 診断マーカー(必須・機械処理用)
+返信の本文を書き終えたら、必ず改行してから最後の1行だけに、今回の会話から読み取れる「つまずきの原因になっていそうなルール」を判定して書く。この行は画面には表示されず、アプリが理解度の記録に使う。
+- 該当するルールがあれば: [[DIAG: ルールキー,ルールキー]] の形式で、下に渡す「使えるルールキー一覧」に載っているIDだけをカンマ区切りで書く(あてはまるものだけでよい。1個でも複数でもよい)
+- 該当がない、または会話がまだ雑談段階で判断できないときは: [[DIAG: none]]
+- 一覧にないIDや、自分で考えた新しいIDは絶対に使わない。迷ったら none にする。
+- この行の前に、本文と紛らわしい同じ書式([[のような記号)を使わない`;
 function ctxSummary(){
  const debts=S.rules.filter(r=>r.status!=="mastered").sort((a,b)=>a.pr-b.pr).slice(0,5).map(r=>r.name);
  const recentTags={};S.rules.forEach(r=>r.tagHist.filter(t=>daysBetween(t.date,today())<=14).forEach(t=>recentTags[t.tag]=(recentTags[t.tag]||0)+1));
@@ -3061,18 +3085,65 @@ async function sendPome(){const inp=qs("#pomeInput"),txt=inp.value.trim();if(!tx
   c.msgs.push({role:"assistant",content:out});
  }catch(e){c.msgs.push({role:"assistant",content:"⚠️ "+e.message});}
  btn.disabled=false;btn.textContent="送る";save();renderPome();}
+/** 親ポメの返信の下に出す「診断を反映」まわりのボタン・表示 */
+function diagActionHtml(m,i){
+ if(!m.diag)return"";
+ if(m.diag.reflected)return`<div style="margin-top:6px"><span class="tag mintT">✅ 診断を反映ずみ</span></div>`;
+ return`<div style="margin-top:6px"><button class="mini pome" onclick="openDiagConfirm(${i})">🔍 この診断を反映</button></div>`;}
 function renderPPome(){const c=S.pchats[0]||{msgs:[]};if(!S.pchats.length)S.pchats.push({id:"p"+Date.now(),msgs:[]});
  const pc=S.pchats[0];
- qs("#ppomeMsgs").innerHTML=`<div class="spacer"></div>`+(pc.msgs.length?pc.msgs.map(m=>`<div class="msg ${m.role==="user"?"me":""}">${m.role==="user"?"":'<span class="pface">🐕</span>'}<div class="bubble">${esc(m.content)}</div></div>`).join("")
+ qs("#ppomeMsgs").innerHTML=`<div class="spacer"></div>`+(pc.msgs.length?pc.msgs.map((m,i)=>`<div class="msg ${m.role==="user"?"me":""}">${m.role==="user"?"":'<span class="pface">🐕</span>'}<div><div class="bubble">${esc(m.content)}</div>${m.role==="assistant"?diagActionHtml(m,i):""}</div></div>`).join("")
   :`<div class="msg"><span class="pface">🐕</span><div class="bubble">${esc(ctxSummary())}\n\n何について相談しますか?(例:「説明タイムで代入をどう聞けばいい?」)</div></div>`);
  qs("#ppomeMsgs").scrollTop=qs("#ppomeMsgs").scrollHeight;}
+/** ルールキー一覧をAIに渡す用のテキストに変換(承認済みリスト=S.rulesのidそのもの) */
+function ppomeRuleKeyList(){return S.rules.map(r=>`${r.id}: ${r.ch}｜${r.name}`).join("\n");}
+/** AIの返信末尾の[[DIAG: ...]]マーカーを取り出す。
+ * マーカーが無い/壊れているときは診断なしとして扱い、通常の会話としてそのまま表示する(フォールバック)。
+ * 一覧に無いIDは黙って除外し、新しいキーが紛れ込まないようにする。 */
+function parsePPomeReply(out){
+ const m=out.match(/\[\[DIAG:\s*([^\]]*)\]\]\s*$/i);
+ if(!m)return{role:"assistant",content:out};
+ const content=out.slice(0,m.index).trim()||out;
+ const raw=m[1].trim();
+ if(!raw||raw.toLowerCase()==="none")return{role:"assistant",content};
+ const ids=[...new Set(raw.split(",").map(s=>s.trim()).filter(id=>S.rules.some(r=>r.id===id)))];
+ if(!ids.length)return{role:"assistant",content};
+ return{role:"assistant",content,diag:{ruleIds:ids,reflected:false}};}
 async function sendPPome(){const inp=qs("#ppomeInput"),txt=inp.value.trim();if(!txt)return;
  const pc=S.pchats[0];pc.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";save();renderPPome();
  const btn=qs("#ppomeSend");btn.disabled=true;btn.textContent="…";
- try{const out=await callClaude(PPOME_SYS+"\n\n"+ctxSummary(),pc.msgs.map(m=>({role:m.role,content:m.content})));
-  pc.msgs.push({role:"assistant",content:out});}
+ try{
+  const sys=PPOME_SYS+"\n\n# 使えるルールキー一覧\n"+ppomeRuleKeyList()+"\n\n"+ctxSummary();
+  const out=await callClaude(sys,pc.msgs.map(m=>({role:m.role,content:m.content})));
+  pc.msgs.push(parsePPomeReply(out));}
  catch(e){pc.msgs.push({role:"assistant",content:"⚠️ "+e.message});}
  btn.disabled=false;btn.textContent="送る";save();renderPPome();}
+/** 診断の確認モーダルをひらく(個別にチェックを外して除外できる) */
+let diagModalMsgIdx=null;
+function openDiagConfirm(i){
+ const m=S.pchats[0].msgs[i];if(!m||!m.diag||m.diag.reflected)return;
+ diagModalMsgIdx=i;
+ qs("#diagList").innerHTML=m.diag.ruleIds.map(id=>{
+  const r=S.rules.find(x=>x.id===id);if(!r)return"";
+  return `<label style="display:flex;align-items:flex-start;gap:8px;font-size:13.5px"><input type="checkbox" checked value="${id}" style="margin-top:3px">
+   <span><b>${esc(r.name)}</b><br><span class="hint-note" style="margin:0">${esc(r.ch)}${r.status==="mastered"?"・現在は「◎定着ずみ」→反映すると見直しになります":""}</span></span></label>`;
+ }).join("");
+ qs("#diagModal").classList.add("open");}
+function closeDiagConfirm(){qs("#diagModal").classList.remove("open");diagModalMsgIdx=null;}
+/** チェックが入っているものだけ、既存の「再現性不足」と同じやり方でS.rulesに反映する(mastered→noneに戻す)。
+ * tagHistとは混ぜず、親ポメ診断専用のr.diagHistに記録する。 */
+function confirmDiagReflect(){
+ if(diagModalMsgIdx==null)return;
+ const m=S.pchats[0].msgs[diagModalMsgIdx];if(!m||!m.diag)return;
+ const checked=qsa("#diagList input[type=checkbox]:checked").map(c=>c.value);
+ checked.forEach(id=>{
+  const r=S.rules.find(x=>x.id===id);if(!r)return;
+  const wasMastered=r.status==="mastered";
+  if(wasMastered)r.status="none";
+  if(!r.diagHist)r.diagHist=[];
+  r.diagHist.push({date:today(),statusReset:wasMastered});});
+ m.diag.reflected=true;
+ save();closeDiagConfirm();renderPPome();toast(checked.length?"反映しました":"反映は0件でした");}
 
 /* ---------- きせかえ ---------- */
 const SHOP={styles:[{id:"down",n:"おろし",c:0},{id:"pony",n:"ポニーテール",c:0},{id:"twin",n:"ツインテール",c:0},{id:"bun",n:"おだんご",c:0},{id:"braid",n:"みつあみ",c:2}],
