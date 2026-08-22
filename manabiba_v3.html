@@ -603,7 +603,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 <nav class="rail">
   <div class="logo">まなびば<small>v3.0</small></div>
 
-  <button class="nav-btn pome-top" data-s="sPome" onclick="go('sPome',this)"><span class="ic" style="font-size:22px">🐶</span><span class="txt">ポメに聞く</span></button>
+  <button class="nav-btn pome-top" data-s="sPome" onclick="openPomeFresh();go('sPome',this)"><span class="ic" style="font-size:22px">🐶</span><span class="txt">ポメに聞く</span></button>
 
   <div class="nav-label">毎日のはじめに</div>
   <button class="nav-btn on" data-s="sInput" onclick="go('sInput',this)"><span class="ic">📝</span><span class="txt">今日の入力</span></button>
@@ -3025,6 +3025,10 @@ function renderPome(){const c=curChat();
 function openChat(i){const c=S.chats.splice(i,1)[0];S.chats.unshift(c);save();renderPome();}
 function toggleFav(i){S.chats[i].fav=!S.chats[i].fav;S.chats.sort((a,b)=>(b.fav?1:0)-(a.fav?1:0));save();renderPome();}
 function newPomeChat(){S.chats.unshift({id:"c"+Date.now(),title:"新しい会話",date:today(),fav:false,msgs:[]});save();renderPome();}
+// サイドメニューの「ポメに聞く」用:過去の会話は残したまま、常にまっさらな状態で開始する。
+// (直前の会話が未使用の空チャットならそれを使い、一覧に空の会話が積み重なるのを防ぐ)
+function openPomeFresh(){pomeFrom=null;
+ if(!S.chats.length||S.chats[0].msgs.length){S.chats.unshift({id:"c"+Date.now(),title:"新しい会話",date:today(),fav:false,msgs:[]});save();}}
 let pomeFrom=null;
 function pomeGoBack(){const f=pomeFrom;pomeFrom=null;
  if(f)go(f,document.querySelector('[data-s='+f+']'));else go("sMenu",document.querySelector('[data-s=sMenu]'));}
