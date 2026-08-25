@@ -1413,7 +1413,9 @@ function renderInput(){ensureToday();renderAva();
 function updateQuizDeckPick(){
  const box=qs("#quizDeckPick");if(!box)return;
  const sub=qs("#quizSubj").value;
- const decks=(sub==="jpn"||sub==="eng")?memoDecks(sub):[];
+ // ここは手動でテスト範囲を選ぶ機能なので、自動ローテーション用のmemoDecks()(漢字/単語ワードに一致するものだけ)ではなく、
+ // その教科の登録デッキを漏れなく全部候補に出す。
+ const decks=(sub==="jpn"||sub==="eng")?S.decks.filter(d=>d.sub===sub):[];
  if(!decks.length){box.style.display="none";box.innerHTML="";return;}
  box.style.display="block";
  box.innerHTML=`<div class="hint-note" style="margin:0 0 4px">テスト範囲に入っているデッキ(複数選べます・すきま時間に出したいものだけ):</div>`
