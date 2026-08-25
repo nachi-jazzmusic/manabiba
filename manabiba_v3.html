@@ -658,10 +658,11 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <div style="margin-top:14px">
       <button class="btn sub2" onclick="qs('#qform').classList.toggle('open')">📢 小テストの予告がある</button>
       <div class="quiz-form" id="qform">
-        <select id="quizSubj"></select>
+        <select id="quizSubj" onchange="updateQuizDeckPick()"></select>
         <select id="quizWhen"><option>明日</option><option>あさって</option><option>来週</option></select>
         <input type="text" id="quizRange" placeholder="範囲(例:p.58〜62 / 英単語Unit4)" style="flex:1;min-width:220px">
         <button class="mini" onclick="addQuiz()">登録</button>
+        <div id="quizDeckPick" style="display:none;width:100%;margin-top:6px"></div>
       </div>
       <div id="quizList" style="margin-top:8px"></div>
     </div>
@@ -1405,10 +1406,32 @@ function renderInput(){ensureToday();renderAva();
   inp.oninput=upd; if(on)un.textContent="→ "+unitOf(s.id,e.page);
   box.appendChild(row);});
  const sel=qs("#quizSubj");sel.innerHTML=SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
+ updateQuizDeckPick();
  renderQuizList();}
-function addQuiz(){const q={sub:qs("#quizSubj").value,when:qs("#quizWhen").value,range:qs("#quizRange").value,date:today()};S.quizzes.push(q);qs("#quizRange").value="";save();renderQuizList();toast("小テストを登録しました");}
+/** 小テストの対象教科が国語/英語のときだけ、対象デッキ(複数可)のチェックボックスを出す。
+ * すきま時間の暗記カード枠が扱うのがjpn/engだけのため、他教科では出さない。 */
+function updateQuizDeckPick(){
+ const box=qs("#quizDeckPick");if(!box)return;
+ const sub=qs("#quizSubj").value;
+ const decks=(sub==="jpn"||sub==="eng")?memoDecks(sub):[];
+ if(!decks.length){box.style.display="none";box.innerHTML="";return;}
+ box.style.display="block";
+ box.innerHTML=`<div class="hint-note" style="margin:0 0 4px">テスト範囲に入っているデッキ(複数選べます・すきま時間に出したいものだけ):</div>`
+  +decks.map(d=>`<label style="display:flex;align-items:center;gap:6px;font-size:12.5px;margin:2px 0"><input type="checkbox" value="${d.id}">${esc(d.name.replace(/^[^｜]+｜/,""))}</label>`).join("");}
+function addQuiz(){
+ const sub=qs("#quizSubj").value;
+ const deckIds=qsa("#quizDeckPick input[type=checkbox]:checked").map(c=>c.value);
+ const q={sub,when:qs("#quizWhen").value,range:qs("#quizRange").value,date:today()};
+ if(deckIds.length)q.deckIds=deckIds;
+ S.quizzes.push(q);qs("#quizRange").value="";
+ qsa("#quizDeckPick input[type=checkbox]").forEach(c=>c.checked=false);
+ save();renderQuizList();toast("小テストを登録しました");}
 function renderQuizList(){const recent=S.quizzes.filter(q=>daysBetween(q.date,today())<=7);
- qs("#quizList").innerHTML=recent.map((q,i)=>`<span class="tag blueT" style="margin:2px">📢 ${SUBJECTS.find(s=>s.id===q.sub).name}・${esc(q.when)}・${esc(q.range)} <button onclick="delQuiz(${S.quizzes.indexOf(q)})" style="font-weight:900">×</button></span>`).join("");}
+ qs("#quizList").innerHTML=recent.map((q,i)=>{
+  const deckNames=(q.deckIds||[]).map(id=>{const d=S.decks.find(x=>x.id===id);return d?d.name.replace(/^[^｜]+｜/,""):null;}).filter(Boolean);
+  const deckNote=deckNames.length?`(→${deckNames.join("・")})`:"";
+  return `<span class="tag blueT" style="margin:2px">📢 ${SUBJECTS.find(s=>s.id===q.sub).name}・${esc(q.when)}・${esc(q.range)}${esc(deckNote)} <button onclick="delQuiz(${S.quizzes.indexOf(q)})" style="font-weight:900">×</button></span>`;
+ }).join("");}
 function delQuiz(i){S.quizzes.splice(i,1);save();renderQuizList();}
 function makeMenu(){ // 到達点更新
  ensureToday();
@@ -1553,7 +1576,15 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
   const todayRot=SUKIMA_ROTATION[dow];
   const todayMemo=memoAll.find(x=>x.key===todayRot.memo);
   const todayDigital=digitalAll.find(x=>x.key===todayRot.digital);
-  h+=memoLine(todayMemo.icon,todayMemo.label,todayMemo.deck,todayMemo.sub);
+  // 小テスト直前(登録から3日以内)で、今日のジャンルと同じ教科にデッキが紐付けてあれば、
+  // 通常のローテーションではなくテスト対策のデッキ(進捗ベースで最大2件)に差し替える。
+  const quizMemo=S.quizzes.find(q=>q.sub===todayRot.memo&&daysBetween(q.date,today())<=3&&q.deckIds&&q.deckIds.length);
+  if(quizMemo){
+   const{all,undone,picks}=topMemoDecksFromIds(quizMemo.deckIds,2);
+   if(!all.length)h+=memoLine(todayMemo.icon,todayMemo.label,todayMemo.deck,todayMemo.sub); // 紐付け先のデッキが無くなっていた場合のフォールバック
+   else if(!undone.length)h+=`<div class="act">✅ 小テスト対策はここまで完了ずみ</div>`;
+   else h+=picks.map(dk=>quizMemoLineHtml(dk,quizMemo.range)).join("");
+  }else h+=memoLine(todayMemo.icon,todayMemo.label,todayMemo.deck,todayMemo.sub);
   h+=extLinkAct(todayDigital.icon,todayDigital.label,todayDigital.link);
   const otherMemo=memoAll.filter(x=>x.key!==todayRot.memo);
   const otherDigital=digitalAll.filter(x=>x.key!==todayRot.digital);
@@ -1754,15 +1785,39 @@ function nextMemoDeck(sub){
   if(ra!==rb)return ra-rb;
   return (deckDoneCount(a)/a.cards.length)-(deckDoneCount(b)/b.cards.length);});
  return pool[0];}
-/** 暗記デッキを直接ひらいて、すぐカードを始める */
-function startMemo(sub){
- const d=nextMemoDeck(sub);
- if(!d){openSubjCards(sub);toast("暗記用のデッキが見つかりませんでした。一覧から選んでください");return;}
+/** 小テストに紐付けたデッキ群(deckIds)の中から、nextMemoDeckと同じ優先順位(やりかけ→手つかず→進み具合の少ない順)で
+ * 上位n件を選ぶ。テスト対策として明示的に選ばれたデッキなので、isAheadOfProgressによる絞り込みはしない。 */
+function topMemoDecksFromIds(deckIds,n){
+ const list=(deckIds||[]).map(id=>S.decks.find(d=>d.id===id)).filter(Boolean);
+ const undone=list.filter(d=>deckDoneCount(d)<d.cards.length);
+ undone.sort((a,b)=>{
+  const ra=deckDoneCount(a)>0?0:1, rb=deckDoneCount(b)>0?0:1;
+  if(ra!==rb)return ra-rb;
+  return (deckDoneCount(a)/a.cards.length)-(deckDoneCount(b)/b.cards.length);});
+ return {all:list,undone,picks:undone.slice(0,n)};}
+/** すきま時間の「小テスト対策」行(memoLineの小テスト版) */
+function quizMemoLineHtml(d,range){
+ const nm=d.name.replace(/^[^｜]+｜/,"");const done=deckDoneCount(d),tot=d.cards.length;
+ return `<button class="act applink" onclick="startMemoDeck('${d.id}')">📢 小テスト対策(${esc(range)})
+   <span class="nextdeck">👉 ${esc(nm)}<span class="nd-st">${done}/${tot}枚</span></span>
+   <span class="jump">はじめる →</span></button>`;}
+/** デッキを直接ひらいて、すぐカードを始める(共通処理) */
+function openDeckAndStart(d){
  go("sCards",qs('[data-s="sCards"]'));cardTab("do");
  deckManual=true;curDeck=S.decks.indexOf(d);ruleFilter=null;judgeMode="solve";
  pickerOpen=false;unitRoundIdxs=null;
  startRound();
  toast(`${d.name.replace(/^[^｜]+｜/,"")} をはじめます`);}
+/** 暗記デッキを直接ひらいて、すぐカードを始める */
+function startMemo(sub){
+ const d=nextMemoDeck(sub);
+ if(!d){openSubjCards(sub);toast("暗記用のデッキが見つかりませんでした。一覧から選んでください");return;}
+ openDeckAndStart(d);}
+/** デッキIDを指定して直接ひらく(小テスト対策デッキ用) */
+function startMemoDeck(deckId){
+ const d=S.decks.find(x=>x.id===deckId);
+ if(!d){toast("デッキが見つかりませんでした");return;}
+ openDeckAndStart(d);}
 /** 教科を指定して暗記もののデッキ一覧だけを開く */
 function openMemoList(sub){
  go("sCards",qs('[data-s="sCards"]'));cardTab("do");
