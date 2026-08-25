@@ -2526,7 +2526,11 @@ function chalTab(t){qs("#tabRui").classList.toggle("on",t==="rui");qs("#tabRev")
  if(t==="rev")renderRev();}
 let ruleAll=false;
 function toggleRuleAll(){ruleAll=!ruleAll;renderChal();}
-function renderChal(){const n=pendingReviews().length;qs("#revCount").textContent=n;
+function renderChal(){
+ // 復習テスト一覧の更新は、このあとの処理で何が起きても必ず実行されるよう最初に行う
+ // (以前は関数の最後で呼んでいたため、後半の描画で問題が起きると復習テストの表示が更新されないことがあった)
+ renderRev();
+ const n=pendingReviews().length;qs("#revCount").textContent=n;
  const rs=S.rules.filter(r=>r.gen).sort((a,b)=>a.pr-b.pr);
  const next=rs.find(r=>r.status!=="mastered"&&r.status!=="passed")||rs.find(r=>r.status!=="mastered")||rs[0];
  let show=rs;
@@ -2537,12 +2541,11 @@ function renderChal(){const n=pendingReviews().length;qs("#revCount").textConten
   const isNext=next&&next.id===r.id&&!(curRule&&curRule.id===r.id);
   const mastered=r.status==="mastered";
   // 親ポメの診断で◎が見直された直後かどうか(その後まだ再定着していない場合だけ表示)
-  const lastDiag=r.diagHist&&r.diagHist.length?r.diagHist[r.diagHist.length-1]:null;
+  const lastDiag=Array.isArray(r.diagHist)&&r.diagHist.length?r.diagHist[r.diagHist.length-1]:null;
   const resetNote=(r.status==="none"&&lastDiag&&lastDiag.statusReset)?`<span class="tag pinkT" style="margin-left:4px;font-size:10px;vertical-align:middle" title="親ポメとの相談で見直しました(${jdate(lastDiag.date)})">🐕見直し</span>`:"";
   return `<button class="rule-chip ${curRule&&curRule.id===r.id?"on":""} ${mastered?"complete":""}" style="${isNext?"border-color:var(--pink-deep);box-shadow:0 0 0 3px rgba(224,140,160,.22)":""}" onclick="startRule('${r.id}')">${isNext?"👉 ":mastered?"✅ ":""}${esc(r.name)} <span class="st">${st}</span>${resetNote}</button>`;}).join("");
  const mb=qs("#ruleMore");if(mb)mb.innerHTML=ruleAll?"少なく表示 ▴":`すべて見る(${rs.length}) ▾`;
- if(!curRule)qs("#genArea").innerHTML=`<div class="card" style="text-align:center"><div style="font-size:13px;color:var(--ink-soft)">今日はここから</div><b style="font-size:18px;font-family:var(--disp)">${esc(next.name)}</b><div style="margin-top:12px"><button class="checkbtn" onclick="startRule('${next.id}')">▶ はじめる</button></div></div>`;
- renderRev();}
+ if(!curRule&&next)qs("#genArea").innerHTML=`<div class="card" style="text-align:center"><div style="font-size:13px;color:var(--ink-soft)">今日はここから</div><b style="font-size:18px;font-family:var(--disp)">${esc(next.name)}</b><div style="margin-top:12px"><button class="checkbtn" onclick="startRule('${next.id}')">▶ はじめる</button></div></div>`;}
 function startRule(id){const r=S.rules.find(x=>x.id===id);if(!r||!r.gen){toast("この項目はワークで練習します");return;}
  if(nextProbTimer){clearTimeout(nextProbTimer);nextProbTimer=null;}
  curRule=r;go("sChal",qs('[data-s="sChal"]'));chalTab("rui");renderChal();nextProb();}
