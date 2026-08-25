@@ -1498,6 +1498,18 @@ function extLinkAct(icon,label,linkName){
  const l=(S.extLinks||[]).find(x=>x.name===linkName);
  if(!l)return "";
  return A(icon,label,"",`window.open('${l.url.replace(/'/g,"\\'")}','_blank')`);}
+/** すきま時間の曜日固定ローテーション(0=日〜6=土)。暗記カード系(jpn漢字/eng英単語)1つと
+ * デジタルドリル系(meku社会/saku_jpn国語さくスタ/saku_sci理科さくスタ/typing英単語タイピング)1つを
+ * 組み合わせ、1週間でジャンルが一通り回るように割り当て(2026-08-24 相談のうえ決定)。 */
+const SUKIMA_ROTATION=[
+ {memo:"jpn",digital:"saku_sci"}, // 日
+ {memo:"jpn",digital:"meku"},     // 月
+ {memo:"eng",digital:"saku_jpn"}, // 火
+ {memo:"jpn",digital:"saku_sci"}, // 水
+ {memo:"eng",digital:"typing"},   // 木
+ {memo:"jpn",digital:"meku"},     // 金
+ {memo:"eng",digital:"saku_jpn"}  // 土
+];
 function renderMenu(){qs("#menuDate").textContent=jdate(today());
  const mpb=qs("#menuPlanBadge");if(mpb)mpb.innerHTML=planBadgeHtml();
  qs("#holidayChk").checked=curHoliday();
@@ -1529,16 +1541,26 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
      <span class="nextdeck">👉 ${esc(nm)}<span class="nd-st">${done}/${tot}枚</span></span>
      <span class="jump">はじめる →</span></button>
     <div class="hint-note" style="margin:2px 0 8px 26px">ほかのを選ぶ:<button class="mini" onclick="openMemoList('${sub}')">一覧から選ぶ</button></div>`;};
-  h+=`<div class="tblock ${blockDone('s1')&&d.cards>0?"done":""}"><div class="who"><span class="tag mintT">ひとりで</span></div><div class="when">すきま時間|〜20:00</div><div class="what">暗記もの(漢字・英単語・社会)</div>`;
+  h+=`<div class="tblock ${blockDone('s1')&&d.cards>0?"done":""}"><div class="who"><span class="tag mintT">ひとりで</span></div><div class="when">すきま時間|〜20:00</div><div class="what">暗記もの(今日のジャンル)</div>`;
   h+=A("✏️","学校の宿題");
-  h+=memoLine("📱","漢字 15分(夕食まえ)",kanji,"jpn");
-  h+=memoLine("📱","英単語 15分(お風呂待ち)",eitan,"eng");
-  h+=extLinkAct("🌏","社会を暗記(メクリカ)","地理・歴史・公民 デジタルドリル(メクリカ)");
-  h+=A("📱",`口頭チェックのカンペ(${((S.cardLog||{})[today()]||[]).length}枚・答えが見えます)`,"","go('sCards',document.querySelector('[data-s=sCards]'));cardTab('log')");
-  h+=`<div class="hint-note" style="margin:6px 0 0 26px">すきま時間があれば、4択でライトに:</div>`;
-  h+=extLinkAct("🇯🇵","国語(さくスタ)","5教科 さくさくスタディ");
-  h+=extLinkAct("🔬","理科(さくスタ)","5教科 さくさくスタディ");
-  h+=extLinkAct("🔤","英単語・熟語タイピング","英語 単語・熟語タイピング");
+  // 曜日固定ローテーション:暗記カード系1つ+デジタルドリル系1つだけを表示し、選択肢を絞る(2026-08-24決定)
+  const memoAll=[{key:"jpn",icon:"📱",label:"漢字 15分(夕食まえ)",deck:kanji,sub:"jpn"},
+   {key:"eng",icon:"📱",label:"英単語 15分(お風呂待ち)",deck:eitan,sub:"eng"}];
+  const digitalAll=[{key:"meku",icon:"🌏",label:"社会を暗記(メクリカ)",link:"地理・歴史・公民 デジタルドリル(メクリカ)"},
+   {key:"saku_jpn",icon:"🇯🇵",label:"国語(さくスタ)",link:"5教科 さくさくスタディ"},
+   {key:"saku_sci",icon:"🔬",label:"理科(さくスタ)",link:"5教科 さくさくスタディ"},
+   {key:"typing",icon:"🔤",label:"英単語・熟語タイピング",link:"英語 単語・熟語タイピング"}];
+  const todayRot=SUKIMA_ROTATION[dow];
+  const todayMemo=memoAll.find(x=>x.key===todayRot.memo);
+  const todayDigital=digitalAll.find(x=>x.key===todayRot.digital);
+  h+=memoLine(todayMemo.icon,todayMemo.label,todayMemo.deck,todayMemo.sub);
+  h+=extLinkAct(todayDigital.icon,todayDigital.label,todayDigital.link);
+  const otherMemo=memoAll.filter(x=>x.key!==todayRot.memo);
+  const otherDigital=digitalAll.filter(x=>x.key!==todayRot.digital);
+  h+=`<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:var(--ink-soft)">ほかのジャンルも見る</summary><div style="margin-top:6px">`
+    +otherMemo.map(x=>memoLine(x.icon,x.label,x.deck,x.sub)).join("")
+    +otherDigital.map(x=>extLinkAct(x.icon,x.label,x.link)).join("")
+    +`</div></details>`;
   h+=doneBtn('s1')+`</div>`;
   // ---- メイン学習(2教科×40分) ----
   if(!picks.length){
