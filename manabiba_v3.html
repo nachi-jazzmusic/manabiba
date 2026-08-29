@@ -1674,7 +1674,9 @@ function pickSubjectsForToday(){
  const plan=topPlanItem();
  if(plan&&out.length<2&&!usedSub[plan.sub]){
   const nm=(SUBJECTS.find(s=>s.id===plan.sub)||{}).name||plan.sub;
-  const rule=S.rules.filter(r=>r.sub===plan.sub&&r.status!=="mastered"&&r.gen).sort((a,b)=>a.pr-b.pr)[0]||null;
+  // タグ(誤答の傾向)と一致すると分かっているルールだけを使う。無ければ類題は出さない(紙のドリルのみ、過去に作った
+  // ruleId未設定のプランも同様にフォールバックする)。
+  const rule=plan.ruleId?(S.rules.find(r=>r.id===plan.ruleId&&r.gen&&r.status!=="mastered")||null):null;
   out.push({kind:"plan",sub:plan.sub,label:`${nm}:${plan.tag}`,why:"📋 対策プラン",rule,planId:plan.id});
   usedSub[plan.sub]=1;}
  /** 候補リストから、最近やっていないものを優先して詰める */
@@ -1752,7 +1754,9 @@ function stepFlowHtml(pk,key){
   <div class="sf-row"><span class="sf-no">⑤</span><div class="sf-body">
     <b>類題でしあげ(任意)</b><span class="tag mintT">ひとりで</span><span class="sf-min">5分</span>
     <div class="hint-note" style="margin:0 0 6px">時間が余ったときだけでOK。誤答の登録画面からも同じ型の類題を出せます。</div>
-    ${r&&r.gen?A("✏️","類題3問連続にちょうせん",r.status==="passed"?"○ずみ":"",`startRule('${r.id}')`):r?`<div class="hint-note">この単元は類題を作れないタイプです。②③④の紙のドリルで仕上げてください。</div>`:A("📱","類題チャレンジ","","go('sChal',document.querySelector('[data-s=sChal]'))")}
+    ${r&&r.gen?A("✏️","類題3問連続にちょうせん",r.status==="passed"?"○ずみ":"",`startRule('${r.id}')`)
+     :(r||pk.kind==="plan")?`<div class="hint-note">この単元は類題を作れないタイプです。②③④の紙のドリルで仕上げてください。</div>`
+     :A("📱","類題チャレンジ","","go('sChal',document.querySelector('[data-s=sChal]'))")}
   </div></div>
  </div>`;}
 /** 教科を指定して暗記カード一覧を開く */
@@ -2016,13 +2020,21 @@ function suggestPlan(days){
  log.forEach(x=>{
   if(!x.tag)return;
   const key=x.sub+"|"+x.tag;
-  if(!byTag[key])byTag[key]={sub:x.sub,tag:x.tag,count:0,wheres:new Set()};
+  if(!byTag[key])byTag[key]={sub:x.sub,tag:x.tag,count:0,wheres:new Set(),ruleCounts:{}};
   byTag[key].count++;
-  if(x.where)byTag[key].wheres.add(x.where);});
+  if(x.where)byTag[key].wheres.add(x.where);
+  if(x.ruleId)byTag[key].ruleCounts[x.ruleId]=(byTag[key].ruleCounts[x.ruleId]||0)+1;});
  const items=Object.values(byTag).sort((a,b)=>b.count-a.count).map((x,i)=>({
   id:"pl"+i+"_"+Date.now(),sub:x.sub,tag:x.tag,count:x.count,
-  wheres:[...x.wheres].slice(0,3),done:false,excluded:false}));
+  wheres:[...x.wheres].slice(0,3),ruleId:topRuleIdForTag(x.ruleCounts),done:false,excluded:false}));
  return items;}
+/** タグ集計内で記録されているruleIdの出現数から、類題が出せる(genを持つ)ルールのうち最頻値を1つ選ぶ。
+ * 無ければ空文字(該当ルールなし=類題は出さず紙のドリルのみにする)。 */
+function topRuleIdForTag(ruleCounts){
+ const ids=Object.keys(ruleCounts||{}).filter(id=>{const r=S.rules.find(x=>x.id===id);return r&&r.gen;});
+ if(!ids.length)return "";
+ ids.sort((a,b)=>ruleCounts[b]-ruleCounts[a]);
+ return ids[0];}
 /** そのタグに対応する直近の記録が green(自力一発正解)になっていれば、自動で「解消ずみ」とみなす */
 function isTagResolved(item){
  const recs=(S.paperLog||[]).filter(x=>x.sub===item.sub&&x.tag===item.tag).sort((a,b)=>a.date<b.date?-1:1);
