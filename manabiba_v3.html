@@ -793,7 +793,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <h2>📱 スマホでの会話結果を貼り付けて一括登録</h2>
     <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">スマホのClaudeアプリで誤答について会話し、最後に出力されたJSON(配列)をそのまま貼り付けます。教科・どこの問題か・問題文・正しい答え・結果・ひとこと、それぞれの項目から自動でタグ判定・ルール推測をして登録します。</p>
     <textarea id="pwImportText" rows="6" style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:10px;font-family:monospace;font-size:12.5px;resize:vertical" placeholder='[{"sub":"math","where":"パターンドリル数学1年 p.27 (3)","q":"-3²を計算しなさい","a":"-9","result":"yellow","note":"符号を書き忘れた"}]'></textarea>
-    <button class="btn mintB" style="margin-top:8px" onclick="importPaperJSON()">取り込む</button>
+    <button class="btn mintB" id="pwImportBtn" style="margin-top:8px" onclick="importPaperJSON()">取り込む</button>
     <div id="pwImportMsg" class="hint-note" style="margin-top:8px"></div>
   </div>
   <p class="sub">下は今は使っていない旧機能の名残りです。今は紙のドリル・学校のワークが中心なので、上のフォームだけ使えばOKです。</p>
@@ -898,6 +898,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
       <button class="btn sub2" onclick="rescueEmbeddedImages()">🩹 画像を専用の保存場所へ移す</button>
       <button class="btn sub2" onclick="dedupeDecks()">🧹 重複しているデッキを1つにまとめる</button>
       <button class="btn sub2" onclick="cleanOrphanImages()">🗑️ 使われていない画像を消す</button>
+      <button class="btn sub2" onclick="dedupePaperLog()">🧹 誤答記録(紙のドリル)の重複を整理する</button>
     </div>
     <div id="checkResult" style="margin-top:10px"></div>
     <div id="diagResult" style="margin-top:10px"></div>
@@ -1992,20 +1993,27 @@ async function importPaperJSON(){
  if(!valid.length){
   msg.innerHTML=`<span class="warnline">⚠️ 登録できる項目がありませんでした。</span><br>${errors.map(e=>esc(e)).join("<br>")}`;
   return;}
- msg.innerHTML=`🤖 取り込み中…(${valid.length}件)`;
+ // 二重クリックでの重複登録を防ぐため、処理が終わるまでボタンを無効化し、進捗を表示する。
+ const btn=qs("#pwImportBtn");
+ if(btn){btn.disabled=true;btn.textContent="処理中…";}
  let okCount=0;
- for(const item of valid){
-  try{
-   const subName=(SUBJECTS.find(s=>s.id===item.sub)||{}).name||item.sub;
-   let tag="";
-   if(item.note){
-    try{const j=await classifyMistakeTag(subName,item.q,item.a,item.note);tag=j.tag||"";}
-    catch(e){errors.push(`(${item.where}): タグの自動判定に失敗しましたが、記録は登録しました(${e.message})`);}
-   }
-   commitPaperEntry({sub:item.sub,where:item.where,q:item.q,a:item.a,result:item.result,tag,note:item.note,img:null});
-   checkMedalUpgrade(item.sub);
-   okCount++;
-  }catch(e){errors.push(`(${item.where}): 登録に失敗しました(${e.message})`);}}
+ try{
+  for(let i=0;i<valid.length;i++){
+   const item=valid[i];
+   msg.innerHTML=`🤖 取り込み中です…(${i+1}/${valid.length}件)`;
+   try{
+    const subName=(SUBJECTS.find(s=>s.id===item.sub)||{}).name||item.sub;
+    let tag="";
+    if(item.note){
+     try{const j=await classifyMistakeTag(subName,item.q,item.a,item.note);tag=j.tag||"";}
+     catch(e){errors.push(`(${item.where}): タグの自動判定に失敗しましたが、記録は登録しました(${e.message})`);}
+    }
+    commitPaperEntry({sub:item.sub,where:item.where,q:item.q,a:item.a,result:item.result,tag,note:item.note,img:null});
+    checkMedalUpgrade(item.sub);
+    okCount++;
+   }catch(e){errors.push(`(${item.where}): 登録に失敗しました(${e.message})`);}}
+ }finally{
+  if(btn){btn.disabled=false;btn.textContent="取り込む";}}
  save();
  renderPaperTrend();renderPaperToday();
  ta.value="";
@@ -3669,6 +3677,40 @@ async function dedupeDecks(){
    if(c.imgBack&&c.imgBack.startsWith("idb:"))await idbDelete(c.imgBack).catch(()=>{});}
   S.decks.splice(dup[k],1);}
  save();renderData();toast(`✅ ${dup.length}件の重複デッキを削除しました`);}
+/** 教科・どこの問題か・問題文・正しい答え・結果がすべて同じで、かつ登録時刻(idに埋め込まれたタイムスタンプ)が
+ * 近い(5分以内)記録を「同じ操作の重複」とみなし、一番古い1件だけ残す。連打で重複登録してしまった時の後片付け用。
+ * (2026-08-31・一時的な後片付け機能。恒久的に残すかは実装後に相談) */
+function findPaperDupeGroups(){
+ const log=S.paperLog||[];
+ const byKey={};
+ log.forEach((x,i)=>{
+  const key=[x.sub,x.where,x.q,x.a,x.result].join("|||");
+  const m=(x.id||"").match(/^pw(\d+)/); // idの先頭がpw+登録時のDate.now()なので、そこから時刻を取り出す
+  if(!m)return; // 時刻が取れない古い形式のidは対象外(安全側に倒す)
+  if(!byKey[key])byKey[key]=[];
+  byKey[key].push({idx:i,ts:parseInt(m[1],10)});});
+ const groups=[];
+ Object.values(byKey).forEach(items=>{
+  if(items.length<2)return;
+  items.sort((a,b)=>a.ts-b.ts);
+  let cluster=[items[0]];
+  const flush=()=>{if(cluster.length>1)groups.push(cluster);};
+  for(let i=1;i<items.length;i++){
+   if(items[i].ts-cluster[cluster.length-1].ts<=5*60*1000)cluster.push(items[i]);
+   else{flush();cluster=[items[i]];}}
+  flush();});
+ return groups;} // 各グループ:内容が同じ・登録時刻が近い記録の配列(先頭が一番古い=残す1件)
+function dedupePaperLog(){
+ const groups=findPaperDupeGroups();
+ const removeIdx=new Set();
+ groups.forEach(g=>g.slice(1).forEach(it=>removeIdx.add(it.idx))); // 先頭(一番古い)以外を削除対象に
+ if(!removeIdx.size){toast("重複している誤答記録はありませんでした");return;}
+ if(!confirm(`内容・結果・登録時刻が近い誤答記録が ${removeIdx.size}件 重複しています。\n一番古い記録だけ残して、残りを削除しますか?`))return;
+ const removedIds=new Set([...removeIdx].map(i=>S.paperLog[i].id));
+ S.paperLog=S.paperLog.filter((x,i)=>!removeIdx.has(i));
+ // 削除した記録にひもづく7日後の復習(reviewQ)も、残す1件のぶんだけ残して片付ける
+ S.reviewQ=S.reviewQ.filter(r=>!(r.kind==="paper"&&r.paperLogId&&removedIds.has(r.paperLogId)));
+ save();renderData();toast(`✅ ${removeIdx.size}件の重複を削除しました`);}
 /** data:URL(base64)を受け取り、IndexedDBに保存して参照IDを返す。既に "idb:" ならそのまま。空/nullはnullのまま。 */
 async function storeImage(dataUrlOrRef){
  if(!dataUrlOrRef)return null;
