@@ -626,7 +626,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <button class="nav-label fold parent-label" data-g="par" onclick="toggleGroup('par')"><span class="caret">▾</span>🔑 おうちメニュー</button>
   <div class="nav-group parent-only" data-g="par">
     <button class="nav-btn" data-s="sWrong" onclick="go('sWrong',this)"><span class="ic">📌</span><span class="txt">誤答の登録</span></button>
-    <button class="nav-btn" data-s="sPPome" onclick="go('sPPome',this)"><span class="ic">🐕</span><span class="txt">親ポメ(相談)</span></button>
+    <button class="nav-btn" data-s="sPPome" onclick="openPPomeFresh();go('sPPome',this)"><span class="ic">🐕</span><span class="txt">親ポメ(相談)</span></button>
     <button class="nav-btn" data-s="sWeek" onclick="go('sWeek',this)"><span class="ic">📊</span><span class="txt">週次レビュー</span></button>
     <button class="nav-btn" data-s="sData" onclick="go('sData',this)"><span class="ic">🗂️</span><span class="txt">データ管理</span></button>
     <button class="nav-btn" data-s="sSet" onclick="go('sSet',this)"><span class="ic">⚙️</span><span class="txt">設定</span></button>
@@ -833,14 +833,17 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 <section class="screen" id="sPPome">
   <h1>🐕 親ポメ <span class="tag">おうちの人だけ・相談役</span></h1>
   <p class="sub">かりんさんの進捗・理解度をふまえて、教え方の相談に乗ります。かりんさんからは見えません。</p>
-  <div class="card chat-fixed" style="height:calc(100vh - 150px)">
-    <div class="chat-scroll" id="ppomeMsgs"><div class="spacer"></div></div>
-    <div class="chat-in">
-      <textarea id="ppomeInput" rows="1" class="autoTA" placeholder="親ポメに相談…" onkeydown="chatKeydown(event,sendPPome)" oninput="autoGrow(this)"></textarea>
-      <span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('ppomeInput',null,this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('ppomeInput')">✍️</button></span>
-      <button class="btn pome" onclick="sendPPome()" id="ppomeSend">送る</button>
+  <div class="pome-layout">
+    <div class="card chat-fixed">
+      <div class="chat-scroll" id="ppomeMsgs"><div class="spacer"></div></div>
+      <div class="chat-in">
+        <textarea id="ppomeInput" rows="1" class="autoTA" placeholder="親ポメに相談…" onkeydown="chatKeydown(event,sendPPome)" oninput="autoGrow(this)"></textarea>
+        <span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('ppomeInput',null,this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('ppomeInput')">✍️</button></span>
+        <button class="btn pome" onclick="sendPPome()" id="ppomeSend">送る</button>
+      </div>
+      <div class="hint-note">親ポメは進捗・誤答タグ・活動ログをふまえて答えます(直接助言型)。</div>
     </div>
-    <div class="hint-note">親ポメは進捗・誤答タグ・活動ログをふまえて答えます(直接助言型)。</div>
+    <aside class="chat-hist"><div class="ch-head">💬 これまでの相談 <button class="mini" onclick="newPPomeChat()" style="float:right">+新しい</button></div><div id="ppomeHist"></div></aside>
   </div>
 </section>
 
@@ -3097,6 +3100,7 @@ const PPOME_SYS=`あなたは「親ポメ」。中学1年生・香凜さんの�
 - 進捗データを踏まえ、まず状況を短く要約(2〜3行)
 - 次に「今週やるべきこと」を1〜2個に絞って具体的に提案
 - 声かけの例文を求められたら、実際に使える言い回しをそのまま示す
+- 「この単元、やさまるの何ページ?」「動画は?」のように資料の場所を聞かれたら、【今の状況】に含まれるページ番号・動画番号をそのまま答える
 - 「わかった?」のようなyes/noで終わる質問を親が使わないよう促す
 - 香凜さんの傾向:仕上げで崩れる、テストで再現できない、応用で止まりやすい、期末の結果にショックを受けた経験がある(自信を折らない配慮が要る)
 - 学習量を増やす提案より、続く仕組みを優先する。親の負担が増える提案は慎重に
@@ -3169,11 +3173,19 @@ function diagActionHtml(m,i){
  if(!m.diag)return"";
  if(m.diag.reflected)return`<div style="margin-top:6px"><span class="tag mintT">✅ 診断を反映ずみ</span></div>`;
  return`<div style="margin-top:6px"><button class="mini pome" onclick="openDiagConfirm(${i})">🔍 この診断を反映</button></div>`;}
-function renderPPome(){const c=S.pchats[0]||{msgs:[]};if(!S.pchats.length)S.pchats.push({id:"p"+Date.now(),msgs:[]});
- const pc=S.pchats[0];
+/** 親ポメの「現在の相談」を返す(無ければ1件作る)。S.chats/curChat()と同じ考え方。 */
+function curPChat(){if(!S.pchats.length)S.pchats.push({id:"p"+Date.now(),title:"はじめての相談",date:today(),fav:false,msgs:[]});return S.pchats[0];}
+function renderPPome(){const pc=curPChat();
  qs("#ppomeMsgs").innerHTML=`<div class="spacer"></div>`+(pc.msgs.length?pc.msgs.map((m,i)=>`<div class="msg ${m.role==="user"?"me":""}">${m.role==="user"?"":'<span class="pface">🐕</span>'}<div><div class="bubble">${esc(m.content)}</div>${m.role==="assistant"?diagActionHtml(m,i):""}</div></div>`).join("")
   :`<div class="msg"><span class="pface">🐕</span><div class="bubble">${esc(ctxSummary())}\n\n何について相談しますか?(例:「説明タイムで代入をどう聞けばいい?」)</div></div>`);
- qs("#ppomeMsgs").scrollTop=qs("#ppomeMsgs").scrollHeight;}
+ qs("#ppomeMsgs").scrollTop=qs("#ppomeMsgs").scrollHeight;
+ qs("#ppomeHist").innerHTML=S.pchats.map((ch,i)=>`<div class="ch-item ${i===0?"on":""}" onclick="openChatP(${i})"><button class="favstar ${ch.fav?"on":""}" onclick="event.stopPropagation();togglePFav(${i})">★</button><div><div class="ch-t">${esc(ch.title||"相談")}</div><div class="ch-d">${jdate(ch.date||today())}</div></div></div>`).join("");}
+function openChatP(i){const c=S.pchats.splice(i,1)[0];S.pchats.unshift(c);save();renderPPome();}
+function togglePFav(i){S.pchats[i].fav=!S.pchats[i].fav;S.pchats.sort((a,b)=>(b.fav?1:0)-(a.fav?1:0));save();renderPPome();}
+function newPPomeChat(){S.pchats.unshift({id:"p"+Date.now(),title:"新しい相談",date:today(),fav:false,msgs:[]});save();renderPPome();}
+// サイドメニューの「親ポメ(相談)」用:過去の相談は残したまま、常にまっさらな状態で開始する(ポメに聞くのopenPomeFresh()と同じ考え方)。
+function openPPomeFresh(){
+ if(!S.pchats.length||S.pchats[0].msgs.length){S.pchats.unshift({id:"p"+Date.now(),title:"新しい相談",date:today(),fav:false,msgs:[]});save();}}
 /** ルールキー一覧をAIに渡す用のテキストに変換(承認済みリスト=S.rulesのidそのもの) */
 function ppomeRuleKeyList(){return S.rules.map(r=>`${r.id}: ${r.ch}｜${r.name}`).join("\n");}
 /** AIの返信末尾の[[DIAG: ...]]マーカーを取り出す。
@@ -3189,7 +3201,9 @@ function parsePPomeReply(out){
  if(!ids.length)return{role:"assistant",content};
  return{role:"assistant",content,diag:{ruleIds:ids,reflected:false}};}
 async function sendPPome(){const inp=qs("#ppomeInput"),txt=inp.value.trim();if(!txt)return;
- const pc=S.pchats[0];pc.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";save();renderPPome();
+ const pc=curPChat();pc.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";
+ if(pc.title==="新しい相談"||pc.title==="はじめての相談")pc.title=txt.slice(0,18);
+ save();renderPPome();
  const btn=qs("#ppomeSend");btn.disabled=true;btn.textContent="…";
  try{
   const sys=PPOME_SYS+"\n\n# 使えるルールキー一覧\n"+ppomeRuleKeyList()+"\n\n"+ctxSummary();
