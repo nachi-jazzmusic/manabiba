@@ -888,19 +888,10 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <button class="btn" onclick="exportData()">バックアップを保存(JSON)</button>
     <label class="btn sub2" style="margin-left:8px">バックアップから復元<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label>
     <div class="hint-note" id="storageUsage" style="margin-top:10px"></div>
-  </div>
-  <div class="card" style="border-color:#E8B84B;background:#FDF6E3">
-    <h2>🩹 うまく動かないときの修理</h2>
-    <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">「容量をこえました」と出たときや、同じデッキが2つ並んでいるときに使ってください。</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" onclick="diagnoseStorage()">📊 何が容量を使っているか調べる</button>
-      <button class="btn sub2" onclick="checkCards()">🔍 カードの中身を点検する</button>
-      <button class="btn sub2" onclick="rescueEmbeddedImages()">🩹 画像を専用の保存場所へ移す</button>
-      <button class="btn sub2" onclick="dedupeDecks()">🧹 重複しているデッキを1つにまとめる</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
       <button class="btn sub2" onclick="cleanOrphanImages()">🗑️ 使われていない画像を消す</button>
       <button class="btn sub2" onclick="dedupePaperLog()">🧹 誤答記録(紙のドリル)の重複を整理する</button>
     </div>
-    <div id="checkResult" style="margin-top:10px"></div>
     <div id="diagResult" style="margin-top:10px"></div>
   </div>
   <div class="card" style="background:var(--mint-soft);border-color:var(--mint)">
@@ -920,20 +911,6 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <h2>📷 写真待ちのカード<span class="tag" id="pendingPhotoCount"></span></h2>
     <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">JSONで一括登録したカードのうち、まだ写真がついていないもの一覧です。教材の該当ページを撮って、それぞれ選んで追加してください(表面だけでOKなことが多いです)。追加した時点でこの一覧から消えます。</p>
     <div id="pendingPhotoList"></div>
-  </div>
-  <div class="card"><h2>📷 写真つきカードを1枚追加</h2>
-    <p class="hint-note" style="margin-bottom:8px">上の一覧にない、新しい「画像がないと解けない」問題はここから。写真を撮って選ぶだけで登録できます。</p>
-    <div class="pform">
-      <div class="pf-row"><label>教科</label><select id="pf_sub"></select></div>
-      <div class="pf-row"><label>デッキ名</label><input type="text" id="pf_deck" placeholder="例:社会｜1学期中テ｜地図問題"></div>
-      <div class="pf-row"><label>問題文</label><input type="text" id="pf_q" placeholder="例:右の地図のA地点の都市名は?"></div>
-      <div class="pf-row"><label>問題の写真<span class="hint-note" style="margin:0">(あれば)</span></label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" accept="image/*" id="pf_imgQ"><span class="pastezone" id="pf_pasteQ" contenteditable="true" onpaste="pastePhoto(event,'q')" oninput="this.textContent='📋 ここに貼り付け(Ctrl+V)'">📋 ここに貼り付け(Ctrl+V)</span><span class="mini" id="pf_imgQ_prev"></span></div></div>
-      <div class="pf-row"><label>答え</label><input type="text" id="pf_a" placeholder="例:大阪"></div>
-      <div class="pf-row"><label>答えの写真<span class="hint-note" style="margin:0">(あれば)</span></label><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="file" accept="image/*" id="pf_imgA"><span class="pastezone" id="pf_pasteA" contenteditable="true" onpaste="pastePhoto(event,'a')" oninput="this.textContent='📋 ここに貼り付け(Ctrl+V)'">📋 ここに貼り付け(Ctrl+V)</span><span class="mini" id="pf_imgA_prev"></span></div></div>
-      <div class="pf-row"><label>解説</label><input type="text" id="pf_exp" placeholder="例:近畿地方の中心都市(省略可)"></div>
-      <button class="btn mintB" onclick="addPhotoCard()">このカードを追加</button>
-      <span class="hint-note" id="pfMsg"></span>
-    </div>
   </div>
   <div class="card"><h2>🃏 暗記カードのデッキ追加</h2>
     <p class="hint-note" style="margin-bottom:8px">ここは「見た瞬間にヒントなしで答えが出るか」を確認するもの専用です。<b>漢字の読み書き・英単語/熟語・理科の用語・社会の用語(仕上げ確認)</b>だけを登録してください。文法ルールや計算の手順、文章読解は暗記カードには向かないので、紙のドリル→誤答の登録(ルール型・類題)の方で扱います。<br>
@@ -1323,7 +1300,7 @@ function save(){
     try{localStorage.setItem(KEY,JSON.stringify(S));
      alert(`⚠️ 容量をこえたため、カードに直接入っていた画像(${stripped}件)を切りはなして保存しました。\n画像を使いたい場合は、もう一度バックアップから復元してください。`);
      return;}catch(e2){}}
-   alert("⚠️ 保存できる容量をこえました。\n\n「データ管理」→「📊 何が容量を使っているか調べる」で内訳を確認してください。");
+   alert("⚠️ 保存できる容量をこえました。\n\n「データ管理」画面を開いて、使われていない画像を消すなど、容量を減らしてから再度お試しください。");
   }else{alert("保存に失敗しました:"+e.message);}
   throw e;}}
 function D(date){date=date||today();if(!S.daily[date])S.daily[date]={cards:0,green:0,rui:0,ruiPass:0,rev:0,revPass:0,ok:0,ng:0,blocks:{},off:false,maru:0};return S.daily[date];}
@@ -2211,56 +2188,6 @@ function shortDeckName(d,ctxSub,ctxUnit){
  return n||d.name;}
 function deckDoneCount(d){return d.cards.filter(c=>c.gs>=1).length;}
 function deckImgCount(d){return d.cards.filter(c=>c.img||c.imgBack).length;}
-/* ---------- カードの点検(途切れ・記号の閉じ忘れ) ---------- */
-function checkCards(){
- const bad=[];
- const trailing=/[、（(【]$/;
- S.decks.forEach((d,di)=>d.cards.forEach((c,ci)=>{
-  const q=String(c.q||"").trim(),a=String(c.a||"").trim();
-  const why=[];
-  if(trailing.test(q)||q.endsWith("…"))why.push("問題が途中で切れている");
-  if(trailing.test(a)||a.endsWith("…"))why.push("答えが途中で切れている");
-  if((q.match(/（/g)||[]).length!==(q.match(/）/g)||[]).length)why.push("問題のカッコが閉じていない");
-  if((a.match(/（/g)||[]).length!==(a.match(/）/g)||[]).length)why.push("答えのカッコが閉じていない");
-  if((q.match(/【/g)||[]).length!==(q.match(/】/g)||[]).length)why.push("問題の【】が閉じていない");
-  if((a.match(/【/g)||[]).length!==(a.match(/】/g)||[]).length)why.push("答えの【】が閉じていない");
-  if(!q)why.push("問題が空っぽ");
-  if(!a)why.push("答えが空っぽ");
-  if(why.length)bad.push({di,ci,c,deck:d,why});}));
- checkList=bad;checkPage=0;
- if(!bad.length){toast("✅ おかしなカードは見つかりませんでした");qs("#checkResult").innerHTML=`<div class="okline">✅ 2462枚ぜんぶ調べましたが、途中で切れているカードはありませんでした。</div>`;return;}
- renderCheck();}
-let checkList=[],checkPage=0;
-function renderCheck(){
- const per=10,total=Math.ceil(checkList.length/per);
- const start=checkPage*per,slice=checkList.slice(start,start+per);
- qs("#checkResult").innerHTML=`
-  <div class="warnline" style="margin-bottom:10px">⚠️ 直したほうがよさそうなカードが <b>${checkList.length}枚</b> 見つかりました(全${S.decks.reduce((a,d)=>a+d.cards.length,0)}枚中)。<br>
-   <span style="font-weight:500">末尾の「、」だけなど、軽いものも含みます。気になるものだけ直せば大丈夫です。</span></div>
-  <div class="checklist">${slice.map((b,n)=>`
-   <div class="checkcard">
-    <div class="cc-head"><b>${esc(b.deck.name.replace(/^[^｜]+｜/,""))}</b><span class="tag">${b.why.join(" / ")}</span></div>
-    <label class="cc-row"><span>問題</span><textarea id="ckq_${start+n}" rows="2">${esc(b.c.q)}</textarea></label>
-    <label class="cc-row"><span>答え</span><textarea id="cka_${start+n}" rows="2">${esc(b.c.a)}</textarea></label>
-    <div class="cc-acts">
-      <button class="mini mintB" onclick="saveCheck(${start+n})">✅ この内容で直す</button>
-      <button class="mini" onclick="fixTrailing(${start+n})">✂️ 末尾の「、」を消す</button>
-    </div>
-   </div>`).join("")}</div>
-  <div class="peeknav">
-   <button class="btn sub2" ${checkPage<=0?"disabled":""} onclick="checkPage--;renderCheck()">← まえ</button>
-   <span>${checkPage+1} / ${total}</span>
-   <button class="btn sub2" ${checkPage>=total-1?"disabled":""} onclick="checkPage++;renderCheck()">つぎ →</button>
-  </div>`;}
-function saveCheck(i){const b=checkList[i];if(!b)return;
- const q=qs("#ckq_"+i).value.trim(),a=qs("#cka_"+i).value.trim();
- if(!q||!a){toast("問題と答えは両方必要です");return;}
- b.c.q=q;b.c.a=a;save();toast("✅ 直しました");}
-function fixTrailing(i){const b=checkList[i];if(!b)return;
- const clean=s=>String(s||"").replace(/[、\s]+$/,"");
- qs("#ckq_"+i).value=clean(qs("#ckq_"+i).value);
- qs("#cka_"+i).value=clean(qs("#cka_"+i).value);
- saveCheck(i);}
 let peekIdxs=null,peekPage=0;
 function peekDeck(i){peekIdxs=[i];peekPage=0;renderPeek();}
 function closePeek(){peekIdxs=null;qs("#peekModal").classList.remove("open");}
@@ -3652,31 +3579,6 @@ async function cleanOrphanImages(){
 function newImgId(){return "idb:img_"+Date.now()+"_"+Math.random().toString(36).slice(2,9);}
 /** data:URLを新しいIDでIndexedDBに入れ、その参照IDを返す */
 async function idbPutNew(dataUrl){const id=newImgId();await idbPut(id,dataUrl);return id;}
-/** カードに直接埋まっている画像を、すべてIndexedDBへ移す(容量オーバーの修復用) */
-async function rescueEmbeddedImages(){
- let moved=0,found=0;
- for(const dk of S.decks){
-  for(const c of dk.cards){
-   if(c.img&&c.img.startsWith("data:")){found++;c.img=await idbPutNew(c.img);moved++;}
-   if(c.imgBack&&c.imgBack.startsWith("data:")){found++;c.imgBack=await idbPutNew(c.imgBack);moved++;}}}
- if(!found){toast("カードに直接入っている画像はありませんでした");return;}
- try{save();toast(`✅ 画像${moved}枚を専用の保存場所へ移しました`);renderData();}
- catch(e){alert("移動はできましたが保存に失敗しました。ページを再読み込みしてもう一度お試しください。");}}
-/** 重複して取り込まれたデッキを取り除く(同じ名前・同じ枚数のものを1つだけ残す) */
-async function dedupeDecks(){
- const seen=new Map();const dup=[];
- S.decks.forEach((d,i)=>{const key=d.sub+"|"+d.name+"|"+d.cards.length;
-  if(seen.has(key))dup.push(i);else seen.set(key,i);});
- if(!dup.length){toast("重複しているデッキはありませんでした");return;}
- if(!confirm(`同じ名前・同じ枚数のデッキが ${dup.length}件 重複しています。\n新しい方を削除して1つにまとめますか?`))return;
- // 後ろから削除(インデックスがずれないように)。紐づく画像も消す
- for(let k=dup.length-1;k>=0;k--){
-  const d=S.decks[dup[k]];
-  for(const c of d.cards){
-   if(c.img&&c.img.startsWith("idb:"))await idbDelete(c.img).catch(()=>{});
-   if(c.imgBack&&c.imgBack.startsWith("idb:"))await idbDelete(c.imgBack).catch(()=>{});}
-  S.decks.splice(dup[k],1);}
- save();renderData();toast(`✅ ${dup.length}件の重複デッキを削除しました`);}
 /** 教科・どこの問題か・問題文・正しい答え・結果がすべて同じで、かつ登録時刻(idに埋め込まれたタイムスタンプ)が
  * 近い(5分以内)記録を「同じ操作の重複」とみなし、一番古い1件だけ残す。連打で重複登録してしまった時の後片付け用。
  * (2026-08-31・一時的な後片付け機能。恒久的に残すかは実装後に相談) */
@@ -3739,42 +3641,6 @@ function compressImage(file,maxSide){
    img.src=r.result;};
   r.onerror=()=>reject(new Error("ファイルを読み込めませんでした"));
   r.readAsDataURL(file);});}
-let pfImgQFile=null,pfImgAFile=null;
-function pastePhoto(e,which){
- e.preventDefault();
- const items=(e.clipboardData||e.originalEvent&&e.originalEvent.clipboardData)?.items;
- if(!items)return;
- for(const item of items){
-  if(item.type&&item.type.indexOf("image")===0){
-   const f=item.getAsFile();
-   if(which==="q"){pfImgQFile=f;qs("#pf_imgQ_prev").textContent="📋 貼り付けた画像あり";}
-   else{pfImgAFile=f;qs("#pf_imgA_prev").textContent="📋 貼り付けた画像あり";}
-   e.target.textContent="✅ 貼り付け済み";
-   break;}}}
-async function addPhotoCard(){
- const sub=qs("#pf_sub").value,deckName=qs("#pf_deck").value.trim();
- const q=qs("#pf_q").value.trim(),a=qs("#pf_a").value.trim(),exp=qs("#pf_exp").value.trim();
- const fQ=pfImgQFile||qs("#pf_imgQ").files[0],fA=pfImgAFile||qs("#pf_imgA").files[0];
- const msg=qs("#pfMsg");
- if(!deckName){msg.textContent="デッキ名を入れてください";return;}
- if(!q||!a){msg.textContent="問題文と答えは両方入れてください";return;}
- msg.textContent="保存中…";
- try{
-  const imgRaw=fQ?await compressImage(fQ):null;
-  const imgBackRaw=fA?await compressImage(fA):null;
-  const img=await storeImage(imgRaw);
-  const imgBack=await storeImage(imgBackRaw);
-  let deck=S.decks.find(d=>d.name===deckName&&d.sub===sub);
-  if(!deck){deck={id:"d"+Date.now(),name:deckName,sub,cards:[]};S.decks.push(deck);}
-  deck.cards.push({q,a,exp,lv:0,last:null,gs:0,img,imgBack});
-  save();
-  qs("#pf_q").value="";qs("#pf_a").value="";qs("#pf_exp").value="";qs("#pf_imgQ").value="";qs("#pf_imgA").value="";
-  pfImgQFile=null;pfImgAFile=null;
-  qs("#pf_imgQ_prev").textContent="";qs("#pf_imgA_prev").textContent="";
-  const pq=qs("#pf_pasteQ"),pa=qs("#pf_pasteA");if(pq)pq.textContent="📋 ここに貼り付け(Ctrl+V)";if(pa)pa.textContent="📋 ここに貼り付け(Ctrl+V)";
-  msg.textContent="✅ 追加しました。続けて次のカードを入力できます。";
-  renderData();
- }catch(e){msg.textContent="失敗:"+e.message;}}
 
 /* ---------- データ管理 ---------- */
 async function exportData(){
@@ -3824,7 +3690,7 @@ function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReade
   let saveOk=true;
   try{save();}catch(e){saveOk=false;}
   if(!saveOk){
-   alert("⚠️ 復元しましたが、この端末に保存できませんでした。\n\n画面には出ていますが、再読み込みすると消えてしまいます。\n「📊 何が容量を使っているか調べる」で原因を確認してください。");
+   alert("⚠️ 復元しましたが、この端末に保存できませんでした。\n\n画面には出ていますが、再読み込みすると消えてしまいます。\nこのあと「データ管理」画面で原因を自動で確認します。");
    go("sData",qs('[data-s="sData"]'));diagnoseStorage();return;}
   let msg=[];
   if(moved)msg.push(`画像${moved}枚を専用の保存場所へ移しました`);
@@ -4001,8 +3867,6 @@ async function attachCardImageFile(di,ci,side,f){
   save();renderData();toast("✅ 写真を追加しました");
  }catch(e){alert("失敗しました:"+e.message);}}
 function renderData(){
- const pfSub=qs("#pf_sub");
- if(pfSub&&!pfSub.children.length)pfSub.innerHTML=SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
  renderPendingPhotoList();
  idbAll().then(imgs=>{const el=qs("#storageUsage");if(!el)return;
   const n=Object.keys(imgs).length;
