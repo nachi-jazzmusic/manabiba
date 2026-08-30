@@ -1677,7 +1677,7 @@ function pickSubjectsForToday(){
   // タグ(誤答の傾向)と一致すると分かっているルールだけを使う。無ければ類題は出さない(紙のドリルのみ、過去に作った
   // ruleId未設定のプランも同様にフォールバックする)。
   const rule=plan.ruleId?(S.rules.find(r=>r.id===plan.ruleId&&r.gen&&r.status!=="mastered")||null):null;
-  out.push({kind:"plan",sub:plan.sub,label:`${nm}:${plan.tag}`,why:"📋 対策プラン",rule,planId:plan.id});
+  out.push({kind:"plan",sub:plan.sub,label:`${nm}:${plan.tag}`,why:"📋 対策プラン",rule,planId:plan.id,wheres:plan.wheres});
   usedSub[plan.sub]=1;}
  /** 候補リストから、最近やっていないものを優先して詰める */
  const fill=(cands0,opt)=>{
@@ -1723,13 +1723,19 @@ function stepFlowHtml(pk,key){
  const r=pk.rule;
  const rng=pk.page?unitRangeOf(pk.sub,pk.page):(r?unitRangeByCh(pk.sub,r.ch):null);
  const textbookHtml=rng?`<div class="pdrill" style="background:var(--mint-soft);border-color:var(--mint)">📘 教科書 p.${rng[0]}〜${rng[1]}「${esc(rng[2])}」</div>`:"";
+ const drillHtml=pdrillHtml(pk.sub,(r?r.name:"")||pk.unit||(pk.kind==="plan"?pk.label:"")||"");
+ // 対策プランでルールが特定できず(タグ由来のため)、教科書・ドリルの自動案内も見つからないときは、
+ // 誤答登録時に記録した「どこの問題か」をそのまま表示する。教材・ページが必ず何かしら分かるようにするため。
+ const whereHtml=(!textbookHtml&&!drillHtml&&pk.wheres&&pk.wheres.length)
+  ?`<div class="pdrill">📌 ${pk.wheres.map(w=>esc(w)).join(" / ")}</div>`:"";
  // 何をやるか(教材名・ページ範囲・該当すれば類題への案内)だけを表示するシンプル版(2026-08-30)。
  // 担当者タグ・所要時間・説明文・「誤答の登録をひらく」「ポメに聞く」等のリンクボタンは表示しない。
  // (動画・やさまるの参照ページは、ポメに聞いたときにctxSummary()経由で答えられるようにしたため、ここには出さない)
  return `
  <div class="stepflow">
   ${textbookHtml}
-  ${pdrillHtml(pk.sub,(r?r.name:"")||pk.unit||(pk.kind==="plan"?pk.label:"")||"")}
+  ${drillHtml}
+  ${whereHtml}
   ${r&&r.gen?A("✏️","類題3問連続にちょうせん",r.status==="passed"?"○ずみ":"",`startRule('${r.id}')`)
    :(r||pk.kind==="plan")?`<div class="hint-note">この単元は類題を作れないタイプです。紙のドリルで仕上げてください。</div>`
    :A("📱","類題チャレンジ","","go('sChal',document.querySelector('[data-s=sChal]'))")}
