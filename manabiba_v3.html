@@ -789,6 +789,13 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <div id="paperToday" style="margin-top:12px"></div>
     <div id="paperTrend" style="margin-top:12px"></div>
   </div>
+  <div class="card" style="background:var(--blue-soft);border-color:#CCDEF0">
+    <h2>📱 スマホでの会話結果を貼り付けて一括登録</h2>
+    <p class="hint-note" style="margin-bottom:8px;color:var(--ink)">スマホのClaudeアプリで誤答について会話し、最後に出力されたJSON(配列)をそのまま貼り付けます。教科・どこの問題か・問題文・正しい答え・結果・ひとこと、それぞれの項目から自動でタグ判定・ルール推測をして登録します。</p>
+    <textarea id="pwImportText" rows="6" style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:10px;font-family:monospace;font-size:12.5px;resize:vertical" placeholder='[{"sub":"math","where":"パターンドリル数学1年 p.27 (3)","q":"-3²を計算しなさい","a":"-9","result":"yellow","note":"符号を書き忘れた"}]'></textarea>
+    <button class="btn mintB" style="margin-top:8px" onclick="importPaperJSON()">取り込む</button>
+    <div id="pwImportMsg" class="hint-note" style="margin-top:8px"></div>
+  </div>
   <p class="sub">下は今は使っていない旧機能の名残りです。今は紙のドリル・学校のワークが中心なので、上のフォームだけ使えばOKです。</p>
   <div class="card" style="background:var(--blue-soft);border-color:#CCDEF0">
     <h2>📥 アプリの旧ワーク機能で見つかった×(使っていなければ空のままでOK)</h2>
@@ -1846,15 +1853,11 @@ function pickExistingTag(t){
  pwTag2=t;const used=allUsedTags();
  qs("#pw_tagArea").innerHTML=`<button class="tagchip on">${esc(t)}<span class="usedtag">${(used.get(t)||0)+1}回目</span></button>
   <div class="hint-note" style="margin-top:4px">同じ間違いとして記録します。<button class="mini" onclick="renderPwTagDefault()">✕ 選び直す</button></div>`;}
-async function guessPwTag(note){
- const area=qs("#pw_tagArea");
- area.innerHTML=`<div class="hint-note" style="margin:0">🤖 判定中…</div>`;
- const used=allUsedTags();
- const existing=[...used.keys()];
- const q=qs("#pw_q").value.trim(),a=qs("#pw_a").value.trim(),sub=qs("#pw_sub").value;
- const subName=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
- try{
-  const sys=`あなたは中学生の学習記録を分類するアシスタントです。
+/** 「なぜ間違えたか」をAIに分類してもらう共通処理(DOM非依存)。手入力の自動判定・スマホ会話の一括取り込みの両方から呼ぶ。
+ * 戻り値:{tag,label,desc}。失敗時は例外を投げる(呼び出し側で処理する)。 */
+async function classifyMistakeTag(subName,q,a,note){
+ const existing=[...allUsedTags().keys()];
+ const sys=`あなたは中学生の学習記録を分類するアシスタントです。
 「なぜ間違えたか」の一言メモを読んで、間違いの原因を表すタグを1つ決めてください。
 
 ルール:
@@ -1863,11 +1866,19 @@ async function guessPwTag(note){
 - 新しいタグは「○○ミス」のように7〜12文字程度で、単元名は含めず、間違いの"型"だけを表す言葉にする(例:「符号ミス」「aの付け忘れ」「単位のつけ忘れ」)。
 - 出力は次のJSON形式だけ。説明や前置きは書かない。
 {"tag":"タグ名","label":"子どもに見せる短い言い方(12字以内)","desc":"補足説明(20字以内)"}`;
-  const msg=`【すでに使われているタグ】\n${existing.length?existing.join("、"):"(まだ何もありません)"}\n\n【今回の記録】\n教科:${subName}\n問題:${q||"(なし)"}\n正しい答え:${a||"(なし)"}\nひとこと:${note}`;
-  const out=await callClaude(sys,[{role:"user",content:msg}]);
-  const jsonMatch=out.match(/\{[\s\S]*\}/);
-  if(!jsonMatch)throw new Error("判定結果を読み取れませんでした");
-  const j=JSON.parse(jsonMatch[0]);
+ const msg=`【すでに使われているタグ】\n${existing.length?existing.join("、"):"(まだ何もありません)"}\n\n【今回の記録】\n教科:${subName}\n問題:${q||"(なし)"}\n正しい答え:${a||"(なし)"}\nひとこと:${note}`;
+ const out=await callClaude(sys,[{role:"user",content:msg}]);
+ const jsonMatch=out.match(/\{[\s\S]*\}/);
+ if(!jsonMatch)throw new Error("判定結果を読み取れませんでした");
+ return JSON.parse(jsonMatch[0]);}
+async function guessPwTag(note){
+ const area=qs("#pw_tagArea");
+ area.innerHTML=`<div class="hint-note" style="margin:0">🤖 判定中…</div>`;
+ const q=qs("#pw_q").value.trim(),a=qs("#pw_a").value.trim(),sub=qs("#pw_sub").value;
+ const subName=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
+ try{
+  const j=await classifyMistakeTag(subName,q,a,note);
+  const used=allUsedTags();
   pwTag2=j.tag;
   const isNew=!used.has(j.tag);
   area.innerHTML=`<button class="tagchip on">${esc(j.label||j.tag)}${isNew?`<span class="newtag">はじめてのタグ</span>`:`<span class="usedtag">${used.get(j.tag)}回目</span>`}</button>
@@ -1902,6 +1913,23 @@ function addQuickGreen(){
  msg.textContent=`✅ ${n}問を一発正解として登録しました。`;
  checkMedalUpgrade(sub);save();
  renderPaperTrend();renderPaperToday();}
+/** paperLogに1件登録する共通処理(手入力・スマホ会話の一括取り込みの両方から呼ぶ)。
+ * entryを作ってS.paperLogに積み、必要なら7日後の復習(reviewQ)も登録する。保存(save())は呼び出し側で行う。 */
+function commitPaperEntry({sub,where,q,a,result,tag,note,img}){
+ const ruleId=guessRule({text:q,ans:a,label:where},"")||"";
+ if(!S.paperLog)S.paperLog=[];
+ const entry={
+  id:"pw"+Date.now()+"_"+Math.random().toString(36).slice(2,6),date:today(),sub,where,q,a,ruleId,
+  result,tag:tag||"",note:note||"",img:img||null,
+  checkCount:0, // 7日後の復習に正解した回数(0=銅スタート、1=銀、2以上=金)
+  nextDate:(result==="green")?null:addDays(today(),7)
+ };
+ S.paperLog.push(entry);
+ // 🔴(まだ理解できていない)以外は、理解の第一歩=銅として、7日後の復習サイクルを始める
+ if(result==="orange"||result==="yellow"||result==="gray"){
+  S.reviewQ.push({id:"rvp"+Date.now()+"_"+Math.random().toString(36).slice(2,6),ruleId,kind:"paper",q:q||where,sub,ans:a,pkind:"paper",
+   due:addDays(today(),7),status:"due",src:"紙のドリル("+where+")",where,paperLogId:entry.id});}
+ return entry;}
 async function addPaperWrong(){
  const sub=qs("#pw_sub").value,where=qs("#pw_where").value.trim();
  const q=qs("#pw_q").value.trim(),a=qs("#pw_a").value.trim();
@@ -1915,34 +1943,74 @@ async function addPaperWrong(){
   const f=qs("#pw_img").files[0];
   let img=null;
   if(f){const raw=await compressImage(f);img=await storeImage(raw);}
-  const ruleId=guessRule({text:q,ans:a,label:where},"")||"";
-  if(!S.paperLog)S.paperLog=[];
-  const entry={
-   id:"pw"+Date.now(),date:today(),sub,where,q,a,ruleId,
-   result:pwResult,tag:pwTag2||"",note,img,
-   checkCount:0, // 7日後の復習に正解した回数(0=銅スタート、1=銀、2以上=金)
-   nextDate: (pwResult==="green")?null:addDays(today(),7)
-  };
-  S.paperLog.push(entry);
+  const result=pwResult;
+  const entry=commitPaperEntry({sub,where,q,a,result,tag:pwTag2,note,img});
   save();
-  // 🔴(まだ理解できていない)以外は、理解の第一歩=銅として、7日後の復習サイクルを始める
-  if(pwResult==="orange"||pwResult==="yellow"||pwResult==="gray"){
-   S.reviewQ.push({id:"rvp"+Date.now(),ruleId,kind:"paper",q:q||where,sub,ans:a,pkind:"paper",
-    due:addDays(today(),7),status:"due",src:"紙のドリル("+where+")",where,paperLogId:entry.id});
-   save();}
   qs("#pw_where").value="";qs("#pw_q").value="";qs("#pw_a").value="";qs("#pw_note").value="";qs("#pw_img").value="";
   pwResult=null;pwTag2=null;
   qsa("#pw_result button").forEach(b=>b.classList.remove("on"));
   renderPwTagDefault();
   checkMedalUpgrade(sub);save();
-  const rule=ruleId?S.rules.find(x=>x.id===ruleId):null;
+  const rule=entry.ruleId?S.rules.find(x=>x.id===entry.ruleId):null;
   msg.innerHTML=`✅ 登録しました。つづけて次のまちがいを入れられます。`
-   +(pwResult==="green"?`<br><span class="tag mintT" style="margin-top:6px;display:inline-block">🥇 一発正解、金メダルです!</span>`
-    :(pwResult==="orange"||pwResult==="yellow"||pwResult==="gray")?`<br><span class="tag" style="margin-top:6px;display:inline-block">🥉 銅からスタート。7日後にもう一度確認します。</span>`:"")
+   +(result==="green"?`<br><span class="tag mintT" style="margin-top:6px;display:inline-block">🥇 一発正解、金メダルです!</span>`
+    :(result==="orange"||result==="yellow"||result==="gray")?`<br><span class="tag" style="margin-top:6px;display:inline-block">🥉 銅からスタート。7日後にもう一度確認します。</span>`:"")
    +(rule&&rule.gen?`<br><button class="mini mintB" onclick="go('sChal',document.querySelector('[data-s=sChal]'));startRule('${rule.id}')" style="margin-top:6px">✏️ いま「${esc(rule.name)}」の類題をやる</button>`:"");
   renderPaperTrend();
   renderPaperToday();
  }catch(e){msg.textContent="失敗:"+e.message;}}
+/** スマホでの会話結果(JSON配列)を貼り付けて一括登録する。
+ * 1件ずつ検証し、不正な項目はスキップして理由を表示、有効な項目だけ登録する(全滅させない)。
+ * ルール推測(guessRule)・タグ判定(classifyMistakeTag)は、手入力の1件登録と同じ処理を使う。 */
+async function importPaperJSON(){
+ const ta=qs("#pwImportText");
+ const raw=ta.value.trim();
+ const msg=qs("#pwImportMsg");
+ if(!raw){msg.innerHTML=`<span class="warnline">⚠️ 貼り付ける内容がありません</span>`;return;}
+ let arr;
+ try{arr=JSON.parse(raw);}
+ catch(e){msg.innerHTML=`<span class="warnline">⚠️ JSONの形式が正しくありません(${esc(e.message)})</span>`;return;}
+ if(!Array.isArray(arr)){msg.innerHTML=`<span class="warnline">⚠️ 配列([...])の形式で貼り付けてください</span>`;return;}
+ if(!arr.length){msg.innerHTML=`<span class="warnline">⚠️ 中身が空です</span>`;return;}
+ const VALID_RESULTS=["green","yellow","orange","gray","red"];
+ const VALID_SUBS=SUBJECTS.map(s=>s.id);
+ const errors=[];
+ const valid=[];
+ arr.forEach((x,i)=>{
+  const n=i+1;
+  if(!x||typeof x!=="object"){errors.push(`${n}件目: 1件がオブジェクトの形式になっていません`);return;}
+  const where=(x.where??"").toString().trim();
+  const a=(x.a??"").toString().trim();
+  const q=(x.q??"").toString().trim();
+  const note=(x.note??"").toString().trim();
+  const label=q?`(問題:${q.slice(0,20)})`:(where?`(${where})`:"");
+  if(!where){errors.push(`${n}件目${label}: 「どこの問題か」がありません`);return;}
+  if(!a){errors.push(`${n}件目${label}: 「正しい答え」がありません`);return;}
+  if(!VALID_RESULTS.includes(x.result)){errors.push(`${n}件目${label}: resultの値が不正です(${esc(String(x.result))})。green/yellow/orange/gray/redのいずれかにしてください`);return;}
+  const sub=VALID_SUBS.includes(x.sub)?x.sub:"other";
+  valid.push({sub,where,q,a,result:x.result,note});});
+ if(!valid.length){
+  msg.innerHTML=`<span class="warnline">⚠️ 登録できる項目がありませんでした。</span><br>${errors.map(e=>esc(e)).join("<br>")}`;
+  return;}
+ msg.innerHTML=`🤖 取り込み中…(${valid.length}件)`;
+ let okCount=0;
+ for(const item of valid){
+  try{
+   const subName=(SUBJECTS.find(s=>s.id===item.sub)||{}).name||item.sub;
+   let tag="";
+   if(item.note){
+    try{const j=await classifyMistakeTag(subName,item.q,item.a,item.note);tag=j.tag||"";}
+    catch(e){errors.push(`(${item.where}): タグの自動判定に失敗しましたが、記録は登録しました(${e.message})`);}
+   }
+   commitPaperEntry({sub:item.sub,where:item.where,q:item.q,a:item.a,result:item.result,tag,note:item.note,img:null});
+   checkMedalUpgrade(item.sub);
+   okCount++;
+  }catch(e){errors.push(`(${item.where}): 登録に失敗しました(${e.message})`);}}
+ save();
+ renderPaperTrend();renderPaperToday();
+ ta.value="";
+ msg.innerHTML=`✅ ${okCount}件登録しました。`
+  +(errors.length?`<br><span class="warnline">⚠️ ${arr.length-okCount}件はスキップ/一部失敗しました:</span><br>${errors.map(e=>esc(e)).join("<br>")}`:"");}
 /** 誤答の登録画面に来たら、紙のフォームにフォーカスする */
 function focusPaperForm(){setTimeout(()=>{const e=qs("#pw_where");if(e)e.focus();},80);renderPaperToday();}
 /** 今日登録した紙の記録を一覧し、③の解き直し後に結果を選び直せるようにする */
