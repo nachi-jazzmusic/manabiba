@@ -1601,7 +1601,7 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
   }else picks.forEach((pk,i)=>{
    const slot=i===0?"20:00〜20:40":"20:50〜21:30";
    const key="main"+i;
-   h+=`<div class="tblock ${blockDone(key)?"done":""}"><div class="who"><span class="tag blueT">お母さんと/ひとりで</span></div><div class="when">${slot}(40分)</div>
+   h+=`<div class="tblock ${blockDone(key)?"done":""}"><div class="when">${slot}(40分)</div>
     <div class="what">${esc(pk.label)}${pk.why?`<span class="tag" style="margin-left:6px">${esc(pk.why)}</span>`:""}
      ${pk.rule?`<button class="mini" style="margin-left:8px" onclick="swapPick('${pk.rule.id}')">🔄 ほかのにする</button>`:""}</div>`;
    h+=stepFlowHtml(pk,key);
@@ -1721,43 +1721,18 @@ function pickSubjectsForToday(){
 /** 1教科40分の5ステップ */
 function stepFlowHtml(pk,key){
  const r=pk.rule;
- let decks=[],narrowed=false;
- if(r){const res=decksForRule(r);decks=res.decks;narrowed=res.narrowed;}
- else if(pk.sub){decks=S.decks.filter(d=>d.sub===pk.sub);}
- const vidBtn=r&&r.vid?`<button class="act applink" onclick="window.open('${plURL(r.sub,r.vid)}','_blank')">🎥 やさまる 動画L${r.vid}<span class="jump">YouTube →</span></button>${r.ysp?`<div class="hint-note" style="margin:2px 0 0 26px">📖 ${esc(r.ysp)}</div>`:""}`
-   :(VIDEO_PL[pk.sub]?`<button class="act applink" onclick="window.open('${plURL(pk.sub)}','_blank')">🎥 やさまる動画を見る<span class="jump">YouTube →</span></button>`:"");
  const rng=pk.page?unitRangeOf(pk.sub,pk.page):(r?unitRangeByCh(pk.sub,r.ch):null);
- const textbookHtml=rng?`<div class="pdrill" style="background:var(--mint-soft);border-color:var(--mint)">📘 <b>教科書 p.${rng[0]}〜${rng[1]}「${esc(rng[2])}」</b>を読んで、中に出てくる問題をやる</div>`:"";
+ const textbookHtml=rng?`<div class="pdrill" style="background:var(--mint-soft);border-color:var(--mint)">📘 教科書 p.${rng[0]}〜${rng[1]}「${esc(rng[2])}」</div>`:"";
+ // 何をやるか(教材名・ページ範囲・該当すれば類題への案内)だけを表示するシンプル版(2026-08-30)。
+ // 担当者タグ・所要時間・説明文・「誤答の登録をひらく」「ポメに聞く」等のリンクボタンは表示しない。
+ // (動画・やさまるの参照ページは、ポメに聞いたときにctxSummary()経由で答えられるようにしたため、ここには出さない)
  return `
  <div class="stepflow">
-  <div class="sf-row"><span class="sf-no">①</span><div class="sf-body">
-    <b>紙のドリルを、まずひとりで最後まで解く</b><span class="tag mintT">ひとりで</span><span class="sf-min">1ページ15分めやす</span>
-    ${textbookHtml}
-    ${pdrillHtml(pk.sub,(r?r.name:"")||pk.unit||(pk.kind==="plan"?pk.label:"")||"")}
-    <div class="hint-note">わからない問題があっても<b>止まらず、印だけつけて先に進む</b>のがコツです。</div>
-  </div></div>
-  <div class="sf-row"><span class="sf-no">②</span><div class="sf-body">
-    <b>お母さんが丸つけして、まちがいを登録する</b><span class="tag blueT">お母さんと</span><span class="sf-min">5〜10分</span>
-    <div class="hint-note">まちがえた問題を「誤答の登録」に記録します。まだ結果を聞かず、まず記録だけでOKです。
-     <button class="mini" onclick="go('sWrong',document.querySelector('[data-s=sWrong]'));focusPaperForm()">📌 誤答の登録をひらく</button></div>
-  </div></div>
-  <div class="sf-row"><span class="sf-no">③</span><div class="sf-body">
-    <b>まちがえた問題だけ、もう一度ひとりで解き直す</b><span class="tag mintT">ひとりで</span><span class="sf-min">5〜10分</span>
-    <div class="hint-note">ここで解けたら「うっかりミス」、解けなければ「わからなかった」に変わります。②の記録を選び直してください。わからなければ↓</div>
-    ${vidBtn}
-  </div></div>
-  <div class="sf-row"><span class="sf-no">④</span><div class="sf-body">
-    <b>それでもできないところを、お母さんに説明する</b><span class="tag blueT">お母さんと</span><span class="sf-min">5分</span>
-    <div class="hint-note">説明できれば「教われば分かる」、できなければ「わからなかった」のままでOK。
-     ${A("🐶","うまく説明できないときはポメに聞く","","go('sPome',document.querySelector('[data-s=sPome]'))")}</div>
-  </div></div>
-  <div class="sf-row"><span class="sf-no">⑤</span><div class="sf-body">
-    <b>類題でしあげ(任意)</b><span class="tag mintT">ひとりで</span><span class="sf-min">5分</span>
-    <div class="hint-note" style="margin:0 0 6px">時間が余ったときだけでOK。誤答の登録画面からも同じ型の類題を出せます。</div>
-    ${r&&r.gen?A("✏️","類題3問連続にちょうせん",r.status==="passed"?"○ずみ":"",`startRule('${r.id}')`)
-     :(r||pk.kind==="plan")?`<div class="hint-note">この単元は類題を作れないタイプです。②③④の紙のドリルで仕上げてください。</div>`
-     :A("📱","類題チャレンジ","","go('sChal',document.querySelector('[data-s=sChal]'))")}
-  </div></div>
+  ${textbookHtml}
+  ${pdrillHtml(pk.sub,(r?r.name:"")||pk.unit||(pk.kind==="plan"?pk.label:"")||"")}
+  ${r&&r.gen?A("✏️","類題3問連続にちょうせん",r.status==="passed"?"○ずみ":"",`startRule('${r.id}')`)
+   :(r||pk.kind==="plan")?`<div class="hint-note">この単元は類題を作れないタイプです。紙のドリルで仕上げてください。</div>`
+   :A("📱","類題チャレンジ","","go('sChal',document.querySelector('[data-s=sChal]'))")}
  </div>`;}
 /** 教科を指定して暗記カード一覧を開く */
 /** 暗記もの(漢字・英単語)のデッキかどうかを名前から判定する */
@@ -3080,6 +3055,7 @@ const POME_SYS=`あなたは「ポメ」。中学1年生・香凜(かりん)さ�
 - 問題の答え(数値/正しい選択肢/正しい訳/模範解答)を直接言わない
 - 常に問いの形で返す。ただし「わかった?」のようなyes/noで終わる問いは禁止
 - 1ターン2〜3文まで。長い解説を一度に返さない
+- 例外:「動画どこ?」「やさまるの何ページ?」のように参照資料の場所を聞かれたときは、答えではないので【今の状況】に含まれるページ番号・動画番号をそのまま直接教えてよい(問い返す必要はない)
 
 # 診断と問いの生成(手順ではなく方針)
 まず、この誤答が「どこで」発生したかを自分で判断すること。決めつけて質問を作らない。1問目は状況を切り分ける問いにする。
@@ -3126,7 +3102,10 @@ const PPOME_SYS=`あなたは「親ポメ」。中学1年生・香凜さんの�
 - 一覧にないIDや、自分で考えた新しいIDは絶対に使わない。迷ったら none にする。
 - この行の前に、本文と紛らわしい同じ書式([[のような記号)を使わない`;
 function ctxSummary(){
- const debts=S.rules.filter(r=>r.status!=="mastered").sort((a,b)=>a.pr-b.pr).slice(0,5).map(r=>r.name);
+ // 参照資料(やさまるのページ・動画番号)も添えておく。今日のメニューからは表示を消したので、
+ // 香凜さんが「動画どこ?」「やさまるのどこ?」と聞いたときに、ここから答えられるようにするため。
+ const debts=S.rules.filter(r=>r.status!=="mastered").sort((a,b)=>a.pr-b.pr).slice(0,5)
+  .map(r=>r.name+(r.ysp?`(📖${r.ysp})`:"")+(r.vid?`(🎥動画L${r.vid})`:""));
  const recentTags={};S.rules.forEach(r=>r.tagHist.filter(t=>daysBetween(t.date,today())<=14).forEach(t=>recentTags[t.tag]=(recentTags[t.tag]||0)+1));
  const wq=S.wrongQ.filter(w=>daysBetween(w.date,today())<=3).slice(-5).map(w=>`${w.setName} ${w.label}:答えた「${w.input}」正解「${w.ans}」`);
  const mastered=S.rules.filter(r=>r.status==="mastered").map(r=>r.name);
