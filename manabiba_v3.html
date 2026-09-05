@@ -1695,7 +1695,7 @@ function pickSubjectsForToday(){
   // タグ(誤答の傾向)と一致すると分かっているルールだけを使う。無ければ類題は出さない(紙のドリルのみ、過去に作った
   // ruleId未設定のプランも同様にフォールバックする)。
   const rule=plan.ruleId?(S.rules.find(r=>r.id===plan.ruleId&&r.gen&&r.status!=="mastered")||null):null;
-  out.push({kind:"plan",sub:plan.sub,label:`${nm}:${plan.tag}`,why:"📋 対策プラン",rule,planId:plan.id,wheres:plan.wheres});
+  out.push({kind:"plan",sub:plan.sub,label:`${nm}:${plan.tag}`,why:"📋 対策プラン",rule,planId:plan.id,wheres:plan.wheres,tag:plan.tag});
   usedSub[plan.sub]=1;}
  /** 候補リストから、最近やっていないものを優先して詰める */
  const fill=(cands0,opt)=>{
@@ -1757,7 +1757,24 @@ function stepFlowHtml(pk,key){
   ${r&&r.gen?A("✏️","類題3問連続にちょうせん",r.status==="passed"?"○ずみ":"",`startRule('${r.id}')`)
    :(r||pk.kind==="plan")?`<div class="hint-note">この単元は類題を作れないタイプです。紙のドリルで仕上げてください。</div>`
    :A("📱","類題チャレンジ","","go('sChal',document.querySelector('[data-s=sChal]'))")}
+  ${pk.kind==="plan"?`<div style="margin-top:8px">
+    <button class="mini mintB" onclick="resolvePlanItem('${pk.planId}')">✅ もう間違えなくなった</button>
+    <div class="hint-note" style="margin:4px 0 0">本当に完璧に解けるようになった時だけ押してください</div>
+   </div>`:""}
  </div>`;}
+/** 対策プラン項目を、フル入力フォームを使わずワンクリックで解消済みにする(一発正解の記録を1件、
+ * 最小限の情報でS.paperLogに追加する)。既存のisTagResolved()の仕組みと同じ判定基準に乗るが、
+ * 日付が同じ記録の並び順に依存しないよう、item.doneも直接trueにして確実に「済み」表示にする。 */
+function resolvePlanItem(planId){
+ if(!S.plan||!S.plan.items)return;
+ const item=S.plan.items.find(x=>x.id===planId);
+ if(!item)return;
+ commitPaperEntry({sub:item.sub,where:"対策プランから解決登録",q:"",a:"",result:"green",tag:item.tag,note:"",img:null});
+ item.done=true;
+ checkMedalUpgrade(item.sub);
+ save();
+ toast(`✅ 「${item.tag}」を解消済みにしました`);
+ renderMenu();}
 /** 教科を指定して暗記カード一覧を開く */
 /** 暗記もの(漢字・英単語)のデッキかどうかを名前から判定する */
 const MEMO_PATTERNS={
