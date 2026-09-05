@@ -1007,6 +1007,16 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
+<div class="pad-modal" id="unitPickModal" onclick="if(event.target===this)closeUnitPick()">
+  <div class="pad-card" style="max-width:480px;max-height:80vh;overflow-y:auto">
+    <button class="q-x" style="position:absolute;top:12px;right:12px" onclick="closeUnitPick()" title="とじる">✕</button>
+    <h3 id="unitPickTitle">📖 やった単元を選ぶ</h3>
+    <div class="hint-note" style="margin:0 0 10px">動画やドリルを見て「これをやった」と思うものを選ぶと、そのページまで入力します。ちがったらあとで数字を直せます。</div>
+    <div id="unitPickList" style="display:flex;flex-direction:column;gap:6px"></div>
+    <div id="unitPickVideo" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <div class="note-ver">まなびば v3.0 <span style="opacity:.7">(2026-08-09d)</span></div>
 <div class="toast" id="toast"></div>
 <script>
@@ -1067,6 +1077,25 @@ function unitRangeOf(sub,page){const arr=UNITMAP[sub]||[];for(const t of arr){if
 function unitRangeByCh(sub,ch){const arr=UNITMAP[sub]||[];for(const t of arr){if(chapterMatch(t[2],ch))return t;}return null;}
 const VIDEO_PL={math:"PLFK0gaZkmkxDq3-cAJBxe7Ge34zJ9NUua",jpn:"PLFK0gaZkmkxDcnKaalvYir2VsDGppDKay",sci:"PLFK0gaZkmkxCrDIFpKFBffqSc1FNJKHfU",geo:"PLFK0gaZkmkxDUTdenfcbLyrCCLEb_LMNF",his:"PLFK0gaZkmkxDUTdenfcbLyrCCLEb_LMNF",eng:"PLFK0gaZkmkxAIITBM7L55gD63XKy5q_-0"};
 const plURL=(sub,idx)=>"https://www.youtube.com/playlist?list="+VIDEO_PL[sub]+(idx?("&index="+idx):"");
+/** 「今日の入力」で、教科書を忘れて今日のページが分からない時の補助。UNITMAP(教科書の単元目次)を
+ * 単元名つきで一覧表示し、選ぶとその単元の終了ページを入力欄にそのまま入れる(既存の手入力は残したまま)。 */
+function openUnitPicker(sub){
+ const subName=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
+ qs("#unitPickTitle").textContent=`📖 ${subName}:やった単元を選ぶ`;
+ const units=UNITMAP[sub]||[];
+ qs("#unitPickList").innerHTML=units.length?units.map(([a,b,name])=>
+   `<button class="rule-chip sub2" onclick="pickUnitPage('${sub}',${b})">${esc(name)}<span class="st">p.${a}〜${b}</span></button>`).join("")
+  :`<div class="hint-note" style="margin:0">この教科の単元データがまだありません</div>`;
+ qs("#unitPickVideo").innerHTML=VIDEO_PL[sub]
+  ?`<button class="mini" onclick="window.open('${plURL(sub)}','_blank')">🎥 ${esc(subName)}のやさまる動画一覧を見る</button>`:"";
+ qs("#unitPickModal").classList.add("open");}
+function pickUnitPage(sub,page){
+ S.input.entries[sub]={page};
+ save();
+ qs("#unitPickModal").classList.remove("open");
+ renderInput();
+ toast("ページを入力しました。ちがったら数字を直してね");}
+function closeUnitPick(){qs("#unitPickModal").classList.remove("open");}
 
 /* ---------- ルールキー初期マスタ(あぶり出し結果より) ---------- */
 const TAGS=["型を知らない","型を選べない","符号ミス","かっこの展開ミス","書き方を省略","計算ミス","代入ミス","再現性不足"];
@@ -1387,7 +1416,8 @@ function renderInput(){ensureToday();renderAva();
    <span class="subj-off-hint">タップすると入力できます</span>
    <div class="subj-body"><span class="prev">前回 p.${last} →</span>
    <input class="pageinput" value="${on?e.page:""}" placeholder="?" inputmode="numeric">
-   <span class="prev">ページまで</span><span class="unitname"></span></div>`;
+   <span class="prev">ページまで</span><span class="unitname"></span>
+   <button class="mini" onclick="openUnitPicker('${s.id}')">❓わからない時はこちら</button></div>`;
   const inp=row.querySelector(".pageinput"),un=row.querySelector(".unitname");
   const upd=()=>{const p=parseInt(inp.value);if(p){S.input.entries[s.id]={page:p};un.textContent="→ "+unitOf(s.id,p);}else{delete S.input.entries[s.id];un.textContent="";}save();};
   row.querySelector(".subj-name").onclick=()=>{if(row.classList.contains("on")){row.classList.remove("on");delete S.input.entries[s.id];save();}else{row.classList.add("on");inp.focus();}};
