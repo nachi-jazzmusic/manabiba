@@ -2819,13 +2819,18 @@ function wrong(){const r=curRule,d=D();
 
 /* ---------- 復習テスト ---------- */
 function renderRev(){const due=pendingReviews();qs("#revCount").textContent=due.length;
+ // 1問答えると1.6秒後にこの関数が一覧を作り直すため、その間に他の問題へ入力しかけていた内容が
+ // 空欄に戻ってしまわないよう、作り直す前に保存し、作り直した後に同じ問題(id)へ復元する。
+ const saved={};
+ qsa("#revArea input[id^='rv_']").forEach(el=>{if(el.value)saved[el.id.slice(3)]=el.value;});
  if(!due.length){qs("#revArea").innerHTML=`<div class="card"><b>今日の復習テストはありません 🎉</b><div class="hint-note">類題で○通過するか、ワークで×がついた問題が、7日後にここへ出てきます。</div></div>`;return;}
  qs("#revArea").innerHTML=due.map(r=>{const rule=S.rules.find(x=>x.id===r.ruleId);
   return `<div class="card"><div class="hint-note">📌 ${esc(r.src)}(${jdate(addDays(r.due,-7))}に登録)${rule?" ｜ルール:"+esc(rule.name):""}${r.where?` ｜📖 ${esc(r.where)}`:""}</div>
   <div class="problem-box" style="font-size:18px">${esc(r.q).replace(/\n/g,"<br>")}${r.sub?`<small>${esc(r.sub)}</small>`:""}</div>
   <div class="ansrow" style="justify-content:center"><input class="numin ansbig" id="rv_${r.id}" placeholder="答えを入力" onkeydown="if(event.key==='Enter')judgeRev('${r.id}')"><span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('rv_${r.id}',null,this)">🎤</button><button class="mini" title="ペンで手書き入力" onclick="openPad('rv_${r.id}')">✍️</button></span><button class="btn checkbtn" onclick="judgeRev('${r.id}')">✓ こたえあわせ</button></div>
   <div id="rvres_${r.id}" style="text-align:center;margin-top:10px;font-weight:700"></div>
-  ${rule&&rule.gen?`<div style="text-align:center;margin-top:8px"><button class="mini" onclick="go('sChal',document.querySelector('[data-s=sChal]'));startRule('${rule.id}')">✏️ 類題で確認する</button></div>`:""}</div>`;}).join("");}
+  ${rule&&rule.gen?`<div style="text-align:center;margin-top:8px"><button class="mini" onclick="go('sChal',document.querySelector('[data-s=sChal]'));startRule('${rule.id}')">✏️ 類題で確認する</button></div>`:""}</div>`;}).join("");
+ due.forEach(r=>{if(saved[r.id]){const el=qs("#rv_"+r.id);if(el)el.value=saved[r.id];}});}
 function judgeRev(id){const r=S.reviewQ.find(x=>x.id===id);if(!r)return;
  const v=(qs("#rv_"+id).value||"").trim();if(!v)return;
  let ok=false;
