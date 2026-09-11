@@ -81,13 +81,16 @@ details.card[open] summary::before{content:"▾ "}
 .mini{font-size:12px;font-family:var(--disp);font-weight:700;padding:6px 12px;border-radius:9px;border:1.5px solid var(--line);background:#fff}
 .pastezone{font-size:12px;font-family:var(--disp);font-weight:700;padding:6px 12px;border-radius:9px;border:1.5px dashed var(--mint);background:var(--mint-soft);color:var(--ink);cursor:text;outline:none;user-select:none}
 .pastezone:focus{border-style:solid}
-.extlink-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px}
-.extlink-card{display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;text-align:left;max-width:340px}
+.extlink-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:14px}
+.extlink-card{display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:10px 14px;text-align:left;min-height:80px}
 .extlink-summary{display:flex;align-items:center;gap:8px;width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:12px;padding:10px 14px;font-family:var(--disp);font-weight:800;font-size:13.5px;color:var(--ink);margin-bottom:12px;text-align:left}
 .extlink-summary .jump{margin-left:auto;font-weight:700;color:var(--ink-soft);font-size:12px}
-.extlink-card img{width:56px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--line);flex-shrink:0}
-.extlink-card .t{font-family:var(--disp);font-weight:800;font-size:14px}
-.extlink-card .s{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
+.extlink-card img,.extlink-ic{width:56px;height:56px;border-radius:10px;flex-shrink:0}
+.extlink-card img{object-fit:cover;border:1px solid var(--line)}
+.extlink-ic{background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:28px}
+.extlink-body{flex:1;min-width:0}
+.extlink-card .t{font-family:var(--disp);font-weight:800;font-size:14px;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.extlink-card .s{font-size:11.5px;color:var(--ink-soft);margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .mini.listening{background:#FDEBEB;border-color:var(--red);color:#A33;animation:micpulse 1s infinite}
 @keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(224,110,110,.45)}50%{box-shadow:0 0 0 7px rgba(224,110,110,0)}}
 .mini.pome{background:var(--pome-soft);border-color:#E7D6BC}
@@ -611,7 +614,8 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 
   <button class="nav-label fold" data-g="study" onclick="toggleGroup('study')"><span class="caret">▾</span>問題・参考情報</button>
   <div class="nav-group" data-g="study">
-    <button class="nav-btn" data-s="sCards" onclick="go('sCards',this)"><span class="ic">🃏</span><span class="txt">暗記カード・デジタルドリル</span></button>
+    <button class="nav-btn" data-s="sCards" onclick="go('sCards',this)"><span class="ic">🃏</span><span class="txt">暗記カード</span></button>
+    <button class="nav-btn" data-s="sDrill" onclick="go('sDrill',this)"><span class="ic">📚</span><span class="txt">デジタルドリル</span></button>
     <button class="nav-btn" data-s="sChal" onclick="go('sChal',this)"><span class="ic">✏️</span><span class="txt">ポメの類題チャレンジ</span></button>
     <button class="nav-btn" data-s="sRef" onclick="go('sRef',this)"><span class="ic">🎥</span><span class="txt">参考情報</span></button>
   </div>
@@ -690,7 +694,6 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <button class="tab parent-only" id="tabCardLog" onclick="cardTab('log')">今日やったカード</button>
   </div>
   <div id="cardDo">
-    <div id="extLinkCards"></div>
     <div id="deckPickerWrap">
       <div id="deckSubTabs" class="subtabs"></div>
       <div id="ruleFilterBar" style="display:none"></div>
@@ -704,6 +707,15 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <div id="cardArea"></div>
   </div>
   <div id="cardLogView" style="display:none"></div>
+</section>
+
+<!-- ===== デジタルドリル ===== -->
+<section class="screen" id="sDrill">
+  <button class="btn" onclick="go('sMenu',document.querySelector('[data-s=sMenu]'))" style="margin-bottom:14px">← 今日のメニューにもどる</button>
+  <h1>デジタルドリル</h1>
+  <p class="sub">外部サイトの問題を解くデジタル教材です。暗記カードとは別に、ここから開けます。</p>
+  <div id="drillSubTabs" class="subtabs"></div>
+  <div id="drillList"></div>
 </section>
 
 <!-- ===== 参考情報(やさまる・NHK等) ===== -->
@@ -1351,7 +1363,7 @@ function weekMaruCount(){const t=today();let c=0;for(let i=0;i<7;i++){const d=ad
 function go(id,btn){qsa(".screen").forEach(s=>s.classList.remove("on"));qs("#"+id).classList.add("on");
  qsa(".nav-btn").forEach(b=>b.classList.toggle("on",b.dataset.s===id));
  window.scrollTo(0,0);
- const r={sInput:renderInput,sMenu:renderMenu,sCards:renderCards,sChal:renderChal,sResult:renderResult,sWrong:renderWrong,sZukan:renderZukan,sPome:renderPome,sPPome:renderPPome,sDress:renderDress,sTests:renderTests,sWeek:renderWeek,sData:renderData,sSet:renderSet,sRef:renderRef}[id];
+ const r={sInput:renderInput,sMenu:renderMenu,sCards:renderCards,sDrill:renderDrill,sChal:renderChal,sResult:renderResult,sWrong:renderWrong,sZukan:renderZukan,sPome:renderPome,sPPome:renderPPome,sDress:renderDress,sTests:renderTests,sWeek:renderWeek,sData:renderData,sSet:renderSet,sRef:renderRef}[id];
  if(r)r();
 }
 function toggleGroup(g){
@@ -2226,7 +2238,7 @@ function cardTab(t){cardViewTab=t;
  qs("#tabCardDo").classList.toggle("on",t==="do");qs("#tabCardLog").classList.toggle("on",t==="log");
  qs("#cardDo").style.display=t==="do"?"":"none";qs("#cardLogView").style.display=t==="log"?"":"none";
  if(t==="log")qs("#cardLogView").innerHTML=todayCardsHtml();}
-let deckSub="all",deckSearchQ="",deckSubManual=false,pickerOpen=true,shuffleOn=false,deckView="unit",unitOpen={},hideDone=false,ruleFilter=null,judgeMode="solve",extLinkExpanded=false;
+let deckSub="all",deckSearchQ="",deckSubManual=false,pickerOpen=true,shuffleOn=false,deckView="unit",unitOpen={},hideDone=false,ruleFilter=null,judgeMode="solve";
 function setJudgeMode(m){judgeMode=m;if(!pickerOpen)drawCard();else renderCards();}
 function shortDeckName(d,ctxSub,ctxUnit){
  // 教科タブ・単元見出しで既にわかっている部分(教科名・単元名)を先頭から取り除いて短くする
@@ -2287,7 +2299,7 @@ function showImageDecks(){
    <button class="rule-chip sub2" onclick="peekDeck(${x.i})">${esc(x.d.name)}
      <span class="st">📷 ${deckImgCount(x.d)}枚 / 全${x.d.cards.length}枚</span></button>`).join("")}</div>`;
  qs("#peekModal").classList.add("open");}
-function renderCards(){renderExtLinks();const dp=qs("#deckPicker");
+function renderCards(){const dp=qs("#deckPicker");
  if(cardViewTab==="log"){qs("#cardLogView").innerHTML=todayCardsHtml();return;}
  if(!S.decks.length){qs("#deckSubTabs").innerHTML="";dp.innerHTML="";qs("#cardArea").innerHTML=`<div class="card"><b>デッキがありません。</b><div class="hint-note">おうちメニュー →「データ管理」からデッキを追加してください。</div></div>`;return;}
  const ts=todaySubs();
@@ -2324,9 +2336,9 @@ function renderCards(){renderExtLinks();const dp=qs("#deckPicker");
  // ===== 一覧モード:カードは絶対に出さない =====
  curBar.style.display="none";wrap.style.display="";
  qs("#cardArea").innerHTML="";cardQ=[];cardIdx=0;curCard=null;
- qs("#deckSubTabs").innerHTML=`<button class="subtab ${deckSub==="all"?"on":""}" onclick="deckSub='all';deckSubManual=true;ruleFilter=null;extLinkExpanded=false;renderCards()">すべて<span class="st">${S.decks.length}</span></button>`
+ qs("#deckSubTabs").innerHTML=`<button class="subtab ${deckSub==="all"?"on":""}" onclick="deckSub='all';deckSubManual=true;ruleFilter=null;renderCards()">すべて<span class="st">${S.decks.length}</span></button>`
   +subsPresent.sort((a,b)=>(ts.includes(b)?1:0)-(ts.includes(a)?1:0)).map(s=>
-   `<button class="subtab ${deckSub===s?"on":""}" onclick="deckSub='${s}';deckSubManual=true;ruleFilter=null;extLinkExpanded=false;renderCards()">${ts.includes(s)?"⭐ ":""}${subName(s)}<span class="st">${subCounts[s]||0}</span></button>`).join("");
+   `<button class="subtab ${deckSub===s?"on":""}" onclick="deckSub='${s}';deckSubManual=true;ruleFilter=null;renderCards()">${ts.includes(s)?"⭐ ":""}${subName(s)}<span class="st">${subCounts[s]||0}</span></button>`).join("");
  qs("#deckToolbar").innerHTML=`
   <label class="hidedone"><input type="checkbox" ${hideDone?"checked":""} onchange="hideDone=this.checked;renderCards()">まだのだけ表示</label>
   <button class="vsbtn sm" onclick="showImageDecks()">📷 画像入りをさがす</button>
@@ -3988,8 +4000,8 @@ function renderRef(){
  const list=qs("#refList");
  list.innerHTML=relevant.length?`<div class="extlink-row">${relevant.map(l=>
   `<button class="extlink-card" onclick="window.open('${esc(l.url)}','_blank')">
-    ${l.thumb?`<img src="${l.thumb}" alt="">`:`<span style="font-size:28px">${l.icon||"🎥"}</span>`}
-    <span><span class="t">${esc(l.name)}</span><br>${l.note?`<span class="s">${esc(l.note)}</span><br>`:""}<span class="s">外部サイトが開きます →</span></span>
+    ${l.thumb?`<img src="${l.thumb}" alt="">`:`<span class="extlink-ic">${l.icon||"🎥"}</span>`}
+    <span class="extlink-body"><span class="t">${esc(l.name)}</span><br><span class="s">${l.note?esc(l.note)+" ・":""}外部サイトが開きます →</span></span>
    </button>`).join("")}</div>`:`<div class="hint-note">まだ登録されていません。</div>`;}
 function renderExtLinks(){
  const listEl=qs("#extLinkList");
@@ -3998,25 +4010,23 @@ function renderExtLinks(){
    `<div class="list-row"><span style="flex:1">🔗 ${esc(l.name)}<br><span class="hint-note" style="margin:0">${esc(l.url)}${l.subs&&l.subs.length?"／対象:"+l.subs.map(s=>((SUBJECTS.find(x=>x.id===s)||{}).name||s)).join("・"):"／対象:全教科"}</span></span>
     <button class="mini" onclick="window.open('${esc(l.url)}','_blank')">開く</button>
     <button class="mini" onclick="deleteExtLink(${i})" style="color:var(--red)">削除</button></div>`).join(""):
-   `<div class="hint-note">まだ登録されていません。</div>`;}
- const cardsEl=qs("#extLinkCards");
- if(cardsEl){
-  const curSub=(typeof deckSub!=="undefined")?deckSub:"all";
-  if(curSub==="all"){cardsEl.innerHTML="";}
-  else{
-   const relevant=S.extLinks.filter(l=>l.kind!=="ref"&&(!l.subs||!l.subs.length||l.subs.includes(curSub)));
-   if(!relevant.length){cardsEl.innerHTML="";}
-   else{
-    const subName=(SUBJECTS.find(s=>s.id===curSub)||{}).name||curSub;
-    if(!extLinkExpanded){
-     cardsEl.innerHTML=`<button class="extlink-summary" onclick="extLinkExpanded=true;renderExtLinks()">📚 ${esc(subName)}のデジタル教材(${relevant.length}) <span class="jump">ひらく →</span></button>`;
-    }else{
-     cardsEl.innerHTML=`<div class="extlink-row">${relevant.map(l=>
-      `<button class="extlink-card" onclick="window.open('${esc(l.url)}','_blank')">
-        ${l.thumb?`<img src="${l.thumb}" alt="">`:`<span style="font-size:28px">${l.icon||"🔗"}</span>`}
-        <span><span class="t">${esc(l.name)}</span><br><span class="s">外部サイトが開きます →</span></span>
-       </button>`).join("")}</div>
-      <button class="mini" onclick="extLinkExpanded=false;renderExtLinks()" style="margin-top:6px">▲ たたむ</button>`;}}}}}
+   `<div class="hint-note">まだ登録されていません。</div>`;}}
+/* ---------- デジタルドリル ---------- */
+let drillSub="all";
+function renderDrill(){
+ const drills=(S.extLinks||[]).filter(l=>l.kind!=="ref");
+ const subsPresent=Array.from(new Set(drills.flatMap(l=>l.subs&&l.subs.length?l.subs:["all"])));
+ qs("#drillSubTabs").innerHTML=`<button class="subtab ${drillSub==="all"?"on":""}" onclick="drillSub='all';renderDrill()">すべて<span class="st">${drills.length}</span></button>`
+  +subsPresent.filter(s=>s!=="all").map(s=>{
+   const n=drills.filter(l=>l.subs&&l.subs.includes(s)).length;
+   return `<button class="subtab ${drillSub===s?"on":""}" onclick="drillSub='${s}';renderDrill()">${(SUBJECTS.find(x=>x.id===s)||{}).name||s}<span class="st">${n}</span></button>`;}).join("");
+ const relevant=drillSub==="all"?drills:drills.filter(l=>l.subs&&l.subs.includes(drillSub));
+ const list=qs("#drillList");
+ list.innerHTML=relevant.length?`<div class="extlink-row">${relevant.map(l=>
+  `<button class="extlink-card" onclick="window.open('${esc(l.url)}','_blank')">
+    ${l.thumb?`<img src="${l.thumb}" alt="">`:`<span class="extlink-ic">${l.icon||"🔗"}</span>`}
+    <span class="extlink-body"><span class="t">${esc(l.name)}</span><br><span class="s">外部サイトが開きます →</span></span>
+   </button>`).join("")}</div>`:`<div class="hint-note">まだ登録されていません。</div>`;}
 function addExtLink(){
  const name=qs("#el_name").value.trim(),url=qs("#el_url").value.trim();
  const subs=qsa("#el_subs input:checked").map(c=>c.value);
