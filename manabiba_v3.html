@@ -1373,6 +1373,9 @@ function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultS
  (S.tests||[]).forEach(t=>{if(t.rank===undefined)t.rank="";});
  if(!S.lvMigrated){(S.rules||[]).forEach(r=>{r.lv=3;});S.lvMigrated=true;}
  (S.rules||[]).forEach(r=>{if(!r.diagHist)r.diagHist=[];}); // 親ポメ診断用の記録領域(tagHistとは別)を後付けで補う
+ // unit(学習マップの単元紐付け)は開発側で管理するキュレーションデータであり、香凜さんの学習記録ではないため、
+ // 保存済みデータに対しても常にINIT_RULESの最新値で上書きする(直し忘れ・過去データとのズレを防ぐ)。
+ (S.rules||[]).forEach(r=>{const init=INIT_RULES.find(x=>x.id===r.id);if(init)r.unit=init.unit;});
  (S.ansSets||[]).forEach(a=>(a.items||[]).forEach(i=>{if(i.text===undefined)i.text="";}));
  // 動作確認用に入っていたサンプルのワークが残っていたら取り除く(1回だけ)
  if(S.ansSets&&S.ansSets.some(a=>a.id==="a_sample")){S.ansSets=S.ansSets.filter(a=>a.id!=="a_sample");save();}}
