@@ -527,21 +527,25 @@ body.lv2 .step.guided,body.lv3 .step.guided{display:none}
 .stamp.medal-stuck{background:#FDEBEB;border:2.5px solid var(--red);color:#A34141}
 .debt-list{display:none}
 body.parent .debt-list{display:block}
-/* 学習マップ(ヒートマップ) */
+/* 学習マップ(ヒートマップ)。レベル0〜4は緑系の単色グラデーション(濃いほど定着)、
+   警告(⚠️)だけは色の系統を変えてオレンジ寄りにし、進捗の濃淡と混同しないようにする。 */
 .heat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .heat-tile{position:relative;text-align:left;border-radius:10px;padding:9px 11px;border:2px solid var(--line);background:#fff;min-height:46px}
-.heat-tile.lv1{background:#fff;border-color:var(--line);color:var(--ink-soft)}
-.heat-tile.lv2{background:#FDF6E3;border-color:#E8B84B;color:#8A6510}
-.heat-tile.lv3{background:var(--blue-soft);border-color:var(--blue);color:var(--ink)}
-.heat-tile.lv4{background:var(--mint-soft);border-color:var(--mint);color:#2F6B52}
+.heat-tile.lv0{background:#fff;border:2px dashed var(--line);color:#B9C6C1}
+.heat-tile.lv1{background:var(--paper);border-color:var(--line);color:var(--ink-soft)}
+.heat-tile.lv2{background:#EAF6EF;border-color:#B7DFC5;color:#2F6B52}
+.heat-tile.lv3{background:#BEE4D0;border-color:#7FC79E;color:#1F5C3D}
+.heat-tile.lv4{background:var(--mint);border-color:#3F8F6F;color:#fff}
 .heat-name{font-size:12.5px;font-weight:700;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.heat-sub{font-size:10.5px;margin-top:3px;opacity:.8}
 .heat-warn{position:absolute;top:-7px;right:-7px;font-size:14px}
 .heat-cap{margin-left:2px;font-weight:900;opacity:.7}
 .heat-swatch{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:middle;margin-right:3px;border:2px solid var(--line)}
-.heat-swatch.lv1{background:#fff}
-.heat-swatch.lv2{background:#FDF6E3;border-color:#E8B84B}
-.heat-swatch.lv3{background:var(--blue-soft);border-color:var(--blue)}
-.heat-swatch.lv4{background:var(--mint-soft);border-color:var(--mint)}
+.heat-swatch.lv0{background:#fff;border-style:dashed}
+.heat-swatch.lv1{background:var(--paper)}
+.heat-swatch.lv2{background:#EAF6EF;border-color:#B7DFC5}
+.heat-swatch.lv3{background:#BEE4D0;border-color:#7FC79E}
+.heat-swatch.lv4{background:var(--mint);border-color:#3F8F6F}
 .debt{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .debt .days{font-family:var(--disp);font-weight:900;width:64px;text-align:right;flex-shrink:0}
 .debt .days small{display:block;font-size:9.5px;font-weight:700;color:var(--ink-soft)}
@@ -851,6 +855,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <p class="sub">今どこまで進んでいるかを、色でざっくり見える化した一覧です。タップすると詳しく見られます。</p>
   <div class="card" style="background:var(--paper);border-style:dashed">
     <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;align-items:center">
+      <span><span class="heat-swatch lv0"></span>記録なし</span>
       <span><span class="heat-swatch lv1"></span>未着手</span>
       <span><span class="heat-swatch lv2"></span>取り組み中</span>
       <span><span class="heat-swatch lv3"></span>できてきた</span>
@@ -1169,28 +1174,28 @@ const INIT_RULES=[
  {id:"m0_4",sub:"math",ch:"0章 小学校の総復習",name:"単位の換算",gen:"unit",ysp:"p.10",wbp:"スタートDASH p.6",pr:3},
  {id:"m0_5",sub:"math",ch:"0章 小学校の総復習",name:"代表値(平均・中央値・最頻値)",gen:"stats",ysp:"—",wbp:"スタートDASH p.8",pr:3},
  // 数学1章 正負の数
- {id:"m1_1",sub:"math",ch:"1章 正負の数",name:"分数の乗除(3項以上)",gen:"fracmul",ysp:"Lesson1-2 p.16",wbp:"ワーク p.28-29",vid:12,pr:1,explainPilot:true},
- {id:"m1_2",sub:"math",ch:"1章 正負の数",name:"かっこ+累乗の四則混合",gen:"order",ysp:"Lesson2 p.22",wbp:"ワーク p.28-29",vid:12,pr:1},
- {id:"m1_3",sub:"math",ch:"1章 正負の数",name:"3数以上の加減(小数含む)",gen:"addsub3",ysp:"Lesson1 p.16",wbp:"ワーク p.18-19",pr:3},
- {id:"m1_4",sub:"math",ch:"1章 正負の数",name:"分配法則のくふう計算",gen:null,ysp:"Lesson2 p.22",wbp:"ワーク p.28",pr:3},
- {id:"m1_5",sub:"math",ch:"1章 正負の数",name:"素因数分解",gen:"prime",ysp:"Lesson1 p.16",wbp:"ワーク p.34",pr:2},
- {id:"m1_6",sub:"math",ch:"1章 正負の数",name:"負の数の大小・並べ替え",gen:null,ysp:"Lesson1 p.16",wbp:"ワーク p.12-13",pr:2},
- {id:"m1_7",sub:"math",ch:"1章 正負の数",name:"絶対値と範囲",gen:"absrange",ysp:"Lesson1 p.16",wbp:"ワーク p.12-13",pr:2},
- {id:"m1_8",sub:"math",ch:"1章 正負の数",name:"符号で量を表す(文章題)",gen:null,ysp:"Lesson1 p.16",wbp:"ワーク p.10-11",pr:4},
- {id:"m1_9",sub:"math",ch:"1章 正負の数",name:"数の集合と四則",gen:null,ysp:"—",wbp:"ワーク p.32",pr:5},
+ {id:"m1_1",sub:"math",ch:"1章 正負の数",unit:"1章 正負の数",name:"分数の乗除(3項以上)",gen:"fracmul",ysp:"Lesson1-2 p.16",wbp:"ワーク p.28-29",vid:12,pr:1,explainPilot:true},
+ {id:"m1_2",sub:"math",ch:"1章 正負の数",unit:"1章 正負の数",name:"かっこ+累乗の四則混合",gen:"order",ysp:"Lesson2 p.22",wbp:"ワーク p.28-29",vid:12,pr:1},
+ {id:"m1_3",sub:"math",ch:"1章 正負の数",unit:"1章 正負の数",name:"3数以上の加減(小数含む)",gen:"addsub3",ysp:"Lesson1 p.16",wbp:"ワーク p.18-19",pr:3},
+ {id:"m1_4",sub:"math",ch:"1章 正負の数",unit:"1章 正負の数",name:"分配法則のくふう計算",gen:null,ysp:"Lesson2 p.22",wbp:"ワーク p.28",pr:3},
+ {id:"m1_5",sub:"math",ch:"1章 正負の数",unit:"1章 正負の数",name:"素因数分解",gen:"prime",ysp:"Lesson1 p.16",wbp:"ワーク p.34",pr:2},
+ {id:"m1_6",sub:"math",ch:"1章 正負の数",unit:"1章 正負の数",name:"負の数の大小・並べ替え",gen:null,ysp:"Lesson1 p.16",wbp:"ワーク p.12-13",pr:2},
+ {id:"m1_7",sub:"math",ch:"1章 正負の数",unit:"1章 正負の数",name:"絶対値と範囲",gen:"absrange",ysp:"Lesson1 p.16",wbp:"ワーク p.12-13",pr:2},
+ {id:"m1_8",sub:"math",ch:"1章 正負の数",unit:"1章 正負の数",name:"符号で量を表す(文章題)",gen:null,ysp:"Lesson1 p.16",wbp:"ワーク p.10-11",pr:4},
+ {id:"m1_9",sub:"math",ch:"1章 正負の数",unit:"1章 正負の数",name:"数の集合と四則",gen:null,ysp:"—",wbp:"ワーク p.32",pr:5},
  // 数学2章 文字の式
- {id:"m2_1",sub:"math",ch:"2章 文字の式",name:"式の値(代入)",gen:"subst",ysp:"Lesson3 p.28+p.30",wbp:"ワーク p.44-45",vid:17,pr:1},
- {id:"m2_2",sub:"math",ch:"2章 文字の式",name:"文章題の立式(残り・引く)",gen:null,ysp:"Lesson3 p.28",wbp:"ワーク p.42-43",vid:17,pr:1},
- {id:"m2_3",sub:"math",ch:"2章 文字の式",name:"図形と文字式(面積・周)",gen:null,ysp:"Lesson3 p.28",wbp:"ワーク p.43-45",vid:17,pr:1},
- {id:"m2_4",sub:"math",ch:"2章 文字の式",name:"文字式の表し方(×÷の省略)",gen:null,ysp:"Lesson3 p.28",wbp:"ワーク p.40-41",vid:17,pr:3},
- // 英語 文法の型
- {id:"e1",sub:"eng",ch:"文法の型",name:"be動詞文と一般動詞文の判別",gen:"engtype",ysp:"やさまる英語 L1-2 p.12,18",wbp:"Get!English U1-2",pr:1},
- {id:"e2",sub:"eng",ch:"文法の型",name:"否定文(don't / isn't)",gen:"engneg",ysp:"やさまる英語 L1-2",wbp:"Get!English U1-2",pr:1},
- {id:"e3",sub:"eng",ch:"文法の型",name:"疑問文(Do / Are)",gen:"engq",ysp:"やさまる英語 L1-2",wbp:"Get!English U1-2",pr:1},
+ {id:"m2_1",sub:"math",ch:"2章 文字の式",unit:"2章 式の値(代入)",name:"式の値(代入)",gen:"subst",ysp:"Lesson3 p.28+p.30",wbp:"ワーク p.44-45",vid:17,pr:1},
+ {id:"m2_2",sub:"math",ch:"2章 文字の式",unit:"2章 文字式の利用",name:"文章題の立式(残り・引く)",gen:null,ysp:"Lesson3 p.28",wbp:"ワーク p.42-43",vid:17,pr:1},
+ {id:"m2_3",sub:"math",ch:"2章 文字の式",unit:"2章 文字式の利用",name:"図形と文字式(面積・周)",gen:null,ysp:"Lesson3 p.28",wbp:"ワーク p.43-45",vid:17,pr:1},
+ {id:"m2_4",sub:"math",ch:"2章 文字の式",unit:"2章 文字式の表し方",name:"文字式の表し方(×÷の省略)",gen:null,ysp:"Lesson3 p.28",wbp:"ワーク p.40-41",vid:17,pr:3},
+ // 英語 文法の型(UNITMAPの英語はUnit番号のみで内容の記載が無いため、NEW HORIZON1年の一般的な構成からの推測)
+ {id:"e1",sub:"eng",ch:"文法の型",unit:"Unit 2",name:"be動詞文と一般動詞文の判別",gen:"engtype",ysp:"やさまる英語 L1-2 p.12,18",wbp:"Get!English U1-2",pr:1},
+ {id:"e2",sub:"eng",ch:"文法の型",unit:"Unit 2",name:"否定文(don't / isn't)",gen:"engneg",ysp:"やさまる英語 L1-2",wbp:"Get!English U1-2",pr:1},
+ {id:"e3",sub:"eng",ch:"文法の型",unit:"Unit 2",name:"疑問文(Do / Are)",gen:"engq",ysp:"やさまる英語 L1-2",wbp:"Get!English U1-2",pr:1},
  // 要注意(復習テストで深さを確定させる)
- {id:"s1",sub:"sci",ch:"単元2 物質",name:"金属の性質",gen:null,ysp:"やさまる理科 L4 p.28",wbp:"理科の学習 p.22-23",pr:2},
- {id:"g1",sub:"geo",ch:"2編 世界",name:"雨温図の読み方",gen:null,ysp:"やさまる社会 L2 p.16",wbp:"完全学習 生活と環境",pr:2},
- {id:"g2",sub:"geo",ch:"2編 世界",name:"気候と暮らしの因果(なぜ)",gen:null,ysp:"やさまる社会 L2 p.16",wbp:"完全学習",pr:2}
+ {id:"s1",sub:"sci",ch:"単元2 物質",unit:"単元2-1章 身のまわりの物質(金属)",name:"金属の性質",gen:null,ysp:"やさまる理科 L4 p.28",wbp:"理科の学習 p.22-23",pr:2},
+ {id:"g1",sub:"geo",ch:"2編 世界",unit:"2編1章 人々の生活と環境",name:"雨温図の読み方",gen:null,ysp:"やさまる社会 L2 p.16",wbp:"完全学習 生活と環境",pr:2},
+ {id:"g2",sub:"geo",ch:"2編 世界",unit:"2編1章 人々の生活と環境",name:"気候と暮らしの因果(なぜ)",gen:null,ysp:"やさまる社会 L2 p.16",wbp:"完全学習",pr:2}
 ];
 
 /* ---------- 状態 ---------- */
@@ -3187,26 +3192,60 @@ function ruleHeatWarn(r){
  const recentTag=(r.tagHist||[]).some(t=>daysBetween(t.date,today())<=14);
  const overdue=(S.reviewQ||[]).some(x=>x.ruleId===r.id&&x.status==="due"&&x.due<=today());
  return recentTag||overdue;}
+/** UNITMAPの各単元(行)に、その単元に属するS.rulesを対応づける。rule.unit(手動で設定した正確な単元名)で
+ * 厳密一致のみを見る(あいまいな章名一致には頼らない)。unitが無い/一致するUNITMAP行が無いルールはunlinkedへ。 */
+function unitsWithRules(sub){
+ const rows=UNITMAP[sub]||[];
+ const units=rows.map(([a,b,name])=>({start:a,end:b,name,rules:[]}));
+ const unlinked=[];
+ S.rules.filter(r=>r.sub===sub).forEach(r=>{
+  const u=r.unit?units.find(x=>x.name===r.unit):null;
+  if(u)u.rules.push(r);else unlinked.push(r);});
+ return{units,unlinked};}
+/** 単元タイルのレベルは、中の子ルールの中で一番進んでいないもの(最小値)に合わせる。
+ * 紐づくルールが1つも無い単元は0(記録なし)とし、「未着手」ともあえて区別する。 */
+function unitHeatLevel(u){return u.rules.length?Math.min(...u.rules.map(ruleHeatLevel)):0;}
+function unitHeatWarn(u){return u.rules.some(ruleHeatWarn);}
 function renderHeatmap(){
- const bySub={};
- S.rules.forEach(r=>{(bySub[r.sub]=bySub[r.sub]||[]).push(r);});
- qs("#heatBody").innerHTML=SUBJECTS.filter(s=>bySub[s.id]&&bySub[s.id].length).map(s=>{
-  const list=[...bySub[s.id]].sort((a,b)=>a.pr-b.pr);
-  return `<div class="card"><h2>${esc(s.name)}<span class="tag" style="margin-left:6px">${list.length}件</span></h2>
-   <div class="heat-grid">${list.map(r=>{
-    const lv=ruleHeatLevel(r),warn=ruleHeatWarn(r);
-    return `<button class="heat-tile lv${lv}" onclick="openHeatDetail('${r.id}')">
-     ${warn?`<span class="heat-warn" title="直近に誤答・期限切れの復習があります">⚠️</span>`:""}
-     <div class="heat-name">${esc(r.name)}${!r.gen?`<span class="heat-cap" title="類題での検証ができないため、◎には到達しません">※</span>`:""}</div>
+ const subsWithMap=SUBJECTS.filter(s=>UNITMAP[s.id]&&UNITMAP[s.id].length);
+ qs("#heatBody").innerHTML=subsWithMap.map(s=>{
+  const{units,unlinked}=unitsWithRules(s.id);
+  return `<div class="card"><h2>${esc(s.name)}<span class="tag" style="margin-left:6px">${units.length}単元</span></h2>
+   <div class="heat-grid">${units.map((u,i)=>{
+    const lv=unitHeatLevel(u),warn=unitHeatWarn(u);
+    return `<button class="heat-tile lv${lv}" onclick="openUnitDetail('${s.id}',${i})">
+     ${warn?`<span class="heat-warn" title="中のルールに直近の誤答・期限切れの復習があります">⚠️</span>`:""}
+     <div class="heat-name">${esc(u.name)}</div>
+     <div class="heat-sub">${u.rules.length?u.rules.length+"件のルール":"記録なし"}</div>
     </button>`;}).join("")}</div>
+   ${unlinked.length?`<div class="hint-note" style="margin-top:10px">単元にひも付けられなかったルール(${unlinked.length}件・タップで詳細):
+    ${unlinked.map(r=>{const lv=ruleHeatLevel(r);return `<button class="mini" style="margin:2px" onclick="openHeatDetail('${r.id}')"><span class="heat-swatch lv${lv}"></span>${esc(r.name)}</button>`;}).join("")}</div>`:""}
   </div>`;}).join("");}
 function closeHeatDetail(){qs("#heatModal").classList.remove("open");}
-function openHeatDetail(id){
+/** 単元タイルをタップした時:中に属するルールを一覧展開する(ルールが無ければ「記録なし」の案内)。 */
+function openUnitDetail(sub,idx){
+ const{units}=unitsWithRules(sub);
+ const u=units[idx];if(!u)return;
+ const subName=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
+ qs("#heatDetailBody").innerHTML=`
+  <h3>${esc(u.name)}</h3>
+  <div class="hint-note" style="margin:0 0 10px">${esc(subName)}｜教科書 p.${u.start}〜${u.end}</div>
+  ${u.rules.length?`<div class="heat-grid">${u.rules.map(r=>{
+    const lv=ruleHeatLevel(r),warn=ruleHeatWarn(r);
+    return `<button class="heat-tile lv${lv}" onclick="openHeatDetail('${r.id}',{sub:'${sub}',idx:${idx}})">
+     ${warn?`<span class="heat-warn" title="直近に誤答・期限切れの復習があります">⚠️</span>`:""}
+     <div class="heat-name">${esc(r.name)}${!r.gen?`<span class="heat-cap" title="類題での検証ができないため、◎には到達しません">※</span>`:""}</div>
+    </button>`;}).join("")}</div>`
+   :`<div class="hint-note">この単元にはまだ記録がありません。誤答の登録や類題チャレンジで積み上げていくと、ここに反映されます。</div>`}`;
+ qs("#heatModal").classList.add("open");}
+/** ルール単位の詳細。backToを渡すと「← 単元にもどる」で単元の一覧表示に戻れる。 */
+function openHeatDetail(id,backTo){
  const r=S.rules.find(x=>x.id===id);if(!r)return;
  const lv=ruleHeatLevel(r),warn=ruleHeatWarn(r);
  const subName=(SUBJECTS.find(s=>s.id===r.sub)||{}).name||r.sub;
  const lastTag=(r.tagHist||[]).slice(-1)[0];
- qs("#heatDetailBody").innerHTML=`
+ const backHtml=backTo?`<button class="mini" onclick="openUnitDetail('${backTo.sub}',${backTo.idx})">← 単元にもどる</button><br><br>`:"";
+ qs("#heatDetailBody").innerHTML=backHtml+`
   <h3>${esc(r.name)}</h3>
   <div class="hint-note" style="margin:0 0 8px">${esc(subName)}｜${esc(r.ch)}</div>
   <span class="heat-swatch lv${lv}"></span><b>${HEAT_LABEL[lv]}</b>
