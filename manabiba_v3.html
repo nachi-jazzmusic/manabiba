@@ -561,6 +561,7 @@ body.parent .debt-list{display:block}
 .mini.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .patwarn{border:none;background:transparent;font-size:16px;opacity:.3;cursor:pointer;padding:2px 4px;filter:grayscale(1)}
 .patwarn.on{opacity:1;filter:none}
+.examtoday{display:inline-block;margin-left:4px;font-size:11px;font-weight:800;color:var(--blue);font-family:var(--disp)}
 .debt{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .debt .days{font-family:var(--disp);font-weight:900;width:64px;text-align:right;flex-shrink:0}
 .debt .days small{display:block;font-size:9.5px;font-weight:700;color:var(--ink-soft)}
@@ -595,6 +596,8 @@ body.parent .debt-list{display:block}
 .chartleg-row{display:flex;flex-wrap:wrap;gap:12px 16px;margin-top:8px}
 .chartleg{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-soft);font-weight:700}
 .chartleg i{display:inline-block;width:12px;height:3px;border-radius:2px}
+.dashchk{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-soft);font-weight:700;margin-right:12px;cursor:pointer}
+.dashchk i{display:inline-block;width:10px;height:10px;border-radius:3px}
 .wk-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .big-metric{text-align:center;padding:10px 0}
 .big-metric .v{font-family:var(--disp);font-weight:900;font-size:42px;line-height:1}
@@ -660,6 +663,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <button class="nav-btn" data-s="sZukan" onclick="go('sZukan',this)"><span class="ic">🏅</span><span class="txt">◎図鑑</span></button>
     <button class="nav-btn" data-s="sDress" onclick="go('sDress',this)"><span class="ic">🎀</span><span class="txt">きせかえ</span></button>
     <button class="nav-btn" data-s="sTests" onclick="go('sTests',this)"><span class="ic">📈</span><span class="txt">テスト記録</span></button>
+    <button class="nav-btn" data-s="sDash" onclick="go('sDash',this)"><span class="ic">📊</span><span class="txt">学習ダッシュボード</span></button>
   </div>
 
   <button class="nav-label fold parent-label" data-g="par" onclick="toggleGroup('par')"><span class="caret">▾</span>🔑 おうちメニュー</button>
@@ -941,6 +945,23 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <div id="testCharts"></div>
 </section>
 
+<!-- ===== 学習ダッシュボード ===== -->
+<section class="screen" id="sDash">
+  <h1>📊 学習ダッシュボード</h1>
+  <p class="sub">教科ごとの学習時間のバランスを見える化します。<b>実際の学習時間の記録ではなく、登録された記録(誤答登録・暗記カード)から見積もった推定時間です。</b></p>
+  <div class="card">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="mini" onclick="setDashRange('week7')">直近7日</button>
+      <button class="mini" onclick="setDashRange('thisWeek')">今週</button>
+      <button class="mini" onclick="setDashRange('thisMonth')">今月</button>
+      <button class="mini" id="dashExamBtn" style="display:none" onclick="setDashRange('exam')">テスト期間</button>
+    </div>
+    <span class="lbrange">期間<input type="date" id="dashFrom" onchange="onDashRangeInput()">〜<input type="date" id="dashTo" onchange="onDashRangeInput()"></span>
+  </div>
+  <div id="dashInsight"></div>
+  <div id="dashBody"></div>
+</section>
+
 <!-- ===== 週次レビュー ===== -->
 <section class="screen" id="sWeek">
   <h1>週次レビュー <span class="tag" id="weekRange"></span></h1>
@@ -1102,7 +1123,9 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 "use strict";
 const qs=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
-const addDays=(iso,n)=>{const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
+/** UTC+の時差(日本時間など)では、toISOString()(UTC基準)で日付を切り出すと1日ずれるため、
+ * today()と同じくローカルのgetFullYear/getMonth/getDateで組み立てる(2026-09-26発見・修正)。 */
+const addDays=(iso,n)=>{const d=new Date(iso+"T00:00:00");d.setDate(d.getDate()+n);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
 const daysBetween=(a,b)=>Math.round((new Date(b)-new Date(a))/86400000);
 const jdate=iso=>{const d=new Date(iso+"T00:00:00");return (d.getMonth()+1)+"/"+d.getDate()+"("+"日月火水木金土"[d.getDay()]+")";};
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1416,6 +1439,10 @@ function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultS
  if(!S.examRange)S.examRange=[];
  if(S.examMode===undefined)S.examMode=false;
  if(!S.examPlan)S.examPlan=null;
+ if(!S.examDoneLog)S.examDoneLog={};
+ // 2026-09-27:examDoneLogを「日付→件数」から「日付→教科別件数」に変更。旧形式(数値)が残っていれば
+ // 教科が分からない記録として_unknownに退避する(合計値は保たれるためペース計算は連続する)。
+ Object.keys(S.examDoneLog).forEach(k=>{if(typeof S.examDoneLog[k]==="number")S.examDoneLog[k]={_unknown:S.examDoneLog[k]};});
  if(!S.manualPatterns)S.manualPatterns=[];
  if(!S.manualPatternsSeeded){
   S.manualPatterns.push(...SEED_MANUAL_PATTERNS.map(p=>({id:"mp_seed_"+Math.random().toString(36).slice(2),...p,stage:0,warn:false})));
@@ -1461,7 +1488,7 @@ function weekMaruCount(){const t=today();let c=0;for(let i=0;i<7;i++){const d=ad
 function go(id,btn){qsa(".screen").forEach(s=>s.classList.remove("on"));qs("#"+id).classList.add("on");
  qsa(".nav-btn").forEach(b=>b.classList.toggle("on",b.dataset.s===id));
  window.scrollTo(0,0);
- const r={sInput:renderInput,sMenu:renderMenu,sCards:renderCards,sDrill:renderDrill,sChal:renderChal,sResult:renderResult,sWrong:renderWrong,sZukan:renderZukan,sHeatmap:renderHeatmap,sPome:renderPome,sPPome:renderPPome,sDress:renderDress,sTests:renderTests,sWeek:renderWeek,sData:renderData,sSet:renderSet,sRef:renderRef}[id];
+ const r={sInput:renderInput,sMenu:renderMenu,sCards:renderCards,sDrill:renderDrill,sChal:renderChal,sResult:renderResult,sWrong:renderWrong,sZukan:renderZukan,sHeatmap:renderHeatmap,sPome:renderPome,sPPome:renderPPome,sDress:renderDress,sTests:renderTests,sDash:renderDash,sWeek:renderWeek,sData:renderData,sSet:renderSet,sRef:renderRef}[id];
  if(r)r();
 }
 function toggleGroup(g){
@@ -1648,11 +1675,14 @@ function markBlock(key,btn){const t=today();if(!S.menuManual[t])S.menuManual[t]=
   const pid=S.lastPlanIds[t][+m[1]];
   const item=S.plan.items.find(x=>x.id===pid);
   if(item)item.done=true;}
- // テスト勉強モード由来の項目なら、その単元の消化回数(done)を1つ進める(targetは超えない)
+ // テスト勉強モード由来の項目なら、その単元の消化回数(done)を1つ進める(targetは超えない)。
+ // examDoneLogは教科ごとの内訳を持つ({日付:{教科:件数}})。学習ダッシュボードの教科別集計にも使うため。
  if(m&&S.lastExamUnits&&S.lastExamUnits[t]&&S.lastExamUnits[t][+m[1]]&&S.examPlan&&S.examPlan.units){
   const uk=S.lastExamUnits[t][+m[1]];
   const u=S.examPlan.units.find(x=>(x.sub+"|"+x.unit)===uk);
-  if(u&&u.done<u.target)u.done++;}
+  if(u&&u.done<u.target){u.done++;
+   S.examDoneLog[t]=S.examDoneLog[t]||{};
+   S.examDoneLog[t][u.sub]=(S.examDoneLog[t][u.sub]||0)+1;}}
  save();renderMenu();}
 const A=(icon,label,badge,jump)=>jump?`<button class="act applink" onclick="${jump}">${icon} ${label} ${badge?`<span class="am auto">${badge}</span>`:""}<span class="jump">ひらく →</span></button>`:`<div class="act">${icon} ${label} ${badge?`<span class="am manu">${badge}</span>`:""}</div>`;
 /** S.extLinksから名前で外部リンクを引いて、今日のメニュー用のボタンにする(見つからなければ何も出さない) */
@@ -1688,8 +1718,9 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
   recordMainPicks(picks);
   if(S.examMode&&S.examPlan){
    h+=`<div class="card" style="background:var(--blue-soft);border-color:var(--blue)">
-    <b>📋 テスト勉強モード中</b>
-    <div style="font-size:13px;margin-top:4px">${examModeSummaryHtml()}</div>
+    <b>📋 テスト勉強モード中(全体の残り)</b>
+    <div style="font-size:13px;margin-top:4px">${examModeSummaryHtml(true)}</div>
+    <div class="hint-note" style="margin-top:6px">実際に取り組んだら、下の該当ブロックの「おわった!」を押してください。</div>
     <div style="margin-top:6px"><button class="mini" onclick="go('sHeatmap',document.querySelector('[data-s=sHeatmap]'))">🗺️ 学習マップをひらく</button></div>
    </div>`;}
   if(!curHoliday()&&!todaySubs().length){
@@ -3375,16 +3406,23 @@ function buildExamPlanUnits(prevUnits){
 function startExamMode(){
  const units=buildExamPlanUnits(null);
  if(!units.length){toast("テスト範囲を先に登録してください");return;}
- S.examPlan={createdAt:today(),units};
+ S.examPlan={createdAt:today(),units,roundGoalDays:7};
+ S.examDoneLog={}; // 新しいテスト期間として、ペースの記録も仕切り直す
  S.examMode=true;
  save();renderHeatmap();toast("📋 テスト勉強モードにしました");}
 function stopExamMode(){S.examMode=false;save();renderHeatmap();}
-/** targetは現時点のレベルで作り直すが、done(実績)は同じ単元なら引き継ぐ。自動では呼ばれず、ボタンからのみ実行する。 */
+/** targetは現時点のレベルで作り直すが、done(実績)は同じ単元なら引き継ぐ。自動では呼ばれず、ボタンからのみ実行する。
+ * roundGoalDaysも引き継ぐ(作り直しても目標設定が消えないように)。S.examDoneLog(ペース履歴)はS.examPlanの外にあるため触れない。 */
 function rebuildExamPlan(){
  const units=buildExamPlanUnits(S.examPlan?S.examPlan.units:null);
  if(!units.length){toast("テスト範囲が登録されていません");return;}
- S.examPlan={createdAt:today(),units};
+ S.examPlan={createdAt:today(),units,roundGoalDays:(S.examPlan&&S.examPlan.roundGoalDays)||7};
  save();renderHeatmap();toast("計画を作り直しました");}
+function setRoundGoalDays(value){
+ const n=parseInt(value,10);
+ if(!n||n<1){toast("1以上の日数を入れてください");renderHeatmap();return;}
+ S.examPlan.roundGoalDays=n;
+ save();renderHeatmap();}
 /** 未消化(done<target)の単元をレベルの低い順に並べ、上位2件を「今日のメニュー」用のpickに変換する。
  * kind:"today"のpickと同じ形にしてあるため、stepFlowHtml()・recordMainPicks()は無改造で流用できる。 */
 function pickExamUnitsForToday(){
@@ -3394,23 +3432,60 @@ function pickExamUnitsForToday(){
   const rule=S.rules.find(r=>r.sub===u.sub&&r.unit===u.unit&&r.gen&&r.status!=="mastered")||null;
   return {kind:"exam",sub:u.sub,label:`${subName}「${u.unit}」`,why:"📋 テスト勉強",rule,unit:u.unit,page:unitStartPage(u.sub,u.unit)};});}
 /** 残りタスクの内訳HTML。件数だけでなく、教科ごとに残っている単元名まで一覧表示する
- * (学習マップ・今日のメニューの両方から呼ばれる共通部品)。 */
-function examModeSummaryHtml(){
+ * (学習マップ・今日のメニューの両方から呼ばれる共通部品)。highlightTodayを渡すと、今日のメニューに
+ * 実際に登場する単元(pickExamUnitsForToday()の結果)へ「→今日やる」の印を付ける(今日のメニュー側でのみ使用。
+ * 学習マップ側は「全体の残り」をそのまま見せたいので付けない)。 */
+// 「1回=15分」は、既存の「誤答の登録」画面にある「所要時間の目安は1ページ15分」をそのまま転用したもの(新しい時間基準は作らない)。
+const EXAM_MINUTES_PER_REP=15;
+function examModeSummaryHtml(highlightToday){
  const units=(S.examPlan&&S.examPlan.units)||[];
  if(!units.length)return "";
  const remain=units.filter(u=>u.done<u.target);
  if(!remain.length)return "残りタスクはありません。おつかれさま!";
+ const todaySet=highlightToday?new Set(pickExamUnitsForToday().map(p=>p.sub+"|"+p.unit)):null;
  const bySub={};
- remain.forEach(u=>{(bySub[u.sub]=bySub[u.sub]||[]).push(u.unit);});
- const lines=Object.entries(bySub).map(([sub,names])=>
-  `<b>${esc((SUBJECTS.find(s=>s.id===sub)||{}).name||sub)}</b>：${names.map(esc).join("、")}`);
+ remain.forEach(u=>{(bySub[u.sub]=bySub[u.sub]||[]).push(u);});
+ const lines=Object.entries(bySub).map(([sub,us])=>
+  `<b>${esc((SUBJECTS.find(s=>s.id===sub)||{}).name||sub)}</b>：${us.map(u=>{
+   const isToday=todaySet&&todaySet.has(u.sub+"|"+u.unit);
+   return `${esc(u.unit)}(残り目安${(u.target-u.done)*EXAM_MINUTES_PER_REP}分)${isToday?`<span class="examtoday">→今日やる</span>`:""}`;}).join("、")}`);
  return `残りタスク ${remain.length}個<div style="margin-top:2px;line-height:1.7">${lines.join("<br>")}</div>`;}
-/** モードON/OFFの切り替えボタンと、ON時の進捗サマリー・作り直しボタン。折りたたみの外(常に見える位置)に置く。 */
+/** 直近7日(データが薄いうちは実際の経過日数)の1日あたり平均消化ペースから、全単元「一周」(done>=1)完了の見込み日を計算する。
+ * 計画(target/優先順位)には一切影響しない、情報提示専用の集計。 */
+function examPaceForecast(){
+ const units=(S.examPlan&&S.examPlan.units)||[];
+ const total=units.length;
+ if(!total)return null;
+ const untouched=units.filter(u=>u.done===0).length;
+ if(!untouched)return{total,untouched:0};
+ const daysElapsed=Math.max(1,Math.min(7,daysBetween(S.examPlan.createdAt,today())));
+ let sum=0;
+ for(let i=0;i<daysElapsed;i++)sum+=Object.values(S.examDoneLog[addDays(today(),-i)]||{}).reduce((a,b)=>a+b,0);
+ const avgPerDay=sum/daysElapsed;
+ if(!avgPerDay)return{total,untouched,avgPerDay:0};
+ const daysNeeded=Math.ceil(untouched/avgPerDay);
+ const projectedDate=addDays(today(),daysNeeded);
+ const nearestExam=(S.examRange||[]).filter(x=>x.date>=today()).sort((a,b)=>a.date<b.date?-1:1)[0];
+ const goalDate=nearestExam?addDays(nearestExam.date,-(S.examPlan.roundGoalDays||7)):null;
+ return{total,untouched,avgPerDay,projectedDate,goalDate};}
+/** 見込みペースの表示。あくまで情報提示のみで、目標日の変更以外はplanの中身に影響しない。 */
+function examModePaceHtml(){
+ const f=examPaceForecast();
+ if(!f)return "";
+ const goalRow=`<div class="examaddrow">一周目標:テストの<input type="number" value="${(S.examPlan.roundGoalDays||7)}" style="width:50px" onchange="setRoundGoalDays(this.value)">日前</div>`;
+ if(f.untouched===0)return `${goalRow}<div class="hint-note" style="margin-top:4px">✅ 全単元、一度は取り組み終わりました</div>`;
+ if(!f.avgPerDay)return `${goalRow}<div class="hint-note" style="margin-top:4px">まだペースを計算できるだけの記録がありません(2〜3日つづけると出るようになります)</div>`;
+ if(!f.goalDate)return `${goalRow}<div class="hint-note" style="margin-top:4px">このままなら${jdate(f.projectedDate)}には一周終わりそうです(テスト日が登録されると目標日との比較が出ます)</div>`;
+ const diff=daysBetween(f.goalDate,f.projectedDate);
+ if(diff<=0)return `${goalRow}<div class="hint-note" style="margin-top:4px">✅ 順調なペースです(このままなら${jdate(f.projectedDate)}には一周終わりそうです)</div>`;
+ return `${goalRow}<div class="warnline" style="margin-top:4px">⚠️ このペースだと一周が終わるのは${jdate(f.projectedDate)}頃です。目標の${jdate(f.goalDate)}より${diff}日遅れそうです</div>`;}
+/** モードON/OFFの切り替えボタンと、ON時の進捗サマリー・見込みペース・作り直しボタン。折りたたみの外(常に見える位置)に置く。 */
 function examModeCardHtml(){
  if(S.examMode)return `<div style="margin-top:6px">
    <button class="mini on" onclick="stopExamMode()">✅ テスト勉強モード中(解除する)</button>
    <button class="mini" onclick="rebuildExamPlan()">🔄 計画を作り直す</button>
    <div class="hint-note" style="margin:4px 0 0">${examModeSummaryHtml()}</div>
+   ${examModePaceHtml()}
   </div>`;
  return `<div style="margin-top:6px"><button class="mini" onclick="startExamMode()">📋 テスト勉強モードにする</button></div>`;}
 
@@ -3771,6 +3846,164 @@ function renderTestCharts(cols){
   const rankSvg=lineChartSVG({xLabels,series:[{label:"学年順位",color:"#C96F87",width:2.6,data:rankVals}],yMin:rMin,yMax:Math.max(rMax,rMin+1),yTicks:Math.min(4,rMax-rMin)||1,invert:true});
   rankBlock=`<div class="card chartcard"><h2>学年順位のうつりかわり<span class="hint-note" style="margin:2px 0 0">上が上位(数字が小さいほど上)</span></h2>${rankSvg}</div>`;}
  box.innerHTML=`<div class="card chartcard"><h2>点数のうつりかわり(5教科＋平均)</h2>${scoreSvg}<div class="chartleg-row">${scoreLegend}</div></div>${rankBlock}`;}
+
+/* ---------- 学習ダッシュボード(推定学習時間の見える化。表示専用、S.paperLog/S.cardLog/S.decksは読み取るだけ) ---------- */
+const DASH_SUBCOLOR={math:"#7FAAD6",eng:"#5FB597",sci:"#E0A73B",geo:"#9B7FD6",his:"#D9824F",jpn:"#E799AC"};
+let dashVisibleSubs=null; // 積み上げ棒グラフのチェックボックス状態(教科idのSet)。保存しない・画面を開くたびに全表示に戻る
+function inDashRange(d,from,to){return d>=from&&d<=to;}
+/** 紙のドリル(誤答登録・まとめて『できた』を記録)から、日付・教科ごとの推定時間(分)を出す。
+ * (date,sub,where)の組を1ページ相当とみなし、既存の「所要時間の目安は1ページ15分」を1グループ=15分として使う。 */
+function paperMinutesByDay(from,to){
+ const seen=new Set();
+ const out={};
+ (S.paperLog||[]).forEach(x=>{
+  if(!inDashRange(x.date,from,to))return;
+  const key=x.date+"|"+x.sub+"|"+x.where;
+  if(seen.has(key))return;
+  seen.add(key);
+  if(!out[x.date])out[x.date]={};
+  out[x.date][x.sub]=(out[x.date][x.sub]||0)+15;});
+ return out;}
+/** 暗記カードから、日付・教科ごとの推定時間(分)を出す。(date,sub)の組が1つでもあれば15分
+ * (「今日のメニュー」がすでに暗記カード1セッションを15分と明示している粒度に合わせる)。 */
+function cardMinutesByDay(from,to){
+ const out={};
+ Object.entries(S.cardLog||{}).forEach(([date,list])=>{
+  if(!inDashRange(date,from,to))return;
+  const subsToday=new Set();
+  (list||[]).forEach(c=>{const d=S.decks.find(dk=>dk.name===c.deck);if(d)subsToday.add(d.sub);});
+  subsToday.forEach(sub=>{if(!out[date])out[date]={};out[date][sub]=(out[date][sub]||0)+15;});});
+ return out;}
+/** テスト勉強モードの「終わった!」から、日付・教科ごとの推定時間(分)を出す。S.examDoneLogは
+ * {日付:{教科:件数}}の形(2026-09-27に教科別へ変更)。EXAM_MINUTES_PER_REP(15分、既存の定数)をそのまま使う。
+ * 旧形式データの移行で入る"_unknown"キーは教科が分からないため、集計には出さず無視する。 */
+function examModeMinutesByDay(from,to){
+ const out={};
+ Object.entries(S.examDoneLog||{}).forEach(([date,bySub])=>{
+  if(!inDashRange(date,from,to))return;
+  Object.entries(bySub||{}).forEach(([sub,n])=>{
+   if(sub==="_unknown"||!n)return;
+   if(!out[date])out[date]={};
+   out[date][sub]=(out[date][sub]||0)+n*EXAM_MINUTES_PER_REP;});});
+ return out;}
+/** 紙のドリル・暗記カード・テスト勉強モードを合算した、日付ごと・教科ごとの推定時間(分)。 */
+function dashMinutesByDay(from,to){
+ const a=paperMinutesByDay(from,to),b=cardMinutesByDay(from,to),c=examModeMinutesByDay(from,to);
+ const out={};
+ [a,b,c].forEach(src=>Object.entries(src).forEach(([date,bySub])=>{
+  if(!out[date])out[date]={};
+  Object.entries(bySub).forEach(([sub,min])=>{out[date][sub]=(out[date][sub]||0)+min;});}));
+ return out;}
+/** 期間全体を教科ごとに合計した推定時間(分)。 */
+function dashMinutesBySubject(from,to){
+ const byDay=dashMinutesByDay(from,to);
+ const out={};
+ Object.values(byDay).forEach(bySub=>Object.entries(bySub).forEach(([sub,min])=>{out[sub]=(out[sub]||0)+min;}));
+ return out;}
+/** 一言のAIインサイト(ルールベース、Claude APIは呼ばない)。教科間のシェアの偏りを見て、極端に少ない/無い教科があれば名指しで促す。 */
+function dashboardInsight(bySubject){
+ const dashSubs=SUBJECTS.filter(s=>DASH_SUBCOLOR[s.id]);
+ const total=dashSubs.reduce((s,x)=>s+(bySubject[x.id]||0),0);
+ if(!total)return "この期間の記録がまだありません。誤答の登録や暗記カードに取り組むと、ここにコメントが出ます。";
+ const shares=dashSubs.map(s=>({sub:s,min:bySubject[s.id]||0}));
+ const top=shares.reduce((a,b)=>b.min>a.min?b:a);
+ const untouched=shares.filter(x=>x.min===0).map(x=>x.sub.name);
+ const topShare=top.min/total;
+ if(topShare>=0.6&&untouched.length){
+  return `この期間は${esc(top.sub.name)}に偏っています(全体の${Math.round(topShare*100)}%)。${esc(untouched[0])}にも触れてみましょう。`;}
+ if(untouched.length>=dashSubs.length-1){
+  return `この期間は${esc(top.sub.name)}中心の記録でした。他の教科の記録も増えるとバランスが見やすくなります。`;}
+ return "教科ごとにバランスよく取り組めています。";}
+function fmtMin(m){return m>=60?`${Math.floor(m/60)}時間${m%60?(m%60)+"分":""}`:`${m}分`;}
+/** 円グラフ。dataは[{label,value,color}]。 */
+function pieChartSVG(data){
+ const total=data.reduce((s,d)=>s+d.value,0);
+ const R=70,CX=90,CY=90;
+ if(!total)return `<svg viewBox="0 0 180 180" width="180" height="180"><circle cx="${CX}" cy="${CY}" r="${R}" fill="#EEF3F1"/></svg>`;
+ let angle=-90,svg=`<svg viewBox="0 0 180 180" width="180" height="180">`;
+ data.filter(d=>d.value>0).forEach(d=>{
+  const frac=d.value/total,sweep=frac*360;
+  const x1=CX+R*Math.cos(angle*Math.PI/180),y1=CY+R*Math.sin(angle*Math.PI/180);
+  const end=angle+sweep;
+  const x2=CX+R*Math.cos(end*Math.PI/180),y2=CY+R*Math.sin(end*Math.PI/180);
+  const large=sweep>180?1:0;
+  if(frac>=0.999)svg+=`<circle cx="${CX}" cy="${CY}" r="${R}" fill="${d.color}"/>`;
+  else svg+=`<path d="M${CX},${CY} L${x1.toFixed(1)},${y1.toFixed(1)} A${R},${R} 0 ${large} 1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${d.color}"/>`;
+  angle=end;});
+ svg+="</svg>";return svg;}
+/** 横棒グラフ。dataは[{label,value,color}]。 */
+function barChartSVG(data){
+ const max=Math.max(1,...data.map(d=>d.value));
+ const rowH=26,W=300,labelW=60;
+ const H=data.length*rowH+10;
+ let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}">`;
+ data.forEach((d,i)=>{
+  const y=i*rowH+6,barMaxW=W-labelW-46;
+  const w=Math.max(2,(d.value/max)*barMaxW);
+  svg+=`<text x="0" y="${y+13}" font-size="11" fill="#3D4B54">${esc(d.label)}</text>`;
+  svg+=`<rect x="${labelW}" y="${y}" width="${w.toFixed(1)}" height="16" rx="4" fill="${d.color}"/>`;
+  svg+=`<text x="${labelW+w+6}" y="${y+13}" font-size="10" fill="#71858C">${fmtMin(d.value)}</text>`;});
+ svg+="</svg>";return svg;}
+/** 日別の積み上げ棒グラフ。byDayは{date:{sub:分}}、subsは全教科リスト、visibleSubsは表示するsub idのSet。 */
+function stackedBarChartSVG(byDay,subs,visibleSubs){
+ const dates=Object.keys(byDay).sort();
+ if(!dates.length)return `<div class="hint-note">この期間の記録がありません。</div>`;
+ const shown=subs.filter(s=>visibleSubs.has(s.id));
+ const perDayTotal=dates.map(d=>shown.reduce((s,sub)=>s+((byDay[d]&&byDay[d][sub.id])||0),0));
+ const max=Math.max(30,...perDayTotal);
+ const W=Math.max(300,dates.length*36),H=180,mB=24,mT=6,barW=22;
+ let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}">`;
+ dates.forEach((d,i)=>{
+  let yCursor=H-mB;
+  const x=i*(W/dates.length)+(W/dates.length-barW)/2;
+  shown.forEach(sub=>{
+   const v=(byDay[d]&&byDay[d][sub.id])||0;if(!v)return;
+   const h=(v/max)*(H-mB-mT);
+   yCursor-=h;
+   svg+=`<rect x="${x.toFixed(1)}" y="${yCursor.toFixed(1)}" width="${barW}" height="${h.toFixed(1)}" fill="${DASH_SUBCOLOR[sub.id]}"/>`;});
+  svg+=`<text x="${(x+barW/2).toFixed(1)}" y="${H-8}" font-size="8" text-anchor="middle" fill="#71858C">${jdate(d).split("(")[0]}</text>`;});
+ svg+="</svg>";return svg;}
+/** クイック期間選択。テスト期間はS.examPlanが無ければ何もしない(ボタン自体も#dashExamBtnで隠す)。 */
+function setDashRange(kind){
+ const t=today();let from,to=t;
+ if(kind==="week7")from=addDays(t,-6);
+ else if(kind==="thisWeek"){const dow=new Date(t+"T00:00:00").getDay();from=addDays(t,-(dow===0?6:dow-1));}
+ else if(kind==="thisMonth")from=t.slice(0,8)+"01";
+ else if(kind==="exam"){
+  if(!S.examPlan)return;
+  from=S.examPlan.createdAt;
+  const future=(S.examRange||[]).filter(x=>x.date>=t).sort((a,b)=>a.date<b.date?-1:1)[0];
+  const past=(S.examRange||[]).filter(x=>x.date<t).sort((a,b)=>a.date<b.date?1:-1)[0];
+  to=future?future.date:(past?past.date:t);}
+ else return;
+ qs("#dashFrom").value=from;qs("#dashTo").value=to;
+ renderDash();}
+function onDashRangeInput(){renderDash();}
+function toggleDashSub(id){
+ if(dashVisibleSubs.has(id))dashVisibleSubs.delete(id);else dashVisibleSubs.add(id);
+ renderDash();}
+function renderDash(){
+ const fromEl=qs("#dashFrom"),toEl=qs("#dashTo");
+ if(!fromEl.value||!toEl.value){fromEl.value=addDays(today(),-6);toEl.value=today();}
+ const from=fromEl.value,to=toEl.value;
+ const examBtn=qs("#dashExamBtn");if(examBtn)examBtn.style.display=S.examPlan?"":"none";
+ const dashSubs=SUBJECTS.filter(s=>DASH_SUBCOLOR[s.id]);
+ if(!dashVisibleSubs)dashVisibleSubs=new Set(dashSubs.map(s=>s.id));
+ const bySubject=dashMinutesBySubject(from,to);
+ const byDay=dashMinutesByDay(from,to);
+ qs("#dashInsight").innerHTML=`<div class="card" style="background:var(--mint-soft);border-color:var(--mint)"><b>💡 ${dashboardInsight(bySubject)}</b></div>`;
+ const total=Object.values(bySubject).reduce((a,b)=>a+b,0);
+ const pieData=dashSubs.map(s=>({label:s.name,value:bySubject[s.id]||0,color:DASH_SUBCOLOR[s.id]}));
+ const barData=dashSubs.map(s=>({label:s.name,value:bySubject[s.id]||0,color:DASH_SUBCOLOR[s.id]})).sort((a,b)=>b.value-a.value);
+ const legend=dashSubs.map(s=>`<span class="chartleg"><i style="background:${DASH_SUBCOLOR[s.id]}"></i>${esc(s.name)}</span>`).join("");
+ const checks=dashSubs.map(s=>`<label class="dashchk"><input type="checkbox" ${dashVisibleSubs.has(s.id)?"checked":""} onchange="toggleDashSub('${s.id}')"><i style="background:${DASH_SUBCOLOR[s.id]}"></i>${esc(s.name)}</label>`).join("");
+ qs("#dashBody").innerHTML=`
+  <div class="card chartcard"><h2>教科の割合(合計${fmtMin(total)})</h2>
+   <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">${pieChartSVG(pieData)}<div class="chartleg-row">${legend}</div></div></div>
+  <div class="card chartcard"><h2>教科ごとの合計時間</h2>${barChartSVG(barData)}</div>
+  <div class="card chartcard"><h2>1日あたりの学習時間</h2>
+   <div style="margin-bottom:8px">${checks}</div>
+   ${stackedBarChartSVG(byDay,dashSubs,dashVisibleSubs)}</div>`;}
 
 /* ---------- 週次レビュー ---------- */
 function renderWeek(){const t=today();const from=addDays(t,-6);qs("#weekRange").textContent=jdate(from)+"〜"+jdate(t);
