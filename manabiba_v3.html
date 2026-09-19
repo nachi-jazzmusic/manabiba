@@ -546,6 +546,21 @@ body.parent .debt-list{display:block}
 .heat-swatch.lv2{background:#EAF6EF;border-color:#B7DFC5}
 .heat-swatch.lv3{background:#BEE4D0;border-color:#7FC79E}
 .heat-swatch.lv4{background:var(--mint);border-color:#3F8F6F}
+.heat-tile.examing{border-color:var(--blue);border-width:3px}
+.heat-exam{position:absolute;top:-7px;left:-7px;font-size:14px}
+.examcd{font-size:14px;margin:4px 0}
+.examrow{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:4px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.examrow:last-child{border-bottom:none}
+.examrow.done{opacity:.5}
+.examrow.examadded{animation:examFlash 1.6s ease}
+@keyframes examFlash{0%{background:var(--mint-soft)}100%{background:transparent}}
+.examrow.examedit select,.examrow.examedit input{font-size:12.5px;padding:4px 6px;border:1.5px solid var(--line);border-radius:8px}
+.examaddrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1.5px dashed var(--line)}
+.examaddrow select,.examaddrow input{font-size:13px;padding:6px 8px;border:1.5px solid var(--line);border-radius:8px}
+.examaddrow input[type=date]{max-width:140px}
+.mini.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.patwarn{border:none;background:transparent;font-size:16px;opacity:.3;cursor:pointer;padding:2px 4px;filter:grayscale(1)}
+.patwarn.on{opacity:1;filter:none}
 .debt{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .debt .days{font-family:var(--disp);font-weight:900;width:64px;text-align:right;flex-shrink:0}
 .debt .days small{display:block;font-size:9.5px;font-weight:700;color:var(--ink-soft)}
@@ -630,6 +645,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <div class="nav-label">毎日のはじめに</div>
   <button class="nav-btn on" data-s="sInput" onclick="go('sInput',this)"><span class="ic">📝</span><span class="txt">今日の入力</span></button>
   <button class="nav-btn" data-s="sMenu" onclick="go('sMenu',this)"><span class="ic">🗓️</span><span class="txt">今日のメニュー</span></button>
+  <button class="nav-btn" data-s="sHeatmap" onclick="go('sHeatmap',this)"><span class="ic">🗺️</span><span class="txt">学習マップ</span></button>
 
   <button class="nav-label fold" data-g="study" onclick="toggleGroup('study')"><span class="caret">▾</span>問題・参考情報</button>
   <div class="nav-group" data-g="study">
@@ -642,7 +658,6 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <button class="nav-label fold" data-g="rec" onclick="toggleGroup('rec')"><span class="caret">▾</span>記録・ごほうび</button>
   <div class="nav-group" data-g="rec">
     <button class="nav-btn" data-s="sZukan" onclick="go('sZukan',this)"><span class="ic">🏅</span><span class="txt">◎図鑑</span></button>
-    <button class="nav-btn" data-s="sHeatmap" onclick="go('sHeatmap',this)"><span class="ic">🗺️</span><span class="txt">学習マップ</span></button>
     <button class="nav-btn" data-s="sDress" onclick="go('sDress',this)"><span class="ic">🎀</span><span class="txt">きせかえ</span></button>
     <button class="nav-btn" data-s="sTests" onclick="go('sTests',this)"><span class="ic">📈</span><span class="txt">テスト記録</span></button>
   </div>
@@ -861,9 +876,12 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
       <span><span class="heat-swatch lv3"></span>できてきた</span>
       <span><span class="heat-swatch lv4"></span>定着(◎)</span>
       <span>⚠️ 最近怪しいかも(直近14日の誤答・期限切れの復習あり)</span>
-      <span>※ 類題での検証ができないため、◎には到達しません(紙のドリルで仕上げるタイプ)</span>
+      <span>📅 今回のテスト範囲</span>
+      <span>※ 自己申告のみで自動検証ができないため、◎には到達しません(紙のドリルで仕上げるタイプ・手動で入力した単元も同様)</span>
     </div>
   </div>
+  <div class="card" id="examCard"></div>
+  <div style="margin:10px 0"><button class="mini" id="examFilterBtn" onclick="toggleExamFilter()">🔎 テスト範囲のみ表示</button></div>
   <div id="heatBody"></div>
 </section>
 
@@ -1132,6 +1150,8 @@ function unitOf(sub,page){const arr=UNITMAP[sub]||[];for(const [a,b,n] of arr){i
 function unitRangeOf(sub,page){const arr=UNITMAP[sub]||[];for(const t of arr){if(page>=t[0]&&page<=t[1])return t;}return null;}
 /** ルールの章(rule.ch)から、UNITMAP(教科書の目次)の該当単元を[開始,終了,単元名]で返す */
 function unitRangeByCh(sub,ch){const arr=UNITMAP[sub]||[];for(const t of arr){if(chapterMatch(t[2],ch))return t;}return null;}
+/** ページ範囲(pStart〜pEnd)に重なるUNITMAPの単元をすべて返す(テスト範囲の自動判定用) */
+function unitsInPageRange(sub,pStart,pEnd){return (UNITMAP[sub]||[]).filter(([a,b])=>a<=pEnd&&b>=pStart);}
 const VIDEO_PL={math:"PLFK0gaZkmkxDq3-cAJBxe7Ge34zJ9NUua",jpn:"PLFK0gaZkmkxDcnKaalvYir2VsDGppDKay",sci:"PLFK0gaZkmkxCrDIFpKFBffqSc1FNJKHfU",geo:"PLFK0gaZkmkxDUTdenfcbLyrCCLEb_LMNF",his:"PLFK0gaZkmkxDUTdenfcbLyrCCLEb_LMNF",eng:"PLFK0gaZkmkxAIITBM7L55gD63XKy5q_-0"};
 const plURL=(sub,idx)=>"https://www.youtube.com/playlist?list="+VIDEO_PL[sub]+(idx?("&index="+idx):"");
 /** 「今日の入力」で、教科書を忘れて今日のページが分からない時の補助。UNITMAP(教科書の単元目次)を
@@ -1196,6 +1216,29 @@ const INIT_RULES=[
  {id:"s1",sub:"sci",ch:"単元2 物質",unit:"単元2-1章 身のまわりの物質(金属)",name:"金属の性質",gen:null,ysp:"やさまる理科 L4 p.28",wbp:"理科の学習 p.22-23",pr:2},
  {id:"g1",sub:"geo",ch:"2編 世界",unit:"2編1章 人々の生活と環境",name:"雨温図の読み方",gen:null,ysp:"やさまる社会 L2 p.16",wbp:"完全学習 生活と環境",pr:2},
  {id:"g2",sub:"geo",ch:"2編 世界",unit:"2編1章 人々の生活と環境",name:"気候と暮らしの因果(なぜ)",gen:null,ysp:"やさまる社会 L2 p.16",wbp:"完全学習",pr:2}
+];
+/** 手動理解度チェック(ルールが1件も無い単元向け)の参考パターン例。編集・削除は自由で、これはあくまで初期投入の叩き台。
+ * 英語Unit3〜7への割り当てと歴史の代表単元選定は教科書目次の確認をしていない推測のため、実装後にNachiが確認・修正する前提。 */
+const SEED_MANUAL_PATTERNS=[
+ {sub:"math",unit:"3章 方程式",name:"整数の方程式"},
+ {sub:"math",unit:"3章 方程式",name:"小数を含む方程式"},
+ {sub:"math",unit:"3章 方程式",name:"分数を含む方程式"},
+ {sub:"math",unit:"3章 方程式",name:"分配法則(かっこ)を使う方程式"},
+ {sub:"math",unit:"3章 方程式",name:"文字が両辺にある方程式"},
+ {sub:"math",unit:"5章 平面図形",name:"作図(垂直二等分線・角の二等分線)"},
+ {sub:"math",unit:"5章 平面図形",name:"おうぎ形の弧の長さ・面積"},
+ {sub:"math",unit:"5章 平面図形",name:"図形の移動(平行移動・対称移動・回転移動)"},
+ {sub:"eng",unit:"Unit 3",name:"canを使う文"},
+ {sub:"eng",unit:"Unit 4",name:"3人称単数のs"},
+ {sub:"eng",unit:"Unit 5",name:"疑問詞を使う疑問文"},
+ {sub:"eng",unit:"Unit 6",name:"現在進行形"},
+ {sub:"eng",unit:"Unit 7",name:"命令文"},
+ {sub:"sci",unit:"単元1-1章 生物の観察と分類",name:"顕微鏡の使い方・観察の手順"},
+ {sub:"sci",unit:"単元1-2章 植物の分類",name:"植物の分類"},
+ {sub:"sci",unit:"単元1-3章 動物の分類",name:"動物の分類"},
+ {sub:"his",unit:"1章 歴史へのとびら",name:"時代の並び替え・年代把握"},
+ {sub:"his",unit:"1章 歴史へのとびら",name:"出来事の因果関係(なぜ起きたか)"},
+ {sub:"his",unit:"1章 歴史へのとびら",name:"人物と業績の対応"}
 ];
 
 /* ---------- 状態 ---------- */
@@ -1370,6 +1413,13 @@ function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultS
   S.extLinksV13=true;}
  if(!S.extLinksSeeded){S.extLinks.push({name:"地理・歴史・公民 デジタルドリル(メクリカ)",url:"https://www.seishinsha.co.jp/links/shakan/shakan_05.php",thumb:"data:image/jpeg;base64,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"});S.extLinksSeeded=true;}
  if(!S.longBreakRange)S.longBreakRange={start:"",end:""};
+ if(!S.examRange)S.examRange=[];
+ if(S.examMode===undefined)S.examMode=false;
+ if(!S.examPlan)S.examPlan=null;
+ if(!S.manualPatterns)S.manualPatterns=[];
+ if(!S.manualPatternsSeeded){
+  S.manualPatterns.push(...SEED_MANUAL_PATTERNS.map(p=>({id:"mp_seed_"+Math.random().toString(36).slice(2),...p,stage:0,warn:false})));
+  S.manualPatternsSeeded=true;}
  (S.tests||[]).forEach(t=>{if(t.rank===undefined)t.rank="";});
  if(!S.lvMigrated){(S.rules||[]).forEach(r=>{r.lv=3;});S.lvMigrated=true;}
  (S.rules||[]).forEach(r=>{if(!r.diagHist)r.diagHist=[];}); // 親ポメ診断用の記録領域(tagHistとは別)を後付けで補う
@@ -1598,6 +1648,11 @@ function markBlock(key,btn){const t=today();if(!S.menuManual[t])S.menuManual[t]=
   const pid=S.lastPlanIds[t][+m[1]];
   const item=S.plan.items.find(x=>x.id===pid);
   if(item)item.done=true;}
+ // テスト勉強モード由来の項目なら、その単元の消化回数(done)を1つ進める(targetは超えない)
+ if(m&&S.lastExamUnits&&S.lastExamUnits[t]&&S.lastExamUnits[t][+m[1]]&&S.examPlan&&S.examPlan.units){
+  const uk=S.lastExamUnits[t][+m[1]];
+  const u=S.examPlan.units.find(x=>(x.sub+"|"+x.unit)===uk);
+  if(u&&u.done<u.target)u.done++;}
  save();renderMenu();}
 const A=(icon,label,badge,jump)=>jump?`<button class="act applink" onclick="${jump}">${icon} ${label} ${badge?`<span class="am auto">${badge}</span>`:""}<span class="jump">ひらく →</span></button>`:`<div class="act">${icon} ${label} ${badge?`<span class="am manu">${badge}</span>`:""}</div>`;
 /** S.extLinksから名前で外部リンクを引いて、今日のメニュー用のボタンにする(見つからなければ何も出さない) */
@@ -1629,8 +1684,14 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
  const doneBtn=k=>blockDone(k)?`<button class="donebtn done">✓ おわった</button><span class="hint-note" style="margin:2px 0 0">明日はちがう単元が出ます</span>`:`<button class="donebtn" onclick="markBlock('${k}',this)">おわった!</button>`;
  if(d.off){h=`<div class="card" style="border-color:var(--pink);background:var(--pink-soft)"><h2>🏖 今日はオフ日</h2><div>ゆっくり休んでね。連続記録はフリーズしていて切れません。</div></div>`;}
  else{
-  const picks=pickSubjectsForToday();
+  const picks=(S.examMode&&S.examPlan)?pickExamUnitsForToday():pickSubjectsForToday();
   recordMainPicks(picks);
+  if(S.examMode&&S.examPlan){
+   h+=`<div class="card" style="background:var(--blue-soft);border-color:var(--blue)">
+    <b>📋 テスト勉強モード中</b>
+    <div style="font-size:13px;margin-top:4px">${examModeSummaryHtml()}</div>
+    <div style="margin-top:6px"><button class="mini" onclick="go('sHeatmap',document.querySelector('[data-s=sHeatmap]'))">🗺️ 学習マップをひらく</button></div>
+   </div>`;}
   if(!curHoliday()&&!todaySubs().length){
    h+=`<div class="card" style="background:#FDF6E3;border-color:#E8B84B"><b>📝 今日の入力がまだです</b>
     <div style="font-size:13px;margin-top:4px">下の2教科は、今日の授業がわからないので<b>苦手なところ</b>から選んでいます。「今日の入力」で教科を入れると、授業に合わせたメニューになります。
@@ -1723,6 +1784,8 @@ function recordMainPicks(picks){
  S.lastPicks[t]=picks.map(p=>p.rule?p.rule.id:null); // ①②の位置ごとに、今出しているruleIdを覚えておく("終わった"の紐付け用)
  S.lastPlanIds=S.lastPlanIds||{};
  S.lastPlanIds[t]=picks.map(p=>p.planId||null); // 対策プラン由来の項目なら、そのplanIdも覚えておく
+ S.lastExamUnits=S.lastExamUnits||{};
+ S.lastExamUnits[t]=picks.map(p=>p.kind==="exam"?(p.sub+"|"+p.unit):null); // テスト勉強モード由来の項目なら、その単元キーも覚えておく
  if(merged.length!==prev.length){S.mainLog[t]=merged;
   // 30日より古い記録は捨てる
   Object.keys(S.mainLog).forEach(k=>{if(daysBetween(k,t)>30)delete S.mainLog[k];});
@@ -3197,31 +3260,178 @@ function ruleHeatWarn(r){
  return recentTag||overdue;}
 /** UNITMAPの各単元(行)に、その単元に属するS.rulesを対応づける。rule.unit(手動で設定した正確な単元名)で
  * 厳密一致のみを見る(あいまいな章名一致には頼らない)。unitが無い/一致するUNITMAP行が無いルールはunlinkedへ。 */
+/** その教科・単元(start〜end)が、登録済みテスト範囲(過ぎたものは除く)のいずれかに重なるか */
+function unitInExamRange(sub,start,end){
+ return (S.examRange||[]).some(x=>x.date>=today()&&x.sub===sub&&x.pStart<=end&&x.pEnd>=start);}
 function unitsWithRules(sub){
  const rows=UNITMAP[sub]||[];
- const units=rows.map(([a,b,name])=>({start:a,end:b,name,rules:[]}));
+ const units=rows.map(([a,b,name])=>({start:a,end:b,name,rules:[],
+  patterns:(S.manualPatterns||[]).filter(p=>p.sub===sub&&p.unit===name),
+  inExam:unitInExamRange(sub,a,b)}));
  const unlinked=[];
  S.rules.filter(r=>r.sub===sub).forEach(r=>{
   const u=r.unit?units.find(x=>x.name===r.unit):null;
   if(u)u.rules.push(r);else unlinked.push(r);});
  return{units,unlinked};}
 /** 単元タイルのレベルは、中の子ルールの中で一番進んでいないもの(最小値)に合わせる。
- * 紐づくルールが1つも無い単元は0(記録なし)とし、「未着手」ともあえて区別する。 */
-function unitHeatLevel(u){return u.rules.length?Math.min(...u.rules.map(ruleHeatLevel)):0;}
-function unitHeatWarn(u){return u.rules.some(ruleHeatWarn);}
+ * ルールが1つも無い単元は、代わりに手動理解度チェック(S.manualPatterns)の最小段階を使う(二重の仕組みにしないため、
+ * ルールが1件でもあればそちらを優先しパターンは見ない)。どちらも無ければ0(記録なし)。 */
+function unitHeatLevel(u){
+ if(u.rules.length)return Math.min(...u.rules.map(ruleHeatLevel));
+ if(u.patterns&&u.patterns.length)return Math.min(...u.patterns.map(p=>p.stage));
+ return 0;}
+function unitHeatWarn(u){
+ if(u.rules.length)return u.rules.some(ruleHeatWarn);
+ return !!(u.patterns&&u.patterns.some(p=>p.warn));}
+
+/* ---------- テスト範囲・カウントダウン(学習マップ拡張) ---------- */
+let examFilterOn=false; // 「テスト範囲のみ表示」の一時状態(画面を離れたらリセットでよいので保存しない)
+let examCardOpen=false; // 登録一覧・入力フォームの開閉状態(入力し終えたら見なくてよいので、既定は閉じておく。保存はしない)
+let justAddedExam=null; // 直前に追加した1件への参照(一覧でその行を一瞬ハイライトするための目印。保存しない・次の描画で消す)
+function toggleExamFilter(){examFilterOn=!examFilterOn;renderHeatmap();}
+function toggleExamCardOpen(){examCardOpen=!examCardOpen;renderExamCard();}
+/** テスト日程・範囲の登録カード。カウントダウンは常に見え、登録一覧・入力フォームは折りたたみ(既定は閉)。 */
+/** テスト範囲の教科セレクト(UNITMAPがある教科のみ)。selectedを渡すとその教科をselected状態にする。 */
+function examSubOptions(selected){
+ return SUBJECTS.filter(s=>UNITMAP[s.id]&&UNITMAP[s.id].length).map(s=>`<option value="${s.id}" ${s.id===selected?"selected":""}>${s.name}</option>`).join("");}
+function renderExamCard(){
+ const list=S.examRange||[];
+ const upcoming=list.filter(x=>x.date>=today()).sort((a,b)=>a.date<b.date?-1:1);
+ const past=list.filter(x=>x.date<today());
+ const subName=id=>(SUBJECTS.find(s=>s.id===id)||{}).name||id;
+ const countdownHtml=upcoming.length?upcoming.map(x=>{
+   const d=daysBetween(today(),x.date);
+   return `<div class="examcd">📅 <b>${esc(subName(x.sub))}</b>まであと<b>${d===0?"今日!":d+"日"}</b><span class="hint-note" style="margin:0 0 0 6px">(${jdate(x.date)}・p.${x.pStart}〜${x.pEnd})</span></div>`;}).join("")
+  :`<div class="hint-note" style="margin:0">まだテスト範囲が登録されていません</div>`;
+ const modeHtml=examModeCardHtml();
+ const toggleHtml=`<button class="mini" style="margin-top:8px" onclick="toggleExamCardOpen()">${examCardOpen?"▲ とじる":"▼ 登録・修正する"}</button>`;
+ if(!examCardOpen){
+  qs("#examCard").innerHTML=`<h2>📅 テスト範囲</h2>${countdownHtml}${modeHtml}${toggleHtml}`;
+  const btn=qs("#examFilterBtn");
+  if(btn){btn.classList.toggle("on",examFilterOn);btn.textContent=examFilterOn?"🔎 テスト範囲のみ表示中":"🔎 テスト範囲のみ表示";}
+  return;}
+ // 保護者モードでは一覧の各項目をそのまま入力欄にして、タップ修正できるようにする(renderTests()の既存パターンと同じ考え方)
+ const listHtml=upcoming.concat(past).map(x=>{
+   const i=list.indexOf(x);
+   const added=x===justAddedExam?" examadded":"";
+   if(!S.parent)return `<div class="examrow${added} ${x.date<today()?"done":""}"><span class="tag">${esc(subName(x.sub))}</span><span>${jdate(x.date)}</span><span>p.${x.pStart}〜${x.pEnd}</span>${x.date<today()?`<span class="tag">終了</span>`:""}</div>`;
+   return `<div class="examrow examedit${added} ${x.date<today()?"done":""}">
+    <select onchange="updateExamRange(${i},'sub',this.value)">${examSubOptions(x.sub)}</select>
+    <input type="date" value="${x.date}" onchange="updateExamRange(${i},'date',this.value)">
+    <input type="number" value="${x.pStart}" style="width:56px" onchange="updateExamRange(${i},'pStart',this.value)">〜<input type="number" value="${x.pEnd}" style="width:56px" onchange="updateExamRange(${i},'pEnd',this.value)">
+    ${x.date<today()?`<span class="tag">終了</span>`:""}<button class="mini" onclick="deleteExamRange(${i})">🗑</button></div>`;}).join("");
+ justAddedExam=null; // ハイライトは1回描画したら次の描画からは消す
+ const formHtml=S.parent?`
+  <div class="examaddrow">
+   <select id="exam_sub"></select>
+   <input type="date" id="exam_date">
+   <input type="number" id="exam_pstart" placeholder="開始p" style="width:70px">〜<input type="number" id="exam_pend" placeholder="終了p" style="width:70px">
+   <button class="btn sub2" onclick="addExamRange()">✅ この範囲を登録する</button>
+  </div>`:"";
+ qs("#examCard").innerHTML=`<h2>📅 テスト範囲</h2>${countdownHtml}${modeHtml}${toggleHtml}
+  ${listHtml?`<div style="margin-top:8px">${listHtml}</div>`:""}${formHtml}`;
+ const sel=qs("#exam_sub");
+ if(sel)sel.innerHTML=examSubOptions();
+ const btn=qs("#examFilterBtn");
+ if(btn){btn.classList.toggle("on",examFilterOn);btn.textContent=examFilterOn?"🔎 テスト範囲のみ表示中":"🔎 テスト範囲のみ表示";}}
+function addExamRange(){
+ const sub=qs("#exam_sub").value,date=qs("#exam_date").value;
+ const pStart=parseInt(qs("#exam_pstart").value,10),pEnd=parseInt(qs("#exam_pend").value,10);
+ if(!date){toast("テスト日を入れてください");return;}
+ if(!pStart||!pEnd||pStart>pEnd){toast("範囲(開始〜終了ページ)を正しく入れてください");return;}
+ const entry={sub,date,pStart,pEnd};
+ S.examRange.push(entry);
+ justAddedExam=entry;
+ save();renderHeatmap();toast("✅ テスト範囲を登録しました");}
+/** 登録済みテスト範囲の項目を修正する(一覧の入力欄からその場で呼ばれる) */
+function updateExamRange(i,field,value){
+ const x=S.examRange[i];if(!x)return;
+ if(field==="pStart"||field==="pEnd"){
+  const n=parseInt(value,10);
+  if(!n){toast("ページ番号を正しく入れてください");renderHeatmap();return;}
+  const pStart=field==="pStart"?n:x.pStart,pEnd=field==="pEnd"?n:x.pEnd;
+  if(pStart>pEnd){toast("開始ページが終了ページを超えています");renderHeatmap();return;}
+  x[field]=n;
+ }else x[field]=value;
+ save();renderHeatmap();}
+function deleteExamRange(i){S.examRange.splice(i,1);save();renderHeatmap();}
+
+/* ---------- テスト勉強モード(テスト範囲の単元を優先度順に消化する計画) ---------- */
+// レベル(0〜4)ごとの目標消化回数。0〜2は2回、3〜4は軽い確認1回(2026-09-19相談のうえ決定)。
+const EXAM_TARGET_BY_LEVEL={0:2,1:2,2:2,3:1,4:1};
+function unitStartPage(sub,name){const t=(UNITMAP[sub]||[]).find(x=>x[2]===name);return t?t[0]:null;}
+/** S.examRange(過去日を除く)に入っている全教科の単元を1本のリストにする。
+ * prevUnitsを渡すと、同じ(教科,単元)の既存doneを引き継ぐ(作り直しで進捗を失わないため)。 */
+function buildExamPlanUnits(prevUnits){
+ const prevDone={};
+ (prevUnits||[]).forEach(u=>{prevDone[u.sub+"|"+u.unit]=u.done;});
+ const out=[];
+ SUBJECTS.filter(s=>UNITMAP[s.id]&&UNITMAP[s.id].length).forEach(s=>{
+  const{units}=unitsWithRules(s.id);
+  units.filter(u=>u.inExam).forEach(u=>{
+   const level=unitHeatLevel(u);
+   out.push({sub:s.id,unit:u.name,level,target:EXAM_TARGET_BY_LEVEL[level],done:prevDone[s.id+"|"+u.name]||0});});});
+ return out;}
+function startExamMode(){
+ const units=buildExamPlanUnits(null);
+ if(!units.length){toast("テスト範囲を先に登録してください");return;}
+ S.examPlan={createdAt:today(),units};
+ S.examMode=true;
+ save();renderHeatmap();toast("📋 テスト勉強モードにしました");}
+function stopExamMode(){S.examMode=false;save();renderHeatmap();}
+/** targetは現時点のレベルで作り直すが、done(実績)は同じ単元なら引き継ぐ。自動では呼ばれず、ボタンからのみ実行する。 */
+function rebuildExamPlan(){
+ const units=buildExamPlanUnits(S.examPlan?S.examPlan.units:null);
+ if(!units.length){toast("テスト範囲が登録されていません");return;}
+ S.examPlan={createdAt:today(),units};
+ save();renderHeatmap();toast("計画を作り直しました");}
+/** 未消化(done<target)の単元をレベルの低い順に並べ、上位2件を「今日のメニュー」用のpickに変換する。
+ * kind:"today"のpickと同じ形にしてあるため、stepFlowHtml()・recordMainPicks()は無改造で流用できる。 */
+function pickExamUnitsForToday(){
+ const backlog=(S.examPlan.units||[]).filter(u=>u.done<u.target).sort((a,b)=>a.level-b.level);
+ return backlog.slice(0,2).map(u=>{
+  const subName=(SUBJECTS.find(s=>s.id===u.sub)||{}).name||u.sub;
+  const rule=S.rules.find(r=>r.sub===u.sub&&r.unit===u.unit&&r.gen&&r.status!=="mastered")||null;
+  return {kind:"exam",sub:u.sub,label:`${subName}「${u.unit}」`,why:"📋 テスト勉強",rule,unit:u.unit,page:unitStartPage(u.sub,u.unit)};});}
+/** 残りタスクの内訳HTML。件数だけでなく、教科ごとに残っている単元名まで一覧表示する
+ * (学習マップ・今日のメニューの両方から呼ばれる共通部品)。 */
+function examModeSummaryHtml(){
+ const units=(S.examPlan&&S.examPlan.units)||[];
+ if(!units.length)return "";
+ const remain=units.filter(u=>u.done<u.target);
+ if(!remain.length)return "残りタスクはありません。おつかれさま!";
+ const bySub={};
+ remain.forEach(u=>{(bySub[u.sub]=bySub[u.sub]||[]).push(u.unit);});
+ const lines=Object.entries(bySub).map(([sub,names])=>
+  `<b>${esc((SUBJECTS.find(s=>s.id===sub)||{}).name||sub)}</b>：${names.map(esc).join("、")}`);
+ return `残りタスク ${remain.length}個<div style="margin-top:2px;line-height:1.7">${lines.join("<br>")}</div>`;}
+/** モードON/OFFの切り替えボタンと、ON時の進捗サマリー・作り直しボタン。折りたたみの外(常に見える位置)に置く。 */
+function examModeCardHtml(){
+ if(S.examMode)return `<div style="margin-top:6px">
+   <button class="mini on" onclick="stopExamMode()">✅ テスト勉強モード中(解除する)</button>
+   <button class="mini" onclick="rebuildExamPlan()">🔄 計画を作り直す</button>
+   <div class="hint-note" style="margin:4px 0 0">${examModeSummaryHtml()}</div>
+  </div>`;
+ return `<div style="margin-top:6px"><button class="mini" onclick="startExamMode()">📋 テスト勉強モードにする</button></div>`;}
+
 function renderHeatmap(){
+ renderExamCard();
  const subsWithMap=SUBJECTS.filter(s=>UNITMAP[s.id]&&UNITMAP[s.id].length);
  qs("#heatBody").innerHTML=subsWithMap.map(s=>{
   const{units,unlinked}=unitsWithRules(s.id);
+  if(examFilterOn&&!units.some(u=>u.inExam))return "";
+  const visibleUnits=examFilterOn?units.filter(u=>u.inExam):units;
   return `<div class="card"><h2>${esc(s.name)}<span class="tag" style="margin-left:6px">${units.length}単元</span></h2>
-   <div class="heat-grid">${units.map((u,i)=>{
+   <div class="heat-grid">${visibleUnits.map((u)=>{
+    const i=units.indexOf(u);
     const lv=unitHeatLevel(u),warn=unitHeatWarn(u);
-    return `<button class="heat-tile lv${lv}" onclick="openUnitDetail('${s.id}',${i})">
+    return `<button class="heat-tile lv${lv} ${u.inExam?"examing":""}" onclick="openUnitDetail('${s.id}',${i})">
+     ${u.inExam?`<span class="heat-exam" title="今回のテスト範囲です">📅</span>`:""}
      ${warn?`<span class="heat-warn" title="中のルールに直近の誤答・期限切れの復習があります">⚠️</span>`:""}
-     <div class="heat-name">${esc(u.name)}</div>
-     <div class="heat-sub">${u.rules.length?u.rules.length+"件のルール":"記録なし"}</div>
+     <div class="heat-name">${esc(u.name)}${(!u.rules.length&&u.patterns.length)?`<span class="heat-cap" title="自己申告のみのため、定着(◎)には到達しません">※</span>`:""}</div>
+     <div class="heat-sub">${u.rules.length?u.rules.length+"件のルール":(u.patterns.length?u.patterns.length+"件のパターン":"記録なし")}</div>
     </button>`;}).join("")}</div>
-   ${unlinked.length?`<div class="hint-note" style="margin-top:10px">単元にひも付けられなかったルール(${unlinked.length}件・タップで詳細):
+   ${(!examFilterOn&&unlinked.length)?`<div class="hint-note" style="margin-top:10px">単元にひも付けられなかったルール(${unlinked.length}件・タップで詳細):
     ${unlinked.map(r=>{const lv=ruleHeatLevel(r);return `<button class="mini" style="margin:2px" onclick="openHeatDetail('${r.id}')"><span class="heat-swatch lv${lv}"></span>${esc(r.name)}</button>`;}).join("")}</div>`:""}
   </div>`;}).join("");}
 function closeHeatDetail(){qs("#heatModal").classList.remove("open");}
@@ -3230,17 +3440,62 @@ function openUnitDetail(sub,idx){
  const{units}=unitsWithRules(sub);
  const u=units[idx];if(!u)return;
  const subName=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
+ const anyCapped=u.rules.some(r=>!r.gen);
  qs("#heatDetailBody").innerHTML=`
   <h3>${esc(u.name)}</h3>
   <div class="hint-note" style="margin:0 0 10px">${esc(subName)}｜教科書 p.${u.start}〜${u.end}</div>
-  ${u.rules.length?`<div class="heat-grid">${u.rules.map(r=>{
+  ${u.rules.length?`<div class="hint-note" style="margin:0 0 8px">この単元は自動で記録される項目です。誤答の登録・類題チャレンジの結果がそのまま反映されます。</div>
+   <div class="heat-grid">${u.rules.map(r=>{
     const lv=ruleHeatLevel(r),warn=ruleHeatWarn(r);
     return `<button class="heat-tile lv${lv}" onclick="openHeatDetail('${r.id}',{sub:'${sub}',idx:${idx}})">
      ${warn?`<span class="heat-warn" title="直近に誤答・期限切れの復習があります">⚠️</span>`:""}
-     <div class="heat-name">${esc(r.name)}${!r.gen?`<span class="heat-cap" title="類題での検証ができないため、◎には到達しません">※</span>`:""}</div>
-    </button>`;}).join("")}</div>`
-   :`<div class="hint-note">この単元にはまだ記録がありません。誤答の登録や類題チャレンジで積み上げていくと、ここに反映されます。</div>`}`;
+     <div class="heat-name">${esc(r.name)}${!r.gen?`<span class="heat-cap">※</span>`:""}</div>
+    </button>`;}).join("")}</div>
+   ${anyCapped?`<div class="hint-note" style="margin-top:8px">※ の項目は自動検証ができないため、「定着(◎)」には到達しません。紙のドリルでの仕上げが目安です。</div>`:""}`
+   :patternListHtml(u,sub,idx)}`;
  qs("#heatModal").classList.add("open");}
+const PATTERN_STAGE_LABEL=["未実施","やった","わかった","説明できる"];
+/** ルールが1件も無い単元向けの「手動理解度チェック」一覧+追加フォーム。renderExamCard()の一覧+追加行と同じ型。
+ * 誰でも(保護者モードに関わらず)操作できる。香凜さん自身がその場で自己申告する性質のものであるため。 */
+function patternListHtml(u,sub,idx){
+ const rows=u.patterns.map(p=>`
+  <div class="examrow examedit">
+   <button class="patwarn ${p.warn?"on":""}" onclick="togglePatternWarn('${p.id}','${sub}',${idx})" title="苦手としてマークする">⚠️</button>
+   <input type="text" value="${esc(p.name)}" style="flex:1;min-width:120px" onchange="renamePattern('${p.id}','${sub}',${idx},this.value)">
+   <div class="lvsel">${PATTERN_STAGE_LABEL.map((lbl,i)=>`<button class="lv ${p.stage===i?"on":""}" onclick="setPatternStage('${p.id}',${i},'${sub}',${idx})">${lbl}</button>`).join("")}</div>
+   <button class="mini" onclick="deletePattern('${p.id}','${sub}',${idx})">🗑</button>
+  </div>`).join("");
+ return `${rows||`<div class="hint-note">まだパターンが登録されていません。下から追加できます。</div>`}
+  <div class="examaddrow">
+   <input type="text" id="patternNameInput" placeholder="パターン名(例:分数を含む方程式)" style="flex:1;min-width:160px">
+   <button class="btn sub2" onclick="addManualPattern('${sub}',${idx})">＋ パターンを追加</button>
+  </div>
+  <div class="hint-note" style="margin-top:8px">※ 自己申告のみのため、「定着(◎)」には到達しません。紙のドリルや説明で自信がついたら「説明できる」まで上げていきましょう。</div>`;}
+function addManualPattern(sub,idx){
+ const name=qs("#patternNameInput").value.trim();
+ if(!name){toast("パターン名を入れてください");return;}
+ const u=unitsWithRules(sub).units[idx];if(!u)return;
+ S.manualPatterns.push({id:"mp_"+Date.now(),sub,unit:u.name,name,stage:0,warn:false});
+ save();renderHeatmap();openUnitDetail(sub,idx);
+ toast("パターンを追加しました");}
+function setPatternStage(id,stage,sub,idx){
+ const p=S.manualPatterns.find(x=>x.id===id);if(!p)return;
+ p.stage=stage;
+ save();renderHeatmap();openUnitDetail(sub,idx);}
+function deletePattern(id,sub,idx){
+ S.manualPatterns=S.manualPatterns.filter(x=>x.id!==id);
+ save();renderHeatmap();openUnitDetail(sub,idx);}
+/** パターン名の修正。段階(stage)・苦手フラグ(warn)には触れない。 */
+function renamePattern(id,sub,idx,newName){
+ const name=newName.trim();
+ const p=S.manualPatterns.find(x=>x.id===id);if(!p)return;
+ if(!name){toast("パターン名を入れてください");renderHeatmap();openUnitDetail(sub,idx);return;}
+ p.name=name;
+ save();renderHeatmap();openUnitDetail(sub,idx);}
+function togglePatternWarn(id,sub,idx){
+ const p=S.manualPatterns.find(x=>x.id===id);if(!p)return;
+ p.warn=!p.warn;
+ save();renderHeatmap();openUnitDetail(sub,idx);}
 /** ルール単位の詳細。backToを渡すと「← 単元にもどる」で単元の一覧表示に戻れる。 */
 function openHeatDetail(id,backTo){
  const r=S.rules.find(x=>x.id===id);if(!r)return;
