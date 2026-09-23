@@ -115,7 +115,6 @@ details.card[open] summary::before{content:"▾ "}
 .subj-row2.on .subj-off-hint{display:none}
 .pageinput{width:64px;padding:6px 8px;border:2px solid var(--line);border-radius:10px;font-size:16px;font-weight:700;text-align:center;background:#fff}
 .prev{font-size:12.5px;color:var(--ink-soft)}
-.unitname{font-size:12px;font-weight:700;color:var(--mint)}
 .quiz-form{display:none;margin-top:10px;background:var(--blue-soft);border:1.5px dashed #CCDEF0;border-radius:12px;padding:12px 16px;gap:10px;flex-wrap:wrap;align-items:center}
 .quiz-form.open{display:flex}
 .quiz-form select,.quiz-form input{padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
@@ -695,9 +694,9 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
     <div><div class="streak-num">🌸 <span id="streakN">0</span><small> 日目</small></div><div style="font-size:11.5px;color:var(--ink-soft)">お休みの日はお花が閉じて、また続きから咲くよ</div></div>
     <div class="streak-side">今週の ◎<br><b id="weekMaru">0個</b> ゲット!</div>
   </div>
-  <div><h1>今日、学校でやったのは?</h1><p class="sub">授業があった教科をタップ → 進んだページを入れるだけ(30秒)</p></div>
+  <div><h1>今日、どれだけ勉強した?</h1><p class="sub">家で勉強した教科をタップ → 時間(分)を入れるだけ(30秒)</p></div>
   <div class="card"><div id="subjList"></div>
-    <div class="hint-note">ページの途中まででも、そのページ数でOK。授業がなかった教科は触らない。</div>
+    <div class="hint-note">スタサプ・やさまる・紙のドリルなど、アプリの外での勉強時間もここに入れてOK。やっていない教科は触らない。</div>
     <div style="margin-top:14px">
       <button class="btn sub2" onclick="qs('#qform').classList.toggle('open')">📢 小テストの予告がある</button>
       <div class="quiz-form" id="qform">
@@ -1096,16 +1095,6 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   </div>
 </div>
 
-<div class="pad-modal" id="unitPickModal" onclick="if(event.target===this)closeUnitPick()">
-  <div class="pad-card" style="max-width:480px;max-height:80vh;overflow-y:auto">
-    <button class="q-x" style="position:absolute;top:12px;right:12px" onclick="closeUnitPick()" title="とじる">✕</button>
-    <h3 id="unitPickTitle">📖 やった単元を選ぶ</h3>
-    <div class="hint-note" style="margin:0 0 10px">動画やドリルを見て「これをやった」と思うものを選ぶと、そのページまで入力します。ちがったらあとで数字を直せます。</div>
-    <div id="unitPickList" style="display:flex;flex-direction:column;gap:6px"></div>
-    <div id="unitPickVideo" style="margin-top:10px"></div>
-  </div>
-</div>
-
 <div class="pad-modal" id="heatModal" onclick="if(event.target===this)closeHeatDetail()">
   <div class="pad-card" style="max-width:420px">
     <button class="q-x" style="position:absolute;top:12px;right:12px" onclick="closeHeatDetail()" title="とじる">✕</button>
@@ -1177,26 +1166,6 @@ function unitRangeByCh(sub,ch){const arr=UNITMAP[sub]||[];for(const t of arr){if
 function unitsInPageRange(sub,pStart,pEnd){return (UNITMAP[sub]||[]).filter(([a,b])=>a<=pEnd&&b>=pStart);}
 const VIDEO_PL={math:"PLFK0gaZkmkxDq3-cAJBxe7Ge34zJ9NUua",jpn:"PLFK0gaZkmkxDcnKaalvYir2VsDGppDKay",sci:"PLFK0gaZkmkxCrDIFpKFBffqSc1FNJKHfU",geo:"PLFK0gaZkmkxDUTdenfcbLyrCCLEb_LMNF",his:"PLFK0gaZkmkxDUTdenfcbLyrCCLEb_LMNF",eng:"PLFK0gaZkmkxAIITBM7L55gD63XKy5q_-0"};
 const plURL=(sub,idx)=>"https://www.youtube.com/playlist?list="+VIDEO_PL[sub]+(idx?("&index="+idx):"");
-/** 「今日の入力」で、教科書を忘れて今日のページが分からない時の補助。UNITMAP(教科書の単元目次)を
- * 単元名つきで一覧表示し、選ぶとその単元の終了ページを入力欄にそのまま入れる(既存の手入力は残したまま)。 */
-function openUnitPicker(sub){
- const subName=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
- qs("#unitPickTitle").textContent=`📖 ${subName}:やった単元を選ぶ`;
- const units=UNITMAP[sub]||[];
- qs("#unitPickList").innerHTML=units.length?units.map(([a,b,name])=>
-   `<button class="rule-chip sub2" onclick="pickUnitPage('${sub}',${b})">${esc(name)}<span class="st">p.${a}〜${b}</span></button>`).join("")
-  :`<div class="hint-note" style="margin:0">この教科の単元データがまだありません</div>`;
- qs("#unitPickVideo").innerHTML=VIDEO_PL[sub]
-  ?`<button class="mini" onclick="window.open('${plURL(sub)}','_blank')">🎥 ${esc(subName)}のやさまる動画一覧を見る</button>`:"";
- qs("#unitPickModal").classList.add("open");}
-function pickUnitPage(sub,page){
- S.input.entries[sub]={page};
- save();
- qs("#unitPickModal").classList.remove("open");
- renderInput();
- toast("ページを入力しました。ちがったら数字を直してね");}
-function closeUnitPick(){qs("#unitPickModal").classList.remove("open");}
-
 /* ---------- ルールキー初期マスタ(あぶり出し結果より) ---------- */
 const TAGS=["型を知らない","型を選べない","符号ミス","かっこの展開ミス","書き方を省略","計算ミス","代入ミス","再現性不足"];
 const TAGLABEL={
@@ -1440,6 +1409,7 @@ function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultS
  if(S.examMode===undefined)S.examMode=false;
  if(!S.examPlan)S.examPlan=null;
  if(!S.examDoneLog)S.examDoneLog={};
+ if(!S.homeMinutes)S.homeMinutes={}; // 「今日の入力」の家庭学習時間(分)。日付→教科→分。学習ダッシュボードで実測として優先使用する
  // 2026-09-27:examDoneLogを「日付→件数」から「日付→教科別件数」に変更。旧形式(数値)が残っていれば
  // 教科が分からない記録として_unknownに退避する(合計値は保たれるためペース計算は連続する)。
  Object.keys(S.examDoneLog).forEach(k=>{if(typeof S.examDoneLog[k]==="number")S.examDoneLog[k]={_unknown:S.examDoneLog[k]};});
@@ -1539,7 +1509,7 @@ function renderAva(){const av=S.profile.avatar;
  ["avaMini","avaMain"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=svg;});}
 
 /* ---------- 今日の入力 ---------- */
-function ensureToday(){if(S.input.date!==today()){S.input={date:today(),entries:{},off:false};}}
+function ensureToday(){if(S.input.date!==today()){S.input={date:today(),off:false};}}
 function renderInput(){ensureToday();renderAva();
  qs("#streakN").textContent=calcStreak();
  qs("#weekMaru").textContent=weekMaruCount()+"個";
@@ -1550,19 +1520,20 @@ function renderInput(){ensureToday();renderAva();
  if(lbs)lbs.value=(S.longBreakRange&&S.longBreakRange.start)||"";
  if(lbe)lbe.value=(S.longBreakRange&&S.longBreakRange.end)||"";
  const box=qs("#subjList");box.innerHTML="";
- SUBJECTS.forEach(s=>{const e=S.input.entries[s.id];const on=!!e;
+ // 「オン」=今日この教科の分数が入力ずみ(0分も含む・実測として学習ダッシュボードに使う)。「オフ」=未入力(ダッシュボードは推定値を使う)。
+ const todayMin=S.homeMinutes[today()]||(S.homeMinutes[today()]={});
+ SUBJECTS.forEach(s=>{const on=todayMin[s.id]!==undefined;
   const row=document.createElement("div");row.className="subj-row2"+(on?" on":"");
-  const last=S.pages[s.id];
   row.innerHTML=`<button class="subj-name">${s.name}</button>
    <span class="subj-off-hint">タップすると入力できます</span>
-   <div class="subj-body"><span class="prev">前回 p.${last} →</span>
-   <input class="pageinput" value="${on?e.page:""}" placeholder="?" inputmode="numeric">
-   <span class="prev">ページまで</span><span class="unitname"></span>
-   <button class="mini" onclick="openUnitPicker('${s.id}')">❓わからない時はこちら</button></div>`;
-  const inp=row.querySelector(".pageinput"),un=row.querySelector(".unitname");
-  const upd=()=>{const p=parseInt(inp.value);if(p){S.input.entries[s.id]={page:p};un.textContent="→ "+unitOf(s.id,p);}else{delete S.input.entries[s.id];un.textContent="";}save();};
-  row.querySelector(".subj-name").onclick=()=>{if(row.classList.contains("on")){row.classList.remove("on");delete S.input.entries[s.id];save();}else{row.classList.add("on");inp.focus();}};
-  inp.oninput=upd; if(on)un.textContent="→ "+unitOf(s.id,e.page);
+   <div class="subj-body">
+   <input class="pageinput" value="${on?todayMin[s.id]:""}" placeholder="0" inputmode="numeric">
+   <span class="prev">分</span></div>`;
+  const inp=row.querySelector(".pageinput");
+  inp.onchange=()=>{const v=parseInt(inp.value,10);todayMin[s.id]=(v>=0)?v:0;inp.value=todayMin[s.id];save();};
+  row.querySelector(".subj-name").onclick=()=>{
+   if(row.classList.contains("on")){row.classList.remove("on");delete todayMin[s.id];save();}
+   else{row.classList.add("on");todayMin[s.id]=0;save();inp.focus();}};
   box.appendChild(row);});
  const sel=qs("#quizSubj");sel.innerHTML=SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
  updateQuizDeckPick();
@@ -1594,13 +1565,10 @@ function renderQuizList(){const recent=S.quizzes.filter(q=>daysBetween(q.date,to
   return `<span class="tag blueT" style="margin:2px">📢 ${SUBJECTS.find(s=>s.id===q.sub).name}・${esc(q.when)}・${esc(q.range)}${esc(deckNote)} <button onclick="delQuiz(${S.quizzes.indexOf(q)})" style="font-weight:900">×</button></span>`;
  }).join("");}
 function delQuiz(i){S.quizzes.splice(i,1);save();renderQuizList();}
-function makeMenu(){ // 到達点更新
+function makeMenu(){
  ensureToday();
- if(!S.input.prevPages)S.input.prevPages={...S.pages};
- Object.entries(S.input.entries).forEach(([sub,e])=>{if(e.page>S.pages[sub])S.pages[sub]=e.page;});
  save();go("sMenu",qs('[data-s="sMenu"]'));}
 function remakeMenu(){
- if(S.input.prevPages){S.pages={...S.input.prevPages};delete S.input.prevPages;}
  save();go("sInput",qs('[data-s="sInput"]'));
  toast("入力を直したら、もう一度「今日のメニューを作る」を押してください");}
 function resetChecks(){const t=today();
@@ -1706,7 +1674,7 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
  const mpb=qs("#menuPlanBadge");if(mpb)mpb.innerHTML=planBadgeHtml();
  qs("#holidayChk").checked=curHoliday();
  const lb=qs("#longBreakChk");if(lb)lb.checked=curLongBreak();
- const d=D();const ent=S.input.entries;const entSubs=Object.keys(ent);
+ const d=D();
  const dow=new Date().getDay();
  const revN=pendingReviews().length;
  const quizToday=S.quizzes.filter(q=>daysBetween(q.date,today())<=3);
@@ -1723,10 +1691,6 @@ function renderMenu(){qs("#menuDate").textContent=jdate(today());
     <div class="hint-note" style="margin-top:6px">実際に取り組んだら、下の該当ブロックの「おわった!」を押してください。</div>
     <div style="margin-top:6px"><button class="mini" onclick="go('sHeatmap',document.querySelector('[data-s=sHeatmap]'))">🗺️ 学習マップをひらく</button></div>
    </div>`;}
-  if(!curHoliday()&&!todaySubs().length){
-   h+=`<div class="card" style="background:#FDF6E3;border-color:#E8B84B"><b>📝 今日の入力がまだです</b>
-    <div style="font-size:13px;margin-top:4px">下の2教科は、今日の授業がわからないので<b>苦手なところ</b>から選んでいます。「今日の入力」で教科を入れると、授業に合わせたメニューになります。
-     <button class="mini" onclick="go('sInput',document.querySelector('[data-s=sInput]'))" style="margin-left:4px">📝 今日の入力をひらく</button></div></div>`;}
   h+=`<div class="timeline">`;
   // ---- すきま時間(毎日固定・暗記もの) ----
   const kanji=nextMemoDeck("jpn"), eitan=nextMemoDeck("eng");
@@ -1834,7 +1798,6 @@ function swapPick(ruleId){
  save();renderMenu();
  toast("べつの単元に入れかえました");}
 function pickSubjectsForToday(){
- const ent=S.input.entries||{};const entSubs=Object.keys(ent);
  const quizToday=S.quizzes.filter(q=>daysBetween(q.date,today())<=3);
  const out=[];
  const usedSub={},usedRule={};
@@ -1883,15 +1846,10 @@ function pickSubjectsForToday(){
   // ②お休みの日:苦手から2つ
   fill(S.rules.filter(r=>r.status!=="mastered"&&r.gen).sort((a,b)=>a.pr-b.pr));
  }else{
-  // ①平日:今日習った教科から
-  for(const sub of entSubs){if(out.length>=2)break;if(usedSub[sub])continue;
-   const nm=(SUBJECTS.find(s=>s.id===sub)||{}).name||sub;
-   const unit=unitOf(sub,ent[sub].page);
-   const rule=S.rules.filter(r=>r.sub===sub&&r.status!=="mastered"&&r.gen).sort((a,b)=>a.pr-b.pr)[0]||null;
-   out.push({kind:"today",sub,label:`${nm}「${unit}」`,why:"今日の授業",rule,unit,page:ent[sub].page});usedSub[sub]=1;}
-  // 足りなければ苦手で埋める(類題が作れる=gen付きのものだけ)
-  if(out.length<2){for(const r of topDebts(6).filter(r=>r.gen)){if(out.length>=2)break;if(usedSub[r.sub]||usedRule[r.id])continue;
-   out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🎯 苦手",rule:r});usedSub[r.sub]=1;usedRule[r.id]=1;}}
+  // ①平日:苦手で埋める(類題が作れる=gen付きのものだけ)。ページ入力の廃止(2026-09-27)により、
+  // 「今日の授業ベース」の選定(kind:"today")は廃止し、休日と同じ苦手ベースの選定に一本化した。
+  for(const r of topDebts(6).filter(r=>r.gen)){if(out.length>=2)break;if(usedSub[r.sub]||usedRule[r.id])continue;
+   out.push({kind:"rule",sub:r.sub,label:`${(SUBJECTS.find(s=>s.id===r.sub)||{}).name}:${r.name}`,why:"🎯 苦手",rule:r});usedSub[r.sub]=1;usedRule[r.id]=1;}
  }
  return out.slice(0,2);}
 /** 1教科40分の5ステップ */
@@ -2374,7 +2332,6 @@ function planBadgeHtml(){
 /* ---------- 暗記カード ---------- */
 let curDeck=0,deckManual=false,cardBusy=false;
 let cardQ=[],cardIdx=0,roundWrong=[],roundLog=[],cardViewTab="do",lastJudge=null,cardAdvanceTimer=null;
-function todaySubs(){return Object.keys(S.input.entries||{});}
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function cardTab(t){cardViewTab=t;
  qs("#tabCardDo").classList.toggle("on",t==="do");qs("#tabCardLog").classList.toggle("on",t==="log");
@@ -2444,7 +2401,7 @@ function showImageDecks(){
 function renderCards(){const dp=qs("#deckPicker");
  if(cardViewTab==="log"){qs("#cardLogView").innerHTML=todayCardsHtml();return;}
  if(!S.decks.length){qs("#deckSubTabs").innerHTML="";dp.innerHTML="";qs("#cardArea").innerHTML=`<div class="card"><b>デッキがありません。</b><div class="hint-note">おうちメニュー →「データ管理」からデッキを追加してください。</div></div>`;return;}
- const ts=todaySubs();
+ const ts=[]; // 「今日ページ入力した教科」は廃止(2026-09-27)。空のままにして、以下の優先表示・警告は自然に出なくなる
  const subName=id=>((SUBJECTS.find(x=>x.id===id)||{}).name||id);
  const subCounts={};S.decks.forEach(d=>{subCounts[d.sub]=(subCounts[d.sub]||0)+1;});
  // デッキが無くても、その教科向けの外部リンクが登録されていればタブを出す(デジタル教材だけの教科のため)
@@ -3887,12 +3844,24 @@ function examModeMinutesByDay(from,to){
    out[date][sub]=(out[date][sub]||0)+n*EXAM_MINUTES_PER_REP;});});
  return out;}
 /** 紙のドリル・暗記カード・テスト勉強モードを合算した、日付ごと・教科ごとの推定時間(分)。 */
-function dashMinutesByDay(from,to){
+function dashEstimatedMinutesByDay(from,to){
  const a=paperMinutesByDay(from,to),b=cardMinutesByDay(from,to),c=examModeMinutesByDay(from,to);
  const out={};
  [a,b,c].forEach(src=>Object.entries(src).forEach(([date,bySub])=>{
   if(!out[date])out[date]={};
   Object.entries(bySub).forEach(([sub,min])=>{out[date][sub]=(out[date][sub]||0)+min;});}));
+ return out;}
+/** 紙のドリル・暗記カード・テスト勉強モードの推定時間に、「今日の入力」の実測(S.homeMinutes)を組み合わせる。
+ * (日付,教科)ごとに、実測の入力があればそちらを正として使い(二重計上を避ける)、無ければ推定にフォールバックする。 */
+function dashMinutesByDay(from,to){
+ const estimated=dashEstimatedMinutesByDay(from,to);
+ const out={};
+ const dates=new Set([...Object.keys(estimated),...Object.keys(S.homeMinutes||{}).filter(d=>inDashRange(d,from,to))]);
+ dates.forEach(date=>{
+  const est=estimated[date]||{},actual=(S.homeMinutes||{})[date]||{};
+  const subs=new Set([...Object.keys(est),...Object.keys(actual)]);
+  out[date]={};
+  subs.forEach(sub=>{out[date][sub]=actual[sub]!==undefined?actual[sub]:est[sub];});});
  return out;}
 /** 期間全体を教科ごとに合計した推定時間(分)。 */
 function dashMinutesBySubject(from,to){
