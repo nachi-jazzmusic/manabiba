@@ -1,0 +1,19 @@
+{
+  "id": "./timer.html",
+  "name": "まなびば 学習タイマー",
+  "short_name": "学習タイマー",
+  "description": "教科ごとの学習時間を自動で記録するタイマー",
+  "start_url": "./timer.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7f3",
+  "theme_color": "#183d36",
+  "icons": [
+    {
+      "src": "./timer-icon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

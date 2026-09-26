@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#183d36">
+<title>学習タイマー｜まなびば</title>
+<link rel="manifest" href="timer.webmanifest">
+<link rel="icon" href="timer-icon.svg" type="image/svg+xml">
+<style>
+:root{color-scheme:light;--ink:#17332f;--muted:#60746f;--line:#d3dfda;--paper:#f4f7f3;--white:#fff;--green:#1f6552;--green-dark:#183d36;--mint:#d9eee4;--orange:#bd5a34;--orange-soft:#fff0e7;--yellow:#f5d778;--shadow:0 18px 54px rgba(24,61,54,.12)}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:linear-gradient(155deg,#edf4ef 0%,#f8f6ee 55%,#e8f1ec 100%);color:var(--ink);font-family:"Yu Gothic UI","Meiryo",sans-serif;min-height:100vh}
+button,input{font:inherit}
+button{cursor:pointer}
+.page{max-width:760px;margin:0 auto;padding:20px 18px 44px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.brand{font-weight:900;font-size:18px;letter-spacing:0}
+.brand small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+.quiet-btn{border:1px solid var(--line);background:rgba(255,255,255,.75);color:var(--ink);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:700}
+.panel{background:var(--white);border:1px solid rgba(211,223,218,.9);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.hero{padding:25px clamp(18px,5vw,38px) 24px;background:var(--green-dark);color:#fff}
+.eyebrow{font-size:12px;letter-spacing:0;color:#c5ddd4;font-weight:700}
+h1{font-size:22px;margin:7px 0 0;line-height:1.4}
+.clock-wrap{display:flex;justify-content:center;align-items:center;min-height:190px;padding:24px 8px 18px}
+.clock{font-variant-numeric:tabular-nums;font-size:88px;font-weight:800;line-height:1;letter-spacing:0;color:var(--green-dark)}
+.status{text-align:center;font-weight:800;font-size:16px;min-height:28px}
+.substatus{text-align:center;color:var(--muted);font-size:13px;min-height:25px;margin-top:3px}
+.progress{height:7px;background:#e8efeb;margin:15px 0 22px;border-radius:99px;overflow:hidden}
+.progress span{height:100%;display:block;width:0;background:var(--green);transition:width .25s linear}
+.alarm .clock{color:var(--orange)}
+.alarm .progress span{background:var(--orange)}
+.subjects{padding:0 clamp(16px,5vw,38px) 22px}
+.subjects-title{font-weight:800;font-size:14px;margin:0 0 10px}
+.subject-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.subject{min-height:52px;border:1.5px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);font-weight:800;font-size:15px}
+.subject:hover{border-color:var(--green)}
+.subject.selected{border-color:var(--green);background:var(--mint);color:var(--green-dark);box-shadow:inset 0 0 0 1px var(--green)}
+.subject:disabled{opacity:.45;cursor:default}
+.actions{padding:0 clamp(16px,5vw,38px) 25px;display:flex;justify-content:center;gap:9px;flex-wrap:wrap}
+.action{min-height:49px;border:0;border-radius:9px;padding:11px 18px;font-weight:900;font-size:15px}
+.primary{background:var(--green);color:#fff;min-width:190px}
+.primary:hover{background:#164e3f}
+.secondary{background:#edf3ef;color:var(--ink)}
+.warning{background:var(--orange-soft);color:#8e371b;border:1px solid #edc7b5}
+.action:disabled{opacity:.45;cursor:default}
+.alarm-actions{width:100%;display:flex;justify-content:center;gap:9px;flex-wrap:wrap}
+.settings{margin-top:14px;padding:18px 20px}
+.settings-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
+.settings h2{font-size:15px;margin:0}
+.settings-note{font-size:11px;color:var(--muted)}
+.setting-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.setting label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px}
+.setting input{width:100%;height:42px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;font-size:16px;font-variant-numeric:tabular-nums}
+.setting input:disabled{background:#f3f5f4;color:#84918c}
+.setting span{display:block;margin-top:4px;font-size:11px;color:var(--muted)}
+.footnote{margin:12px 3px 0;color:var(--muted);font-size:12px;line-height:1.7}
+.notice{margin-top:12px;padding:11px 14px;border-radius:9px;background:#f0f5f2;color:var(--muted);font-size:12px;line-height:1.65}
+.alarm-note{background:var(--orange-soft);color:#78351f}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--green-dark);color:#fff;padding:11px 16px;border-radius:9px;box-shadow:var(--shadow);font-weight:700;font-size:13px;z-index:4;max-width:calc(100vw - 24px);text-align:center}
+.toast[hidden]{display:none}
+@media(max-width:520px){.page{padding:13px 11px 28px}.hero{padding-top:20px}.clock{font-size:58px}.clock-wrap{min-height:158px}.subject-grid{gap:7px}.subject{min-height:49px;font-size:14px}.settings{padding:15px}.setting-grid{gap:7px}.setting input{padding:6px}.action{flex:1;min-width:130px}.primary{min-width:100%}}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="brand">まなびば<small>学習タイマー</small></div>
+    <button class="quiet-btn" id="notifyButton" type="button" onclick="enableNotifications()">通知を設定</button>
+  </header>
+  <main>
+    <section class="panel" id="timerPanel">
+      <div class="hero">
+        <div class="eyebrow" id="phaseLabel">教科を選んでスタート</div>
+        <h1 id="sessionTitle">今日の勉強を記録しよう</h1>
+      </div>
+      <div class="clock-wrap"><div class="clock" id="clockText">00:00</div></div>
+      <div class="status" id="statusText" aria-live="polite">教科を選んでください</div>
+      <div class="substatus" id="substatusText">学習した時間は自動で保存されます</div>
+      <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+      <div class="subjects" id="subjectArea">
+        <p class="subjects-title">勉強する教科</p>
+        <div class="subject-grid" id="subjectGrid"></div>
+      </div>
+      <div class="actions">
+        <button class="action primary" id="startButton" type="button" onclick="startSession()">スタート</button>
+        <button class="action secondary" id="breakButton" type="button" onclick="startBreak()" hidden>☕ 休憩</button>
+        <button class="action primary" id="resumeButton" type="button" onclick="resumeStudy()" hidden>▶ 学習を再開</button>
+        <div class="alarm-actions" id="alarmActions" hidden>
+          <button class="action secondary" id="extendButton" type="button" onclick="extendStudy()">15分延長</button>
+          <button class="action warning" type="button" onclick="finishSession(false)">終了して記録</button>
+        </div>
+        <button class="action warning" id="stopButton" type="button" onclick="confirmFinish()" hidden>終了</button>
+      </div>
+    </section>
+    <section class="panel settings">
+      <div class="settings-head"><h2>時間の設定</h2><span class="settings-note" id="settingsNote">変更は次の学習から</span></div>
+      <div class="setting-grid">
+        <div class="setting"><label for="focusInput">学習時間</label><input id="focusInput" type="number" min="1" max="180" step="1" value="50" onchange="saveSettings()"><span>分</span></div>
+        <div class="setting"><label for="extendInput">延長時間</label><input id="extendInput" type="number" min="1" max="120" step="1" value="15" onchange="saveSettings()"><span>分</span></div>
+        <div class="setting"><label for="breakInput">休憩時間</label><input id="breakInput" type="number" min="1" max="60" step="1" value="10" onchange="saveSettings()"><span>分</span></div>
+      </div>
+      <p class="footnote">休憩時間は学習時間に入りません。休憩終了後は「学習を再開」を押してください。時間のお知らせ後、15分操作がない場合は予定時間までを自動で記録します。</p>
+    </section>
+    <div class="notice" id="notificationNote">通知音はブラウザが動作している間に鳴ります。画面を閉じている間は音が鳴らない場合があります。</div>
+  </main>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script>
+"use strict";
+const STORAGE_KEY="manabibaTimerV1";
+const GRACE_MS=15*60*1000;
+const SUBJECTS=[{id:"math",name:"数学"},{id:"eng",name:"英語"},{id:"jpn",name:"国語"},{id:"sci",name:"理科"},{id:"geo",name:"地理"},{id:"his",name:"歴史"}];
+const DEFAULTS={version:1,settings:{focusMinutes:50,extendMinutes:15,breakMinutes:10},active:null,records:[]};
+let store=readStore();
+let selectedSubject="";
+let audioContext=null;
+let toastTimer=0;
+
+function readStore(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
+    if(!saved||typeof saved!=="object")return structuredClone(DEFAULTS);
+    return {...structuredClone(DEFAULTS),...saved,settings:{...DEFAULTS.settings,...(saved.settings||{})},records:Array.isArray(saved.records)?saved.records:[]};
+  }catch(_){return structuredClone(DEFAULTS);}
+}
+function persist(){
+  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(store));}
+  catch(error){showToast("保存できませんでした。ブラウザの保存容量を確認してください。");console.error(error);}
+}
+function localDate(ms){
+  const d=new Date(ms);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function formatClock(ms){
+  const total=Math.max(0,Math.ceil(ms/1000));
+  return `${String(Math.floor(total/60)).padStart(2,"0")}:${String(total%60).padStart(2,"0")}`;
+}
+function formatOver(ms){
+  const minutes=Math.max(1,Math.ceil(ms/60000));
+  return `休憩 +${minutes}分超過`;
+}
+function getSubject(id){return SUBJECTS.find(subject=>subject.id===id)?.name||"学習";}
+function unlockAudio(){
+  try{
+    const AudioCtor=window.AudioContext||window.webkitAudioContext;
+    if(!AudioCtor)return;
+    if(!audioContext)audioContext=new AudioCtor();
+    if(audioContext.state==="suspended")audioContext.resume();
+    const oscillator=audioContext.createOscillator();const gain=audioContext.createGain();
+    gain.gain.value=0;oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start();oscillator.stop(audioContext.currentTime+.02);
+  }catch(error){console.warn("音声を準備できませんでした",error);}
+}
+function playAlarm(){
+  if(!audioContext||audioContext.state!=="running")return;
+  try{
+    [0,.32,.64].forEach((offset,index)=>{
+      const oscillator=audioContext.createOscillator();const gain=audioContext.createGain();
+      oscillator.type="sine";oscillator.frequency.value=index===1?880:660;
+      gain.gain.setValueAtTime(.0001,audioContext.currentTime+offset);
+      gain.gain.exponentialRampToValueAtTime(.22,audioContext.currentTime+offset+.025);
+      gain.gain.exponentialRampToValueAtTime(.0001,audioContext.currentTime+offset+.24);
+      oscillator.connect(gain);gain.connect(audioContext.destination);oscillator.start(audioContext.currentTime+offset);oscillator.stop(audioContext.currentTime+offset+.25);
+    });
+  }catch(error){console.warn("通知音を再生できませんでした",error);}
+}
+function notify(title,body){
+  if("Notification" in window&&Notification.permission==="granted"){
+    try{new Notification(title,{body,icon:"timer-icon.svg",tag:"manabiba-timer"});}catch(_){}
+  }
+}
+async function enableNotifications(){
+  const note=document.getElementById("notificationNote");
+  if(!("Notification" in window)){note.textContent="このブラウザはデスクトップ通知に対応していません。画面内の通知音をお使いください。";return;}
+  try{
+    const permission=Notification.permission==="default"?await Notification.requestPermission():Notification.permission;
+    note.textContent=permission==="granted"?"デスクトップ通知を有効にしました。通知音もあわせてお知らせします。":"通知は許可されていません。ブラウザの設定から変更できます。";
+  }catch(_){note.textContent="通知の設定を確認できませんでした。画面内の通知音をお使いください。";}
+}
+function showToast(text){
+  const el=document.getElementById("toast");el.textContent=text;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{el.hidden=true;},3000);
+}
+function saveSettings(){
+  if(store.active){render();return;}
+  const updates={};
+  const fields=[["focusInput","focusMinutes",180],["extendInput","extendMinutes",120],["breakInput","breakMinutes",60]];
+  for(const [id,key,max] of fields){
+    const input=document.getElementById(id);const value=Math.floor(Number(input.value));
+    if(!Number.isFinite(value)||value<1||value>max){showToast(`時間は1〜${max}分で入力してください。`);render();return;}
+    updates[key]=value;
+  }
+  Object.assign(store.settings,updates);
+  persist();render();
+}
+function startSession(){
+  if(store.active||!selectedSubject)return;
+  unlockAudio();
+  const now=Date.now();
+  store.active={id:crypto.randomUUID?crypto.randomUUID():`${now}-${Math.random().toString(36).slice(2)}`,subject:selectedSubject,startedAt:now,phase:"focus",focusMs:0,targetMs:store.settings.focusMinutes*60000,focusStartedAt:now,breakEndsAt:null,alertedAt:null,intervals:[]};
+  selectedSubject="";persist();render();
+}
+function focusElapsed(active,now=Date.now()){
+  return active.focusMs+(active.phase==="focus"?Math.max(0,now-active.focusStartedAt):0);
+}
+function closeFocusInterval(active,endAt){
+  if(active.phase!=="focus"||!active.focusStartedAt)return;
+  const start=active.focusStartedAt;const end=Math.max(start,endAt);
+  if(end>start)active.intervals.push({start,end});
+  active.focusMs+=end-start;active.focusStartedAt=null;
+}
+function enterStudyAlert(active,deadline){
+  closeFocusInterval(active,deadline);
+  active.phase="awaiting";active.alertedAt=deadline;
+  persist();
+  if(Date.now()-deadline>=GRACE_MS){finishSession(true);return;}
+  playAlarm();notify("学習時間です",`${getSubject(active.subject)}。15分延長するか、終了して記録してください。`);
+}
+function startBreak(){
+  const active=store.active;if(!active||active.phase!=="focus")return;
+  const now=Date.now();closeFocusInterval(active,now);
+  active.phase="break";active.breakEndsAt=now+store.settings.breakMinutes*60000;persist();render();
+}
+function resumeStudy(){
+  const active=store.active;if(!active||active.phase!=="breakOver")return;
+  active.phase="focus";active.focusStartedAt=Date.now();active.breakEndsAt=null;persist();render();
+}
+function extendStudy(){
+  const active=store.active;if(!active||active.phase!=="awaiting")return;
+  active.targetMs+=store.settings.extendMinutes*60000;active.phase="focus";active.focusStartedAt=Date.now();active.alertedAt=null;persist();render();
+}
+function confirmFinish(){
+  if(!store.active)return;
+  if(confirm("ここまでの学習時間を記録して終了しますか？"))finishSession(false);
+}
+function splitIntervalsByDate(intervals){
+  const secondsByDate={};
+  intervals.forEach(({start,end})=>{
+    let cursor=start;
+    while(cursor<end){
+      const d=new Date(cursor);const nextMidnight=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1).getTime();
+      const sliceEnd=Math.min(end,nextMidnight);const date=localDate(cursor);
+      secondsByDate[date]=(secondsByDate[date]||0)+(sliceEnd-cursor)/1000;cursor=sliceEnd;
+    }
+  });
+  return secondsByDate;
+}
+function finishSession(automatic){
+  const active=store.active;if(!active)return;
+  if(active.phase==="focus")closeFocusInterval(active,Date.now());
+  const byDate=splitIntervalsByDate(active.intervals);
+  Object.entries(byDate).forEach(([date,seconds])=>{
+    if(seconds>0)store.records.push({id:`${active.id}:${date}`,sessionId:active.id,date,subject:active.subject,seconds,startedAt:active.startedAt,endedAt:Date.now()});
+  });
+  store.active=null;persist();render();
+  showToast(automatic?"予定時間までを自動で記録しました。":"学習時間を記録しました。");
+}
+function tick(){
+  const disk=readStore();
+  if(JSON.stringify(disk)!==JSON.stringify(store))store=disk;
+  const active=store.active;const now=Date.now();
+  if(active?.phase==="focus"&&focusElapsed(active,now)>=active.targetMs){
+    const deadline=active.focusStartedAt+Math.max(0,active.targetMs-active.focusMs);
+    enterStudyAlert(active,deadline);
+  }else if(active?.phase==="awaiting"&&now-active.alertedAt>=GRACE_MS){
+    finishSession(true);return;
+  }else if(active?.phase==="break"&&now>=active.breakEndsAt){
+    active.phase="breakOver";playAlarm();notify("休憩時間です",`${getSubject(active.subject)}の学習を再開するときは「学習を再開」を押してください。`);persist();
+  }
+  render();
+}
+function render(){
+  const active=store.active;const panel=document.getElementById("timerPanel");
+  const grid=document.getElementById("subjectGrid");
+  grid.innerHTML=SUBJECTS.map(subject=>`<button type="button" class="subject${selectedSubject===subject.id&&!active?" selected":""}" ${active?"disabled":""} onclick="selectSubject('${subject.id}')">${subject.name}</button>`).join("");
+  document.getElementById("subjectArea").hidden=!!active;
+  document.getElementById("startButton").hidden=!!active;
+  document.getElementById("startButton").disabled=!selectedSubject;
+  document.getElementById("breakButton").hidden=!active||active.phase!=="focus";
+  document.getElementById("resumeButton").hidden=!active||active.phase!=="breakOver";
+  document.getElementById("alarmActions").hidden=!active||active.phase!=="awaiting";
+  document.getElementById("stopButton").hidden=!active||active.phase==="awaiting";
+  document.getElementById("extendButton").textContent=`${store.settings.extendMinutes}分延長`;
+  document.getElementById("focusInput").value=store.settings.focusMinutes;
+  document.getElementById("extendInput").value=store.settings.extendMinutes;
+  document.getElementById("breakInput").value=store.settings.breakMinutes;
+  ["focusInput","extendInput","breakInput"].forEach(id=>{document.getElementById(id).disabled=!!active;});
+  panel.classList.toggle("alarm",active?.phase==="awaiting"||active?.phase==="breakOver");
+  const phase=document.getElementById("phaseLabel"),title=document.getElementById("sessionTitle"),clock=document.getElementById("clockText"),status=document.getElementById("statusText"),substatus=document.getElementById("substatusText"),bar=document.getElementById("progressBar");
+  let progress=0;
+  if(!active){phase.textContent="教科を選んでスタート";title.textContent="今日の勉強を記録しよう";clock.textContent="00:00";status.textContent=selectedSubject?`${getSubject(selectedSubject)}を選択中`:"教科を選んでください";substatus.textContent="学習した時間は自動で保存されます";}
+  else{
+    title.textContent=`${getSubject(active.subject)}の学習`;
+    if(active.phase==="focus"){
+      const elapsed=focusElapsed(active);const remain=Math.max(0,active.targetMs-elapsed);
+      phase.textContent="学習中";clock.textContent=formatClock(remain);status.textContent="集中タイム";substatus.textContent=`学習 ${formatClock(elapsed)} / ${formatClock(active.targetMs)}`;progress=Math.min(100,elapsed/active.targetMs*100);
+    }else if(active.phase==="break"){
+      const remain=Math.max(0,active.breakEndsAt-Date.now());
+      phase.textContent="休憩中";clock.textContent=formatClock(remain);status.textContent="休憩しています";substatus.textContent="休憩時間は学習記録に入りません";progress=Math.min(100,(store.settings.breakMinutes*60000-remain)/(store.settings.breakMinutes*60000)*100);
+    }else if(active.phase==="breakOver"){
+      const over=Date.now()-active.breakEndsAt;
+      phase.textContent="休憩終了";clock.textContent=formatClock(over);status.textContent=formatOver(over);substatus.textContent="準備ができたら「学習を再開」を押してください";progress=100;
+    }else{
+      const autoAt=active.alertedAt+GRACE_MS;
+      phase.textContent="学習時間です";clock.textContent="00:00";status.textContent="延長するか終了してください";substatus.textContent=`操作がない場合、${formatClock(autoAt-Date.now())}後に予定時間までを記録します`;progress=100;
+    }
+  }
+  bar.style.width=`${progress}%`;
+}
+function selectSubject(id){if(store.active)return;selectedSubject=id;render();}
+window.addEventListener("storage",event=>{if(event.key===STORAGE_KEY){store=readStore();render();}});
+document.addEventListener("visibilitychange",tick);
+render();tick();setInterval(tick,1000);
+</script>
+</body>
+</html>
