@@ -19,6 +19,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px;ma
 .brand{font-weight:900;font-size:18px;letter-spacing:0}
 .brand small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
 .quiet-btn{border:1px solid var(--line);background:rgba(255,255,255,.75);color:var(--ink);border-radius:9px;padding:9px 12px;font-size:13px;font-weight:700}
+.header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.main-link{text-decoration:none}
 .panel{background:var(--white);border:1px solid rgba(211,223,218,.9);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
 .hero{padding:25px clamp(18px,5vw,38px) 24px;background:var(--green-dark);color:#fff}
 .eyebrow{font-size:12px;letter-spacing:0;color:#c5ddd4;font-weight:700}
@@ -46,16 +48,23 @@ h1{font-size:22px;margin:7px 0 0;line-height:1.4}
 .warning{background:var(--orange-soft);color:#8e371b;border:1px solid #edc7b5}
 .action:disabled{opacity:.45;cursor:default}
 .alarm-actions{width:100%;display:flex;justify-content:center;gap:9px;flex-wrap:wrap}
-.settings{margin-top:14px;padding:18px 20px}
-.settings-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
+.settings{margin-top:14px;padding:0 18px}
+.settings-toggle{list-style:none;cursor:pointer;padding:15px 2px;font-weight:800;font-size:14px}
+.settings-toggle::-webkit-details-marker{display:none}
+.settings-toggle::after{content:"開く";float:right;color:var(--muted);font-size:12px;font-weight:600}
+.settings[open] .settings-toggle::after{content:"とじる"}
+.settings-body{padding:0 2px 17px}
 .settings h2{font-size:15px;margin:0}
 .settings-note{font-size:11px;color:var(--muted)}
+.settings-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
 .setting-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .setting label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px}
 .setting input{width:100%;height:42px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;font-size:16px;font-variant-numeric:tabular-nums}
 .setting input:disabled{background:#f3f5f4;color:#84918c}
 .setting span{display:block;margin-top:4px;font-size:11px;color:var(--muted)}
 .footnote{margin:12px 3px 0;color:var(--muted);font-size:12px;line-height:1.7}
+.settings-save{margin-top:13px;width:100%;border:0;border-radius:9px;min-height:45px;background:var(--green);color:#fff;font-weight:900}
+.settings-save:disabled{opacity:.45;cursor:default}
 .notice{margin-top:12px;padding:11px 14px;border-radius:9px;background:#f0f5f2;color:var(--muted);font-size:12px;line-height:1.65}
 .alarm-note{background:var(--orange-soft);color:#78351f}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--green-dark);color:#fff;padding:11px 16px;border-radius:9px;box-shadow:var(--shadow);font-weight:700;font-size:13px;z-index:4;max-width:calc(100vw - 24px);text-align:center}
@@ -67,7 +76,10 @@ h1{font-size:22px;margin:7px 0 0;line-height:1.4}
 <div class="page">
   <header>
     <div class="brand">まなびば<small>学習タイマー</small></div>
-    <button class="quiet-btn" id="notifyButton" type="button" onclick="enableNotifications()">通知を設定</button>
+    <div class="header-actions">
+      <a class="quiet-btn main-link" href="manabiba_v3.html" target="_blank" rel="noopener">まなびばを開く</a>
+      <button class="quiet-btn" id="notifyButton" type="button" onclick="enableNotifications()">通知を設定</button>
+    </div>
   </header>
   <main>
     <section class="panel" id="timerPanel">
@@ -94,14 +106,18 @@ h1{font-size:22px;margin:7px 0 0;line-height:1.4}
         <button class="action warning" id="stopButton" type="button" onclick="confirmFinish()" hidden>終了</button>
       </div>
     </section>
-    <section class="panel settings">
-      <div class="settings-head"><h2>時間の設定</h2><span class="settings-note" id="settingsNote">変更は次の学習から</span></div>
-      <div class="setting-grid">
-        <div class="setting"><label for="focusInput">学習時間</label><input id="focusInput" type="number" min="1" max="180" step="1" value="50" onchange="saveSettings()"><span>分</span></div>
-        <div class="setting"><label for="extendInput">延長時間</label><input id="extendInput" type="number" min="1" max="120" step="1" value="15" onchange="saveSettings()"><span>分</span></div>
-        <div class="setting"><label for="breakInput">休憩時間</label><input id="breakInput" type="number" min="1" max="60" step="1" value="10" onchange="saveSettings()"><span>分</span></div>
+    <details class="panel settings" id="settingsPanel">
+      <summary class="settings-toggle">⚙️ 設定</summary>
+      <div class="settings-body">
+        <div class="settings-head"><h2>時間の設定</h2><span class="settings-note">変更は次の学習から</span></div>
+        <div class="setting-grid">
+          <div class="setting"><label for="focusInput">学習時間</label><input id="focusInput" type="number" min="1" max="180" step="1" value="50"><span>分</span></div>
+          <div class="setting"><label for="extendInput">延長時間</label><input id="extendInput" type="number" min="1" max="120" step="1" value="15"><span>分</span></div>
+          <div class="setting"><label for="breakInput">休憩時間</label><input id="breakInput" type="number" min="1" max="60" step="1" value="10"><span>分</span></div>
+        </div>
+        <p class="footnote">休憩時間は学習時間に入りません。休憩終了後は「学習を再開」を押してください。時間のお知らせ後、15分操作がない場合は予定時間までを自動で記録します。</p>
+        <button class="settings-save" id="saveSettingsButton" type="button" onclick="saveSettings()">保存</button>
       </div>
-      <p class="footnote">休憩時間は学習時間に入りません。休憩終了後は「学習を再開」を押してください。時間のお知らせ後、15分操作がない場合は予定時間までを自動で記録します。</p>
     </section>
     <div class="notice" id="notificationNote">通知音はブラウザが動作している間に鳴ります。画面を閉じている間は音が鳴らない場合があります。</div>
   </main>
@@ -181,16 +197,16 @@ function showToast(text){
   const el=document.getElementById("toast");el.textContent=text;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{el.hidden=true;},3000);
 }
 function saveSettings(){
-  if(store.active){render();return;}
+  if(store.active){showToast("学習中は時間を変更できません。");return;}
   const updates={};
   const fields=[["focusInput","focusMinutes",180],["extendInput","extendMinutes",120],["breakInput","breakMinutes",60]];
   for(const [id,key,max] of fields){
-    const input=document.getElementById(id);const value=Math.floor(Number(input.value));
-    if(!Number.isFinite(value)||value<1||value>max){showToast(`時間は1〜${max}分で入力してください。`);render();return;}
+    const input=document.getElementById(id);const value=Number(input.value);
+    if(!Number.isInteger(value)||value<1||value>max){showToast(`${input.labels[0].textContent}は1〜${max}分で入力してください。`);return;}
     updates[key]=value;
   }
   Object.assign(store.settings,updates);
-  persist();render();
+  persist();document.getElementById("settingsPanel").open=false;render();showToast("時間設定を保存しました。");
 }
 function startSession(){
   if(store.active||!selectedSubject)return;
@@ -280,10 +296,8 @@ function render(){
   document.getElementById("alarmActions").hidden=!active||active.phase!=="awaiting";
   document.getElementById("stopButton").hidden=!active||active.phase==="awaiting";
   document.getElementById("extendButton").textContent=`${store.settings.extendMinutes}分延長`;
-  document.getElementById("focusInput").value=store.settings.focusMinutes;
-  document.getElementById("extendInput").value=store.settings.extendMinutes;
-  document.getElementById("breakInput").value=store.settings.breakMinutes;
   ["focusInput","extendInput","breakInput"].forEach(id=>{document.getElementById(id).disabled=!!active;});
+  document.getElementById("saveSettingsButton").disabled=!!active;
   panel.classList.toggle("alarm",active?.phase==="awaiting"||active?.phase==="breakOver");
   const phase=document.getElementById("phaseLabel"),title=document.getElementById("sessionTitle"),clock=document.getElementById("clockText"),status=document.getElementById("statusText"),substatus=document.getElementById("substatusText"),bar=document.getElementById("progressBar");
   let progress=0;
@@ -309,6 +323,9 @@ function render(){
 function selectSubject(id){if(store.active)return;selectedSubject=id;render();}
 window.addEventListener("storage",event=>{if(event.key===STORAGE_KEY){store=readStore();render();}});
 document.addEventListener("visibilitychange",tick);
+document.getElementById("focusInput").value=store.settings.focusMinutes;
+document.getElementById("extendInput").value=store.settings.extendMinutes;
+document.getElementById("breakInput").value=store.settings.breakMinutes;
 render();tick();setInterval(tick,1000);
 </script>
 </body>

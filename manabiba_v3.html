@@ -27,7 +27,7 @@ input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
 .mode-switch button{flex:1;border-radius:99px;padding:5px 0;font-family:var(--disp);font-weight:700;font-size:13px;color:var(--ink-soft)}
 .mode-switch button.on{background:var(--ink);color:#fff}
 .nav-label{font-size:10.5px;font-weight:700;color:var(--ink-soft);letter-spacing:.15em;padding:10px 10px 3px}
-.nav-btn{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--ink-soft);text-align:left;width:100%}
+.nav-btn{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;font-family:var(--disp);font-weight:700;font-size:14px;color:var(--ink-soft);text-align:left;text-decoration:none;width:100%}
 .nav-btn .ic{width:22px;text-align:center;font-size:16px}
 .nav-btn:hover{background:var(--paper)}
 .nav-btn.on{background:var(--mint-soft);color:var(--ink)}
@@ -72,7 +72,7 @@ details.card[open] summary::before{content:"▾ "}
 .tag.mintT{background:var(--mint-soft);color:var(--mint);border-color:#C4E5D7}
 .tag.blueT{background:var(--blue-soft);color:var(--blue);border-color:#CCDEF0}
 .tag.redT{background:var(--red-soft);color:var(--red);border-color:#F0CDC7}
-.btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--disp);font-weight:700;padding:10px 22px;border-radius:12px;background:var(--ink);color:#fff;font-size:14.5px}
+.btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--disp);font-weight:700;padding:10px 22px;border-radius:12px;background:var(--ink);color:#fff;font-size:14.5px;text-decoration:none}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .btn.sub2{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 .btn.mintB{background:var(--mint);color:#fff}
@@ -681,7 +681,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 <main class="main">
 
 <!-- ===== 今日の入力 ===== -->
-<section class="screen on" id="sInput">
+<section class="screen" id="sInput">
   <button class="btn pinkB menutop" onclick="makeMenu()">🗓️ 今日のメニューを作る →</button>
   <div class="card holidaybar">
     <label class="hchk"><input type="checkbox" id="holidayChk" onchange="toggleHoliday(this.checked)"><span>🏖 学校休み</span></label>
@@ -892,7 +892,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
 </section>
 
 <!-- ===== ポメ ===== -->
-<section class="screen" id="sPome">
+<section class="screen on" id="sPome">
   <h1>🐶 ポメに聞く</h1>
   <p class="sub">わからないことは何でも聞いてOK。ただしポメは答えを言いません。一緒に考える係です。</p>
   <div id="pomeBack" style="margin-bottom:12px;display:none"></div>
@@ -4641,7 +4641,7 @@ function deleteExtLink(i){
 load();
 S.parent=true;document.body.classList.add("parent");
 if(S.profile.lastActive!==today()){S.profile.lastActive=today();save();}
-ensureToday();renderAva();renderInput();applyGroups();renderExtLinks();
+ensureToday();renderAva();renderInput();applyGroups();renderExtLinks();openPomeFresh();go("sPome",qs('[data-s="sPome"]'));
 window.S=S;window.save=save;
 </script>
 </body>
