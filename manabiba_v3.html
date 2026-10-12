@@ -94,6 +94,8 @@ details.card[open] summary::before{content:"▾ "}
 .mini.listening{background:#FDEBEB;border-color:var(--red);color:#A33;animation:micpulse 1s infinite}
 @keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(224,110,110,.45)}50%{box-shadow:0 0 0 7px rgba(224,110,110,0)}}
 .mini.pome{background:var(--pome-soft);border-color:#E7D6BC}
+.btn.pome.stopping{background:var(--red-soft);border-color:var(--red);color:#A33}
+.voice-status{font-size:12px;color:#A33;margin-top:4px;min-height:1px}
 .hint-note{font-size:12px;color:var(--ink-soft);margin-top:6px}
 .mic{font-size:14px;background:var(--pome-soft);border:1.5px solid #E7D6BC;border-radius:9px;padding:5px 9px}
 .streakbar{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,var(--pink-soft),#fff 55%,var(--mint-soft));border:1.5px solid #F2CFD9;border-radius:16px;padding:7px 18px;margin-bottom:10px}
@@ -901,9 +903,10 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
       <div class="chat-scroll" id="pomeMsgs"><div class="spacer"></div></div>
       <div class="chat-in">
         <textarea id="pomeInput" rows="1" class="autoTA" placeholder="ポメにメッセージ…" onkeydown="chatKeydown(event,sendPome)" oninput="autoGrow(this)"></textarea>
-        <span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('pomeInput',null,this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pomeInput')">✍️</button></span>
+        <span class="inp-tools"><button class="mini" title="声で入力(もう一度押すと止まります)" onclick="chatVoiceInput('pomeInput','pomeVoiceStatus',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('pomeInput')">✍️</button></span>
         <button class="btn pome" onclick="sendPome()" id="pomeSend">送る</button>
       </div>
+      <div class="voice-status" id="pomeVoiceStatus"></div>
       <div class="hint-note">ポメは最近の間違いを知った上で話します。会話の記録はお母さんも見られます。</div>
     </div>
     <aside class="chat-hist"><div class="ch-head">💬 これまでの会話 <button class="mini" onclick="newPomeChat()" style="float:right">+新しい</button></div><div id="pomeHist"></div></aside>
@@ -919,9 +922,10 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
       <div class="chat-scroll" id="ppomeMsgs"><div class="spacer"></div></div>
       <div class="chat-in">
         <textarea id="ppomeInput" rows="1" class="autoTA" placeholder="親ポメに相談…" onkeydown="chatKeydown(event,sendPPome)" oninput="autoGrow(this)"></textarea>
-        <span class="inp-tools"><button class="mini" title="声で入力" onclick="voiceInput('ppomeInput',null,this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('ppomeInput')">✍️</button></span>
+        <span class="inp-tools"><button class="mini" title="声で入力(もう一度押すと止まります)" onclick="chatVoiceInput('ppomeInput','ppomeVoiceStatus',this)">🎤</button><button class="mini" title="手書き入力" onclick="openPad('ppomeInput')">✍️</button></span>
         <button class="btn pome" onclick="sendPPome()" id="ppomeSend">送る</button>
       </div>
+      <div class="voice-status" id="ppomeVoiceStatus"></div>
       <div class="hint-note">親ポメは進捗・誤答タグ・活動ログをふまえて答えます(直接助言型)。</div>
     </div>
     <aside class="chat-hist"><div class="ch-head">💬 これまでの相談 <button class="mini" onclick="newPPomeChat()" style="float:right">+新しい</button></div><div id="ppomeHist"></div></aside>
@@ -1470,7 +1474,7 @@ function calcStreak(){let n=0,d=today();const timerDays=timerActivityDays();
 function weekMaruCount(){const t=today();let c=0;for(let i=0;i<7;i++){const d=addDays(t,-i);if(new Date(d+"T00:00:00").getDay()===0&&i>0)break;if(S.daily[d])c+=S.daily[d].maru||0;}return c;}
 
 /* ---------- ナビ ---------- */
-function go(id,btn){qsa(".screen").forEach(s=>s.classList.remove("on"));qs("#"+id).classList.add("on");
+function go(id,btn){stopChatVoice();qsa(".screen").forEach(s=>s.classList.remove("on"));qs("#"+id).classList.add("on");
  qsa(".nav-btn").forEach(b=>b.classList.toggle("on",b.dataset.s===id));
  window.scrollTo(0,0);
  const r={sInput:renderInput,sMenu:renderMenu,sCards:renderCards,sDrill:renderDrill,sChal:renderChal,sResult:renderResult,sWrong:renderWrong,sZukan:renderZukan,sHeatmap:renderHeatmap,sPome:renderPome,sPPome:renderPPome,sDress:renderDress,sTests:renderTests,sDash:renderDash,sWeek:renderWeek,sData:renderData,sSet:renderSet,sRef:renderRef}[id];
@@ -3638,26 +3642,63 @@ function askPomeWrong(si,ii){pomeFrom="sResult";const it=S.ansSets[si].items[ii]
  c.ctx=`ワークで間違えた問題:${S.ansSets[si].name} ${it.label}｜香凜さんの答え「${it.input}」｜正解「${it.ans}」`;
  save();go("sPome",qs('[data-s="sPome"]'));
  qs("#pomeInput").value="なんで間違えたのかわからない";sendPome();}
-async function callClaude(system,messages,onText){
+/** Claude APIをストリーミングで呼ぶ。onTextには「ここまでの全文」を都度渡す(差分ではない)。
+ * signal(AbortController.signal)で中断できる。中断時は例外を投げず、それまでに生成された文章を返す
+ * (呼び出し側が「中断した返答も残す」処理をしやすくするため)。onText/signalは省略可(既存の呼び出し方と互換)。 */
+async function callClaude(system,messages,onText,signal){
  const key=S.settings.apiKey;
  if(!key)throw new Error("APIキーが未設定です。おうちメニュー→設定で入力してください。");
- const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
-  headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-  body:JSON.stringify({model:S.settings.model||"claude-sonnet-4-6",max_tokens:1000,system:system,messages:messages})});
- if(!res.ok){const t=await res.text();throw new Error("APIエラー "+res.status+": "+t.slice(0,200));}
- const data=await res.json();
- return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n");}
-async function sendPome(){const inp=qs("#pomeInput"),txt=inp.value.trim();if(!txt)return;
+ let full="";
+ try{
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,
+   headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+   body:JSON.stringify({model:S.settings.model||"claude-sonnet-4-6",max_tokens:1000,system:system,messages:messages,stream:true})});
+  if(!res.ok){const t=await res.text();throw new Error("APIエラー "+res.status+": "+t.slice(0,200));}
+  const reader=res.body.getReader(),decoder=new TextDecoder();
+  let buf="";
+  while(true){
+   const {done,value}=await reader.read();
+   if(done)break;
+   buf+=decoder.decode(value,{stream:true});
+   const lines=buf.split("\n");buf=lines.pop();
+   for(const line of lines){
+    if(!line.startsWith("data: "))continue;
+    let ev;try{ev=JSON.parse(line.slice(6));}catch(e){continue;}
+    if(ev.type==="content_block_delta"&&ev.delta&&ev.delta.type==="text_delta"){
+     full+=ev.delta.text;
+     if(onText)onText(full);
+    }
+   }
+  }
+ }catch(e){
+  if(e.name==="AbortError")return full; // 中断:エラーにせず、ここまでの文章を返す
+  throw e;
+ }
+ return full;}
+/** 送信中は送るボタンを「⏹ 中断」に切り替える(ポメに聞く・親ポメで共通の見た目・動き) */
+function setChatSending(btn,onStop){btn.classList.add("stopping");btn.textContent="⏹ 中断";btn.onclick=onStop;}
+function resetChatSending(btn,onSend){btn.classList.remove("stopping");btn.textContent="送る";btn.onclick=onSend;}
+let pomeAbort=null;
+async function sendPome(){if(pomeAbort)return; // 返答生成中は無視(連打・Enter二重送信対策)
+ const inp=qs("#pomeInput"),txt=inp.value.trim();if(!txt)return;
+ stopChatVoice();
  const c=curChat();c.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";
  if(c.title==="新しい会話"||c.title==="はじめての会話")c.title=txt.slice(0,18);
  save();renderPome();
- const btn=qs("#pomeSend");btn.disabled=true;btn.textContent="…";
+ const history=c.msgs.map(m=>({role:m.role,content:m.content}));
+ const msg={role:"assistant",content:""};c.msgs.push(msg);
+ const btn=qs("#pomeSend");
+ pomeAbort=new AbortController();
+ setChatSending(btn,()=>pomeAbort&&pomeAbort.abort());
  try{
   const sys=POME_SYS+"\n\n"+ctxSummary()+(c.ctx?"\n\n【今の話題】\n"+c.ctx:"");
-  const out=await callClaude(sys,c.msgs.map(m=>({role:m.role,content:m.content})));
-  c.msgs.push({role:"assistant",content:out});
- }catch(e){c.msgs.push({role:"assistant",content:"⚠️ "+e.message});}
- btn.disabled=false;btn.textContent="送る";save();renderPome();}
+  const out=await callClaude(sys,history,t=>{msg.content=t;renderPome();},pomeAbort.signal);
+  msg.content=out;
+  if(!out)c.msgs.pop(); // 何も生成されないまま中断された場合は、空の返答を残さない
+ }catch(e){msg.content="⚠️ "+e.message;}
+ pomeAbort=null;
+ resetChatSending(btn,sendPome);
+ save();renderPome();}
 /** 親ポメの返信の下に出す「診断を反映」まわりのボタン・表示 */
 function diagActionHtml(m,i){
  if(!m.diag)return"";
@@ -3690,17 +3731,29 @@ function parsePPomeReply(out){
  const ids=[...new Set(raw.split(",").map(s=>s.trim()).filter(id=>S.rules.some(r=>r.id===id)))];
  if(!ids.length)return{role:"assistant",content};
  return{role:"assistant",content,diag:{ruleIds:ids,reflected:false}};}
-async function sendPPome(){const inp=qs("#ppomeInput"),txt=inp.value.trim();if(!txt)return;
+/** 中断された時、文末の診断マーカー([[DIAG:...)が閉じカッコ無しで切れたまま残っていたら取り除く */
+function stripDanglingDiagMarker(s){const i=s.lastIndexOf("[[DIAG");return (i>=0&&!s.slice(i).includes("]]"))?s.slice(0,i).trimEnd():s;}
+let ppomeAbort=null;
+async function sendPPome(){if(ppomeAbort)return;
+ const inp=qs("#ppomeInput"),txt=inp.value.trim();if(!txt)return;
+ stopChatVoice();
  const pc=curPChat();pc.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";
  if(pc.title==="新しい相談"||pc.title==="はじめての相談")pc.title=txt.slice(0,18);
  save();renderPPome();
- const btn=qs("#ppomeSend");btn.disabled=true;btn.textContent="…";
+ const history=pc.msgs.map(m=>({role:m.role,content:m.content}));
+ const msg={role:"assistant",content:""};pc.msgs.push(msg);
+ const btn=qs("#ppomeSend");
+ ppomeAbort=new AbortController();
+ setChatSending(btn,()=>ppomeAbort&&ppomeAbort.abort());
  try{
   const sys=PPOME_SYS+"\n\n# 使えるルールキー一覧\n"+ppomeRuleKeyList()+"\n\n"+ctxSummary();
-  const out=await callClaude(sys,pc.msgs.map(m=>({role:m.role,content:m.content})));
-  pc.msgs.push(parsePPomeReply(out));}
- catch(e){pc.msgs.push({role:"assistant",content:"⚠️ "+e.message});}
- btn.disabled=false;btn.textContent="送る";save();renderPPome();}
+  const out=await callClaude(sys,history,t=>{msg.content=stripDanglingDiagMarker(t);renderPPome();},ppomeAbort.signal);
+  if(out){Object.assign(msg,parsePPomeReply(stripDanglingDiagMarker(out)));}
+  else pc.msgs.pop();
+ }catch(e){msg.content="⚠️ "+e.message;}
+ ppomeAbort=null;
+ resetChatSending(btn,sendPPome);
+ save();renderPPome();}
 /** 診断の確認モーダルをひらく(個別にチェックを外して除外できる) */
 let diagModalMsgIdx=null;
 function openDiagConfirm(i){
@@ -4103,6 +4156,46 @@ function voiceInput(targetId,after,btnEl){
   if(recogBtn){recogBtn.classList.remove("listening");recogBtn.textContent=recogBtn.dataset.orig||"🎤";}recogBtn=null;recog=null;};
  recog.onend=()=>{if(recogBtn){recogBtn.classList.remove("listening");recogBtn.textContent=recogBtn.dataset.orig||"🎤";}recogBtn=null;recog=null;};
  try{recog.start();}catch(e){toast("音声入力を開始できませんでした");recogBtn=null;recog=null;}}
+
+/* ---------- 音声入力(ポメに聞く・親ポメ専用・止めるまで続ける) ----------
+ * voiceInput()は1回話したら自動で止まる仕様(他画面はこれを維持)。
+ * チャットの2画面だけ、もう一度押すまで聞き取りを続ける別実装にする(数式変換もしない・そのまま追記)。 */
+let chatRecog=null,chatRecogBtn=null,chatRecogStatusEl=null,chatRecogManual=false,chatRecogGen=0;
+function stopChatVoice(){
+ chatRecogGen++; // 古い録音の onend/onerror が後から来ても無視させる
+ if(chatRecog){chatRecogManual=true;try{chatRecog.stop();}catch(e){}}
+ chatRecog=null;
+ if(chatRecogBtn){chatRecogBtn.classList.remove("listening");chatRecogBtn.textContent=chatRecogBtn.dataset.orig||"🎤";}
+ if(chatRecogStatusEl)chatRecogStatusEl.textContent="";
+ chatRecogBtn=null;chatRecogStatusEl=null;}
+function chatVoiceInput(targetId,statusId,btnEl){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){alert("この端末・ブラウザでは音声入力が使えません。Chrome または Edge でお試しください。");return;}
+ const el=document.getElementById(targetId);if(!el)return;
+ if(chatRecog){stopChatVoice();return;} // 聞き取り中にもう一度押したら止める
+ chatRecogManual=false;
+ chatRecogBtn=btnEl||null;
+ chatRecogStatusEl=statusId?document.getElementById(statusId):null;
+ if(chatRecogBtn)chatRecogBtn.dataset.orig=chatRecogBtn.dataset.orig||chatRecogBtn.textContent;
+ const myGen=chatRecogGen;
+ function startOne(){
+  const r=new SR();r.lang="ja-JP";r.continuous=true;r.interimResults=false;r.maxAlternatives=1;
+  r.onstart=()=>{if(myGen!==chatRecogGen)return;
+   if(chatRecogBtn){chatRecogBtn.classList.add("listening");chatRecogBtn.textContent="🔴";}
+   if(chatRecogStatusEl)chatRecogStatusEl.textContent="🎤 聞き取り中…もう一度押すと止まります";};
+  r.onresult=e=>{if(myGen!==chatRecogGen)return;
+   let add="";
+   for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)add+=(e.results[i][0].transcript||"");}
+   if(add){el.value+=add;el.selectionStart=el.selectionEnd=el.value.length;el.dispatchEvent(new Event("input",{bubbles:true}));}};
+  r.onerror=e=>{if(myGen!==chatRecogGen)return;
+   toast("音声入力エラー:"+e.error);chatRecogManual=true;stopChatVoice();}; // エラー時は再開しない
+  r.onend=()=>{if(myGen!==chatRecogGen)return;
+   if(chatRecogManual){stopChatVoice();return;}
+   try{chatRecog=startOne();}catch(e){stopChatVoice();}}; // 無音などでブラウザ側が止めた場合は黙って再開する
+  r.start();
+  return r;}
+ try{chatRecog=startOne();}catch(e){toast("音声入力を開始できませんでした");stopChatVoice();}}
+
 let padTarget=null,padAfter=null,padCtx=null,padDrawing=false,padDirty=false;
 let padSelStart=null,padSelEnd=null;
 function openPad(targetId,after){padTarget=targetId;padAfter=after||null;
