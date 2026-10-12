@@ -1031,7 +1031,7 @@ textarea.big{width:100%;min-height:140px;border:1.5px solid var(--line);border-r
   <h1>設定 <span class="tag pinkT">おうちメニュー</span></h1>
   <div class="card"><h2>🤖 ポメ(Claude API)</h2>
     <div class="form-row"><label>APIキー</label><input type="text" id="setKey" placeholder="sk-ant-..."></div>
-    <div class="form-row"><label>モデル</label><input type="text" id="setModel" placeholder="claude-sonnet-4-6"></div>
+    <div class="form-row"><label>モデル</label><input type="text" id="setModel" placeholder="claude-sonnet-5"></div>
     <button class="btn" onclick="saveSettings()">保存</button>
     <button class="btn sub2" onclick="testApi()" style="margin-left:8px">接続テスト</button>
     <span id="apiTestRes" style="margin-left:10px;font-weight:700"></span>
@@ -1326,7 +1326,7 @@ function defaultState(){
  const t=today();
  return {
   version:3, parent:false,
-  settings:{apiKey:"",model:"claude-sonnet-4-6"},
+  settings:{apiKey:"",model:"claude-sonnet-5"},
   profile:{points:0,avatar:{len:"long",style:"down",color:"#5A4636",acc:"none"},
     unlocked:{styles:["down","pony","twin","bun"],accs:["none","ribbon"]},
     lastActive:null},
@@ -1347,6 +1347,8 @@ function defaultState(){
  };
 }
 function load(){try{const j=localStorage.getItem(KEY);S=j?JSON.parse(j):defaultState();}catch(e){S=defaultState();}
+ // モデル名を古い既定値(claude-sonnet-4-6)から最新に1回だけ更新する。手入力で別のモデルを設定済みの場合は上書きしない(2026-10-13)。
+ if(S.settings&&S.settings.model==="claude-sonnet-4-6")S.settings.model="claude-sonnet-5";
  if(!S.cardLog)S.cardLog={};
  if(!S.extLinks)S.extLinks=[];
  if(!S.extLinksV2){
@@ -3663,7 +3665,7 @@ async function callClaude(system,messages,onText,signal){
  try{
   const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,
    headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-   body:JSON.stringify({model:S.settings.model||"claude-sonnet-4-6",max_tokens:1000,system:system,messages:messages,stream:true})});
+   body:JSON.stringify({model:S.settings.model||"claude-sonnet-5",max_tokens:1000,system:system,messages:messages,stream:true})});
   if(!res.ok){const t=await res.text();throw new Error("APIエラー "+res.status+": "+t.slice(0,200));}
   const reader=res.body.getReader(),decoder=new TextDecoder();
   let buf="";
@@ -4235,7 +4237,7 @@ async function readPad(){
   const data=qs("#padCanvas").toDataURL("image/png").split(",")[1];
   const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
    headers:{"Content-Type":"application/json","x-api-key":S.settings.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-   body:JSON.stringify({model:S.settings.model||"claude-sonnet-4-6",max_tokens:100,
+   body:JSON.stringify({model:S.settings.model||"claude-sonnet-5",max_tokens:100,
     system:"手書き画像に書かれている数式・数値・単語だけを、そのまま文字にして返す。説明・前置き・記号の装飾は一切つけない。分数は a/b の形。読み取れない場合は ? だけを返す。",
     messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/png",data:data}},{type:"text",text:"これを文字にして。答えの文字列だけ返して。"}]}]})});
   if(!res.ok)throw new Error("APIエラー "+res.status);
@@ -4659,7 +4661,7 @@ function renderSet(){qs("#setKey").value=S.settings.apiKey||"";qs("#setModel").v
  const subsEl=qs("#el_subs");
  if(subsEl&&!subsEl.children.length)subsEl.innerHTML=SUBJECTS.map(s=>`<label class="hchk"><input type="checkbox" value="${s.id}"><span>${s.name}</span></label>`).join("");
  renderExtLinks();}
-function saveSettings(){S.settings.apiKey=qs("#setKey").value.trim();S.settings.model=qs("#setModel").value.trim()||"claude-sonnet-4-6";save();toast("保存しました");}
+function saveSettings(){S.settings.apiKey=qs("#setKey").value.trim();S.settings.model=qs("#setModel").value.trim()||"claude-sonnet-5";save();toast("保存しました");}
 async function testApi(){const el=qs("#apiTestRes");el.textContent="接続中…";
  try{const out=await callClaude("短く挨拶だけ返して。","1文で挨拶して"===""?[]:[{role:"user",content:"1文で挨拶して"}]);
   el.textContent="✅ OK:"+out.slice(0,40);el.style.color="var(--mint)";}
