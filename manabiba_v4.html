@@ -183,6 +183,59 @@ body.parent .chat{height:calc(100vh - var(--bar-h) - 44px)}
 .toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 18px);transform:translate(-50%,16px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:50;max-width:92vw;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .boot{text-align:center;padding:60px 0;color:var(--ink-soft);font-family:var(--disp)}
+
+/* 3段階目:日課表 */
+.timerbar{position:fixed;top:var(--bar-h);left:0;right:0;z-index:19;display:none;align-items:center;gap:8px;padding:6px 10px;background:var(--mint-soft);border-bottom:1.5px solid var(--mint);font-family:var(--disp);font-weight:700;font-size:14px}
+body.hasTimer .timerbar{display:flex}
+body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
+.tb-t{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tb-c{font-size:20px;font-variant-numeric:tabular-nums}
+.tb-b{min-height:38px;padding:0 12px;border-radius:99px;background:var(--ink);color:#fff;font-weight:700;font-size:13px;white-space:nowrap}
+.tb-b.sub{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.dayhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.dayhead b{font-family:var(--disp);font-size:20px;font-weight:900;margin-right:6px}
+.dayhead .prog{font-family:var(--disp);font-weight:900;font-size:20px;color:var(--mint)}
+.chip{display:inline-block;padding:1px 10px;border-radius:99px;font-size:13px;font-weight:700;margin-right:4px;border:1.5px solid var(--line);background:#fff;vertical-align:middle}
+.chip.main{background:var(--mint-soft);border-color:var(--mint)}
+.chip.warn{background:#FDF6E3;border-color:#E8B84B}
+.chip.t-A{background:var(--pink-soft);border-color:var(--pink)}
+.chip.t-memo{background:var(--blue-soft);border-color:var(--blue)}
+.chip.t-off{background:#eee;color:var(--ink-soft)}
+.prows{display:flex;flex-direction:column;gap:10px}
+.prow{display:flex;align-items:stretch;gap:10px;background:#fff;border:1.5px solid var(--line);border-radius:18px;padding:8px 12px 8px 8px}
+.prow.next{border-color:var(--mint);background:var(--mint-soft);box-shadow:0 0 0 3px rgba(95,181,151,.25)}
+.prow.done{opacity:.55}
+.pchk{flex:none;width:56px;min-height:56px;border-radius:14px;border:2px solid var(--line);background:#fff;font-size:28px;font-weight:900;color:var(--mint);align-self:center}
+.prow.done .pchk{background:var(--mint);border-color:var(--mint);color:#fff}
+.pmain{flex:1;min-width:0;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:1px;padding:4px 0}
+.pmain b{font-family:var(--disp);font-size:18px;font-weight:900}
+.pmain small{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+.prow.done .pmain b{text-decoration:line-through}
+.pmin{flex:none;align-self:center;font-size:12px;color:var(--ink-soft);white-space:nowrap}
+.calhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.calhead .btn{min-height:42px;padding:4px 16px}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calw{text-align:center;font-size:12px;color:var(--ink-soft);font-weight:700}
+.calc{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:58px;border-radius:10px;border:1.5px solid var(--line);background:#fff;padding:2px 0;line-height:1.25}
+.calc.out{opacity:.35}
+.calc.t-A{background:var(--pink-soft);border-color:var(--pink)}
+.calc.t-memo{background:var(--blue-soft);border-color:var(--blue)}
+.calc.t-off{background:#eee}
+.calc.today{box-shadow:0 0 0 2.5px var(--ink)}
+.calc .cn{font-size:13px;font-weight:700}
+.calc .ck{font-family:var(--disp);font-weight:900;font-size:16px}
+.calc .cp{font-size:10px;color:var(--ink-soft);min-height:12px}
+.phrow{display:flex;gap:14px;flex-wrap:wrap}
+.phrow select{padding:6px 10px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:15px}
+.wkrow{display:grid;grid-template-columns:64px auto 1fr auto;gap:8px;align-items:center;padding:7px 4px;border-bottom:1px solid var(--line)}
+.wkrow.today{background:var(--mint-soft);border-radius:10px}
+.wkrow.fut{opacity:.55}
+.wmarks{display:flex;gap:4px}
+.wm{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-soft)}
+.wm.on{background:var(--mint);border-color:var(--mint);color:#fff}
+.wc{font-family:var(--disp);font-weight:900;min-width:34px;text-align:right}
+.wkt{padding:4px 0;font-size:14px}
+.wkt small{color:var(--ink-soft);display:block;margin-left:26px}
 </style>
 </head>
 <body>
@@ -192,6 +245,7 @@ body.parent .chat{height:calc(100vh - var(--bar-h) - 44px)}
   <h1 id="title">まなびば</h1>
   <button class="mode" id="modeBtn" onclick="toggleParent()">🔑 保護者</button>
 </header>
+<div class="timerbar" id="timerbar"></div>
 
 <main>
   <div class="boot" id="boot">読み込み中…</div>
@@ -206,10 +260,13 @@ body.parent .chat{height:calc(100vh - var(--bar-h) - 44px)}
   <section class="screen" id="s-cman"></section>
   <section class="screen" id="s-lman"></section>
   <section class="screen" id="s-pset"></section>
+  <section class="screen" id="s-cal"></section>
+  <section class="screen" id="s-week"></section>
 </main>
 
 <nav class="tabbar" id="tabbar">
   <button data-t="home" onclick="goTab('home')"><span class="ic">🏠</span>ホーム</button>
+  <button data-t="cal" onclick="goTab('cal')"><span class="ic">📅</span>カレンダー</button>
   <button data-t="cards" onclick="goTab('cards')"><span class="ic">🃏</span>暗記カード</button>
   <button data-t="drill" onclick="goTab('drill')"><span class="ic">✏️</span>学校ドリル</button>
   <button data-t="links" onclick="goTab('links')"><span class="ic">🔗</span>リンク集</button>
@@ -242,7 +299,7 @@ body.parent .chat{height:calc(100vh - var(--bar-h) - 44px)}
    今のまなびば(manabiba_v3.html)のデータは「読むだけ」で、書き込まない。
    ============================================================ */
 "use strict";
-const BUILD_ID="2026-11-03a(土台)";
+const BUILD_ID="2026-11-03b(日課表)";
 const qs=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
@@ -293,6 +350,7 @@ const KV_DEFAULTS=()=>({
  links:[],                             // リンク集
  pome:{chats:[],pchats:[]},            // ポメ・親ポメの会話
  settings:{apiKey:"",model:"claude-sonnet-5"},
+ plan:{anchor:"",days:{},tests:[],phase:[5,5,3],done:{},timer:null}, // 日課表(日の種類・テスト日・チェック・タイマー)
  meta:{}                               // 引き継ぎの記録など
 });
 let D=KV_DEFAULTS();
@@ -431,7 +489,7 @@ function show(){
  qsa("#tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.t===nav[0]));
  qs("#modeBtn").textContent=document.body.classList.contains("parent")?"✓ おわる":"🔑 保護者";
  renderCurrent();window.scrollTo(0,0);}
-function goTab(id){if(id==="pome")chatFresh("pome");nav=[id];show();}
+function goTab(id,keep){if(!keep)PLAN_FROM=null;if(id==="pome")chatFresh("pome");nav=[id];show();}
 function goTo(id){nav.push(id);show();}
 function goBack(){if(nav.length>1){nav.pop();show();}}
 function toggleParent(){
@@ -441,10 +499,6 @@ function renderCurrent(){const id=nav[nav.length-1];(RENDER[id]||(()=>{}))();}
 
 /* ---------- 各画面 ---------- */
 const RENDER={
- home(){
-  qs("#s-home").innerHTML=`
-   <div class="card soon"><h2>📋 今日の日課</h2>
-    <p class="note">ここに「今日やること」が上から順に並びます(作る順番の3段階目で作ります)。</p></div>`;},
  cards(){
   const decks=D.cards.decks||[];
   const subs=[...SUBJECTS.filter(s=>decks.some(d=>d.sub===s.id))];
@@ -486,8 +540,8 @@ const RENDER={
   const p=D.pome||{};
   qs("#s-parent").innerHTML=`
    <div class="ptiles">
-    <div class="ptile soon"><b>① 今日と今週</b><span>終わった行・×の数(あとで作ります)</span></div>
-    <div class="ptile soon"><b>② カレンダー</b><span>日の種類・テスト日・範囲(日課表の段階)</span></div>
+    <button class="ptile go" onclick="goTo('week')"><b>① 今日と今週</b><span>終わった行(×の数はドリルの段階で)</span></button>
+    <button class="ptile go" onclick="goTo('cal')"><b>② カレンダー</b><span>日の種類・メイン教科・テスト日</span></button>
     <div class="ptile soon"><b>③ ドリルの取り込み</b><span>ファイルを選ぶだけ(ドリルの段階)</span></div>
     <div class="ptile soon"><b>④ 問題の報告</b><span>「この問題おかしい」(ドリルの段階)</span></div>
     <button class="ptile go" onclick="chatFresh('ppome');goTo('ppome')"><b>🐕 親ポメ</b><span>相談・使い方の質問(${(p.pchats||[]).length}件)</span></button>
@@ -830,6 +884,7 @@ function cardUndo(){
  CR.i=Math.max(0,CR.i-1);CR.last=null;CR.busy=false;CR.shown=false;CR.hint=false;
  save("cards");renderCurrent();toast("↩️ 取り消しました");}
 function cardsDrawEnd(){
+ planCardsFinished(); // 日課から開いていれば、ここで暗記にチェックが付く
  const g=CR.log.filter(r=>r.v===2).length,y=CR.log.filter(r=>r.v===1).length,r0=CR.log.filter(r=>r.v===0).length;
  const perfect=!CR.wrong.length;
  qs("#s-card").innerHTML=`
@@ -842,7 +897,7 @@ function cardsDrawEnd(){
     ${CR.wrong.length?`<button class="btn" onclick="cardRetryWrong()">🔁 まちがえた${CR.wrong.length}枚をもう一度</button>
     <button class="btn sub" onclick="cardSortStart()">🔍 まちがえた${CR.wrong.length}枚を仕分ける</button>`:""}
     <button class="btn sub" onclick="cardsBuildQueue();renderCurrent()">↻ 最初からもう一度(${cardsPool().length}枚)</button>
-    <button class="btn sub" onclick="goBack()">✅ おわる</button>
+    <button class="btn sub" onclick="cardsExit()">✅ おわる</button>
    </div>
   </div>`;}
 function cardRetryWrong(){cardsBuildQueue(CR.wrong.slice());renderCurrent();}
@@ -855,7 +910,7 @@ function cardsDrawSort(){
   qs("#s-card").innerHTML=`<div class="cr-end"><div class="big">🔍</div><h2>仕分け おわり!</h2>
    <div class="score"><span>🟡 うっかり ${miss}</span><span>🔴 まだ ${notyet}</span></div>
    <p class="note">${notyet?`🔴の${notyet}枚は、このあと<b>お母さんと一緒に</b>見てみよう。`:"ぜんぶ「うっかりミス」だったよ。やり方はわかってるということ!"}</p>
-   <div class="btnrow"><button class="btn sub" onclick="CR.sort=null;cardsBuildQueue();renderCurrent()">↻ 最初からもう一度</button><button class="btn sub" onclick="goBack()">✅ おわる</button></div></div>`;
+   <div class="btnrow"><button class="btn sub" onclick="CR.sort=null;cardsBuildQueue();renderCurrent()">↻ 最初からもう一度</button><button class="btn sub" onclick="cardsExit()">✅ おわる</button></div></div>`;
   return;}
  const c=s.q[s.i];
  qs("#s-card").innerHTML=`
@@ -991,10 +1046,34 @@ const PPOME_SYS=`あなたは「親ポメ」。中学1年生・香凜さんの�
 下の【まなびばの説明書】に書いてあることだけを根拠に、操作を順番に短く答える。書かれていない機能や操作は「まだ作っていない」「分かりません」と答え、推測で操作方法を作らない。`;
 /** まなびばの説明書。親ポメが「〇〇はどうすればいい?」に答えるための資料。機能を変えたら必ず一緒に直すこと。 */
 const MANUAL=`## 全体
-- 画面の下に5つのボタン:ホーム/暗記カード/学校ドリル/リンク集/ポメ。右上の「🔑 保護者」で保護者モード(お母さん用)に入り、「✓ おわる」で戻る。
+- 画面の下に6つのボタン:ホーム/カレンダー/暗記カード/学校ドリル/リンク集/ポメ。右上の「🔑 保護者」で保護者モード(お母さん用)に入り、「✓ おわる」で戻る。
 - 左上の「←」は1つ前の画面に戻る。
 - データはこのパソコンのブラウザの中だけに保存される。別のブラウザで開くと別のデータになる。
-- ホームと学校ドリルは、まだ作っていない(日課表・ワークドリルはこれから作る)。
+- 学校ドリルは、まだ作っていない(これから作る)。ホームの「今日の日課」の中のドリルの行(前日の×・学校ワーク)も、いまはチェックだけ。
+
+## ホーム(今日の日課・香凜さん)
+- 開くと今日の日の種類(通常/暗記＋直し/暗記のみ/休み)とメイン教科、その日のやることが上から順に並ぶ。次にやる行は緑の枠で目立つ。
+- 行の左の四角(□)をタップするとチェックが付く(もう一度で外れる)。行の文字の部分をタップすると、その作業が始まる:
+  - 暗記:その日の教科の暗記カードが開く。カードを1周終えると自動でチェックが付き、ホームに戻る。
+  - スタサプ:スタサプのリンクが別のタブで開く(リンクはリンク集にあるもの)。
+  - 前日の×・学校ワーク:ドリルができるまではチェックだけ。直し・休憩もチェックだけ。
+- 行をタップすると「時間の目安タイマー」が上に出て、時間が来るとやさしい音が鳴る。時間は目安で、つづけてもよい。「✓ おわった」でチェックが付く。「とめる」で止まる。大事なのは時間ではなく順番。
+- 全部チェックすると「今日はおわり!」と出る。
+- 日の種類ごとのやること: 通常=①前日の×15分 ②暗記15分 ③スタサプ「今週のミッション」30分 ④休憩15分 ⑤学校ワーク40分 ⑥直し20分。暗記＋直し(夜練・試合など時間が少ない日)=①前日の×15分 ②暗記(英単語か漢字)。暗記のみ=暗記15分。休み=何もなし。
+- ②〜⑤はその日のメイン教科でそろえる。暗記の中身は、国語=漢字、英語=英単語、社会=社会、理科=理科、数学=英単語。
+- メイン教科は、「通常」の日ごとに 国語→数学→社会→理科→英語→数学 の順で回る(暗記＋直し・暗記のみ・休みの日は順番が進まない)。
+- テスト日の前は、テストの前日に終わるよう1期→2期→3期と自動で切り替わる(初期値は5日・5日・3日)。③スタサプはテスト対策の講座、④⑤は期ごとの中身(1期=検査とワーク1回目、2期=解き直し1回目、3期=解き直し2回目と模擬テスト)に変わる。
+
+## 日課表の設定(カレンダー)
+- 上のボタンで「ぬる種類」を選び、日をタップすると、その日がその種類になる。通常・暗記＋直し(夜練・試合など時間が少ない日)・暗記のみ・休み。初期値はすべて通常。
+- 「🎯メイン教科」を選んで「通常」の日をタップすると、その日のメイン教科を手で入れ替えられる(小テストの日など)。飛ばした教科は消えずに、次のB日へ回る。「自動にもどす」で戻せる。
+- 「📝テスト日」を選んで、テストの初日をタップすると登録される(もう一度タップで消える)。下の「テスト前の日数」で、1期・2期・3期の日数を変えられる。
+- カレンダーの日の下の字は、国数社理英=その日のメイン教科、直=暗記＋直し、暗=暗記のみ、休=休み。1〜3期=テスト前の期。
+- カレンダーは下のボタンからいつでも見られる(香凜さんは見るだけ)。日課表を変えられるのは保護者モード(🔑)の中だけ。
+- 日課表を変えたいときは、ここで日をタップして直す。直したものは保存されるので、保存ボタンは無い。
+
+## 今日と今週(保護者モード→①今日と今週)
+- 今日の行ごとのチェックと、今週(月〜日)の日ごとの種類・メイン教科・終わった行の数が見られる。×の数と一覧は、ドリルができたら出る。
 
 ## 暗記カード(香凜さん)
 - 教科のボタンで切り替え、単元ごとにデッキが並ぶ。デッキをタップするとカードが始まる。単元名の横の「まとめて▶」でその単元を全部続けてやる。
@@ -1106,10 +1185,268 @@ RENDER.pset=function(){
 /* 画面の名前 */
 Object.assign(TITLES,{card:"暗記カード",cman:"🃏 カード管理",lman:"🔗 リンク管理",pset:"🤖 ポメの設定"});
 
+/* ---------- 3段階目:日課表(今日の日課・カレンダー・今週・時間の目安タイマー) ----------
+ * 日の種類 B/A/暗記のみ/休み。メイン教科は B日 ごとに 国→数→社→理→英→数 の順で回る(日付から計算するので、保存は日ごとの種類・手で変えたメイン教科・チェックだけ)。
+ * D.plan = {anchor, days:{日付:{type,main}}, tests:[{date}], phase:[1期,2期,3期の日数], done:{日付:{行:true}}, timer} */
+const DAY_TYPES={B:"通常",A:"暗記＋直し",memo:"暗記のみ",off:"休み"};
+const MAINS=[{id:"jpn",name:"国語",ch:"国"},{id:"math",name:"数学",ch:"数"},{id:"soc",name:"社会",ch:"社"},{id:"sci",name:"理科",ch:"理"},{id:"eng",name:"英語",ch:"英"}];
+const ROT=["jpn","math","soc","sci","eng","math"];
+const mainName=id=>(MAINS.find(m=>m.id===id)||{}).name||"";
+const mainCh=id=>(MAINS.find(m=>m.id===id)||{}).ch||"";
+const WDAY="日月火水木金土";
+const isoOf=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const dateOf=iso=>new Date(iso+"T00:00:00");
+const addDaysIso=(iso,n)=>{const d=dateOf(iso);d.setDate(d.getDate()+n);return isoOf(d);};
+const daysBetween=(a,b)=>Math.round((dateOf(b)-dateOf(a))/864e5);
+const dowOf=iso=>dateOf(iso).getDay();
+const mdOf=iso=>{const d=dateOf(iso);return (d.getMonth()+1)+"/"+d.getDate();};
+const mondayOf=iso=>addDaysIso(iso,-((dowOf(iso)+6)%7));
+
+function planInit(){
+ const p=D.plan;
+ if(!p.days)p.days={};if(!p.tests)p.tests=[];if(!p.done)p.done={};
+ if(!Array.isArray(p.phase)||p.phase.length!==3)p.phase=[5,5,3];
+ if(!p.anchor){p.anchor=today();save("plan");}
+ return p;}
+const planTypeOf=iso=>((planInit().days[iso]||{}).type)||"B";
+/** 日付→メイン教科(Bの日だけ)。anchorの日から順に歩いて決める。手で変えた日は、変えた教科が「次の順番」と同じ時だけ順番を進める(飛ばされた教科は次のB日へ回る) */
+function planMainMap(until){
+ const p=planInit(),map={};let k=0;
+ for(let d=p.anchor;d<=until;d=addDaysIso(d,1)){
+  if(planTypeOf(d)!=="B")continue;
+  const ov=(p.days[d]||{}).main;
+  if(ov){map[d]=ov;if(ov===ROT[k]){k=(k+1)%ROT.length;}}
+  else{map[d]=ROT[k];k=(k+1)%ROT.length;}}
+ return map;}
+/** テスト前の期(1〜3、0=なし)。いちばん近い、これからのテスト日から逆算する */
+function planPhaseOf(iso){
+ const p=planInit();
+ const t=p.tests.map(x=>x.date).filter(d=>d>iso).sort()[0];
+ if(!t)return {phase:0,left:null};
+ const n=daysBetween(iso,t),[a,b,c]=p.phase;
+ let ph=0;if(n<=c)ph=3;else if(n<=c+b)ph=2;else if(n<=c+b+a)ph=1;
+ return {phase:ph,left:n,test:t};}
+const PH_TEXT={
+ 1:{t:"検査→ワーク1回目",h:"各教科のまとめ問題を『検査』として解く → ×の出た単元から順に、紙のワークを見ずに解く(1回目)。必ず入れる:理科の仕上げページ(キホンの入試〜単元の完成)、数学の1学期範囲"},
+ 2:{t:"解き直し(1回目)",h:"間違えたところを、紙のワークで解き直す(1回目)"},
+ 3:{t:"解き直し(2回目)・模擬テスト",h:"間違えたところの2回目→見ずに解けるまで。まとめ問題の2回目。模擬テストは初めて見る問題で(攻略本の予想問題・30分100点)。余裕があれば教科書の章末問題・アウトプット問題集。社会は『ちがいに注意』の対を声に出して言う"}};
+/** その日の暗記の中身。A日と暗記のみは「英単語か漢字」(日にちで交互) */
+function planMemoOf(type,main,iso){
+ if(type==="B"){
+  if(main==="jpn")return{label:"漢字",sub:"jpn"};
+  if(main==="soc")return{label:"社会",sub:"soc"};
+  if(main==="sci")return{label:"理科",sub:"sci"};
+  return{label:"英単語",sub:"eng"};}
+ return dateOf(iso).getDate()%2?{label:"漢字",sub:"jpn"}:{label:"英単語",sub:"eng"};}
+function planDayInfo(iso){
+ const type=planTypeOf(iso);
+ const main=type==="B"?planMainMap(iso)[iso]:null;
+ const pp=planPhaseOf(iso),ph={phase:type==="B"?pp.phase:0,left:pp.left};
+ const mn=mainName(main),memo=planMemoOf(type,main,iso),rows=[];
+ const X={key:"x",no:"①",title:"前日の×",hint:"きのうの×を解き直す",min:15,act:"drill"};
+ const M={key:"memo",no:"②",title:"暗記",hint:memo.label+"の暗記カード",min:15,act:"cards",sub:memo.sub};
+ if(type==="B"){
+  rows.push(X,M,
+   {key:"sapuri",no:"③",title:"スタサプ",hint:"スタサプ "+mn+(ph.phase?" テスト対策の講座":" 今週のミッション"),min:30,act:"link"},
+   {key:"rest",no:"④",title:"休憩",hint:"ひと息つく",min:15,act:"none"},
+   {key:"work",no:"⑤",title:ph.phase?PH_TEXT[ph.phase].t:"学校ワーク",hint:ph.phase?PH_TEXT[ph.phase].h:"学校ワーク "+mn,min:40,act:"drill"},
+   {key:"fix",no:"⑥",title:"直し",hint:"答えを見て理解する",min:20,act:"none"});
+ }else if(type==="A"){rows.push(X,{...M,hint:memo.label+"の暗記カード(すきま時間)"});}
+ else if(type==="memo"){rows.push({...M,no:"①"});}
+ return {iso,type,main,mn,phase:ph.phase,left:ph.left,rows};}
+const planDone=iso=>planInit().done[iso]||{};
+function planMark(iso,key,on){
+ const p=planInit();
+ if(!p.done[iso])p.done[iso]={};
+ if(on)p.done[iso][key]=true;else delete p.done[iso][key];
+ if(!Object.keys(p.done[iso]).length)delete p.done[iso];
+ save("plan");}
+const planCount=info=>{const dn=planDone(info.iso);return{n:info.rows.filter(r=>dn[r.key]).length,all:info.rows.length};};
+
+/* --- 時間の目安タイマー(行をタップすると始まる。時間が来たらやさしい音。順番が大事で、時間は目安) --- */
+let AC=null;
+function planAudio(){
+ try{
+  const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return false;
+  if(!AC)AC=new Ctx();if(AC.state==="suspended")AC.resume();
+  return true;
+ }catch(e){return false;}}
+function planChime(){
+ try{
+  if(!planAudio())return;
+  [[784,0],[988,.65],[1175,1.3]].forEach(([f,t0])=>{ // ソ→シ→レ。1音0.7秒、ぜんぶで2秒ほど
+   const o=AC.createOscillator(),o2=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime+t0;
+   o.type="triangle";o.frequency.value=f;o2.type="sine";o2.frequency.value=f*2;
+   o.connect(g);o2.connect(g);g.connect(AC.destination);
+   g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.5,t+.03);g.gain.exponentialRampToValueAtTime(.001,t+.7);
+   o.start(t);o2.start(t);o.stop(t+.72);o2.stop(t+.72);});
+  if(navigator.vibrate)navigator.vibrate([300,120,300,120,300]);
+ }catch(e){}}
+function planTimerStart(iso,key,min){
+ const p=planInit();
+ planAudio(); // 音を鳴らす許可は、タップした時にとっておく
+ if(p.timer&&p.timer.date===iso&&p.timer.key===key&&p.timer.endsAt>Date.now())return; // 動いている最中ならそのまま
+ p.timer={date:iso,key,min,endsAt:Date.now()+min*60000,fired:false};
+ save("plan");planTimerRender();}
+function planTimerStop(){planInit().timer=null;save("plan");planTimerRender();}
+function planTimerDone(){
+ const t=planInit().timer;if(!t)return;
+ planMark(t.date,t.key,true);planInit().timer=null;save("plan");planTimerRender();renderCurrent();}
+const mmss=ms=>{const s=Math.max(0,Math.ceil(ms/1000));return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");};
+function planTimerRender(){
+ const bar=qs("#timerbar"),t=planInit().timer;
+ if(t&&t.date!==today()){D.plan.timer=null;save("plan");}
+ const tt=D.plan.timer;
+ document.body.classList.toggle("hasTimer",!!tt);
+ if(!tt){bar.innerHTML="";return;}
+ const info=planDayInfo(tt.date),r=info.rows.find(x=>x.key===tt.key);
+ const nm=r?(r.no+" "+r.title):"";
+ const left=tt.endsAt-Date.now();
+ bar.innerHTML=left>0
+  ?`<span class="tb-t">⏱ ${esc(nm)}</span><b class="tb-c">${mmss(left)}</b><button class="tb-b" onclick="planTimerDone()">✓ おわった</button><button class="tb-b sub" onclick="planTimerStop()">とめる</button>`
+  :`<span class="tb-t">🔔 時間です(つづけてもOK)</span><button class="tb-b" onclick="planTimerDone()">✓ おわった</button><button class="tb-b sub" onclick="planTimerStop()">とめる</button>`;}
+function planTick(){
+ const t=D.plan&&D.plan.timer;if(!t)return;
+ if(!t.fired&&Date.now()>=t.endsAt){t.fired=true;save("plan");planChime();toast("🔔 時間です。つづけても、おわってもOK");}
+ planTimerRender();}
+
+/* --- 行をタップした時の動き --- */
+let PLAN_FROM=null; // 日課の暗記から暗記カードを開いている間だけ入る(画面用・保存しない)
+function planOpenCards(sub,key){
+ const subs=sub==="soc"?["geo","his"]:[sub];
+ const pick=subs.find(s=>(D.cards.decks||[]).some(d=>d.sub===s));
+ if(!pick){toast("この教科の暗記カードはまだありません。ほかの方法でやって、チェックを付けてね");return;}
+ cardsSub=pick;PLAN_FROM={key,got:false};goTab("cards",true);}
+function planRowGo(key){
+ const iso=today(),info=planDayInfo(iso),r=info.rows.find(x=>x.key===key);if(!r)return;
+ if(!planDone(iso)[key])planTimerStart(iso,key,r.min);
+ if(r.act==="cards")planOpenCards(r.sub,key);
+ else if(r.act==="link"){
+  const l=(D.links||[]).find(x=>/スタサプ|studysapuri/i.test((x.name||"")+(x.url||"")));
+  if(l)window.open(l.url,"_blank","noopener");else toast("スタサプのリンクが見つかりません(🔑保護者→🔗リンク管理)");}
+ else if(r.act==="drill")toast("ドリルは、これから作ります。いまはチェックだけ付けてね");
+ renderCurrent();}
+function planToggle(key){
+ const iso=today(),on=!planDone(iso)[key];
+ planMark(iso,key,on);
+ const t=D.plan.timer;if(on&&t&&t.date===iso&&t.key===key){D.plan.timer=null;save("plan");}
+ planTimerRender();renderCurrent();}
+/** 暗記カードが1周おわった時:日課から開いていれば、自動でチェックを付ける */
+function planCardsFinished(){
+ if(!PLAN_FROM||PLAN_FROM.got)return;
+ PLAN_FROM.got=true;
+ const iso=today();planMark(iso,PLAN_FROM.key,true);
+ const t=D.plan.timer;if(t&&t.date===iso&&t.key===PLAN_FROM.key){D.plan.timer=null;save("plan");planTimerRender();}
+ toast("✅ 暗記にチェックを付けました");}
+function cardsExit(){if(PLAN_FROM){PLAN_FROM=null;goTab("home");}else goBack();}
+
+/* --- ホーム:今日の日課 --- */
+RENDER.home=function(){
+ const iso=today(),info=planDayInfo(iso),dn=planDone(iso),cnt=planCount(info);
+ const next=info.rows.find(r=>!dn[r.key]);
+ const total=planInit().phase.reduce((a,b)=>a+b,0);
+ const phTxt=info.left!==null&&info.left>0&&info.left<=total?`<span class="chip warn">テストまで あと${info.left}日${info.phase?"・"+info.phase+"期":""}</span>`:"";
+ const head=`<div class="dayhead"><div><b>${mdOf(iso)}(${WDAY[dowOf(iso)]})</b>
+   <span class="chip t-${info.type}">${DAY_TYPES[info.type]}</span>
+   ${info.main?`<span class="chip main">メイン:${esc(info.mn)}</span>`:""}${phTxt}</div>
+   ${info.rows.length?`<div class="prog">${cnt.n}/${cnt.all}</div>`:""}</div>`;
+ let body;
+ if(info.type==="off")body=`<div class="card"><p class="note" style="font-size:16px;text-align:center;padding:14px 0">🌿 今日はお休みです</p></div>`;
+ else if(next)body=`<div class="prows">${info.rows.map(r=>{
+   const d=!!dn[r.key];
+   return `<div class="prow ${d?"done":""} ${r.key===next.key?"next":""}">
+    <button class="pchk" onclick="planToggle('${r.key}')" aria-label="チェック">${d?"✓":""}</button>
+    <button class="pmain" onclick="planRowGo('${r.key}')"><b>${r.no} ${esc(r.title)}</b><small>${esc(r.hint)}</small></button>
+    <span class="pmin">⏱${r.min}</span></div>`;}).join("")}</div>
+   <p class="note" style="text-align:center;margin-top:10px">□ はチェック。行をタップすると始まります。時間は目安で、守るのは順番です。</p>`;
+ else body=`<div class="prows">${info.rows.map(r=>`<div class="prow done"><span class="pchk">✓</span><div class="pmain"><b>${r.no} ${esc(r.title)}</b></div></div>`).join("")}</div>
+   <div class="card" style="text-align:center;background:var(--mint-soft);border-color:var(--mint)"><div style="font-size:42px">🎉</div><h2>今日はおわり!</h2><p class="note">よくがんばりました。</p></div>`;
+ qs("#s-home").innerHTML=head+body;};
+
+/* --- 保護者:カレンダー --- */
+let calMonth=null,calMode="A";
+const CAL_MODES=[["B","通常"],["A","暗記＋直し"],["memo","暗記のみ"],["off","休み"],["main","🎯 メイン教科"],["test","📝 テスト日"]];
+function calShift(n){const [y,m]=calMonth.split("-").map(Number);const d=new Date(y,m-1+n,1);calMonth=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");renderCurrent();}
+const calCanEdit=()=>document.body.classList.contains("parent");
+function calTap(iso){
+ if(!calCanEdit())return;
+ const p=planInit();
+ if(["B","A","memo","off"].includes(calMode)){
+  const e=p.days[iso]||{};e.type=calMode;
+  if(calMode!=="B")delete e.main;
+  if(calMode==="B"&&!e.main)delete p.days[iso];else p.days[iso]=e;
+  save("plan");renderCurrent();}
+ else if(calMode==="test"){
+  const i=p.tests.findIndex(x=>x.date===iso);
+  if(i>=0)p.tests.splice(i,1);else{p.tests.push({date:iso});p.tests.sort((a,b)=>a.date<b.date?-1:1);}
+  save("plan");renderCurrent();}
+ else if(calMode==="main"){
+  if(planTypeOf(iso)!=="B"){toast("メイン教科を変えられるのは「通常」の日だけです");return;}
+  const cur=planMainMap(iso)[iso];
+  openOv(`<h3>${mdOf(iso)}(${WDAY[dowOf(iso)]})のメイン教科</h3>
+   <p class="note" style="margin-bottom:8px">入れ替えると、飛ばした教科は次の「通常」の日に回ります。</p>
+   <div class="btnrow">${MAINS.map(m=>`<button class="btn ${m.id===cur?"":"sub"}" onclick="calSetMain('${iso}','${m.id}')">${m.name}</button>`).join("")}
+   <button class="btn sub" onclick="calSetMain('${iso}','')">自動にもどす</button></div>`);}}
+function calSetMain(iso,id){
+ const p=planInit(),e=p.days[iso]||{type:"B"};
+ if(id)e.main=id;else delete e.main;
+ if(e.type==="B"&&!e.main)delete p.days[iso];else p.days[iso]=e;
+ save("plan");closeOv();renderCurrent();}
+function calSetPhase(i,v){const p=planInit();p.phase[i]=Math.max(1,Math.min(14,Number(v)||1));save("plan");renderCurrent();}
+RENDER.cal=function(){
+ const p=planInit();
+ if(!calMonth)calMonth=today().slice(0,7);
+ const [y,m]=calMonth.split("-").map(Number);
+ const start=mondayOf(calMonth+"-01"),last=isoOf(new Date(y,m,0)),cells=[];
+ const end=addDaysIso(last,(7-(dowOf(last)+6)%7-1)%7);
+ for(let d=start;d<=end;d=addDaysIso(d,1))cells.push(d);
+ const mm=planMainMap(end),td=today();
+ const hint={B:"日をタップすると「通常」(約2時間)になります",A:"日をタップすると「暗記＋直し」(夜練・試合など時間が少ない日)になります",memo:"日をタップすると「暗記のみ」になります",off:"日をタップすると「休み」になります",main:"B日をタップして、メイン教科を入れ替えます",test:"テストの初日をタップ(もう一度で消えます)"}[calMode];
+ const ed=calCanEdit();
+ qs("#s-cal").innerHTML=(ed?`
+  <div class="segs">${CAL_MODES.map(([k,l])=>`<button class="${k===calMode?"on":""}" onclick="calMode='${k}';renderCurrent()">${l}</button>`).join("")}</div>
+  <p class="note" style="margin-bottom:6px">${hint}</p>`:`<p class="note" style="margin-bottom:6px">予定を見るところです。変えるのは、おうちの人(🔑保護者)がします。</p>`)+`
+  <div class="card calcard">
+   <div class="calhead"><button class="btn sub" onclick="calShift(-1)">◀</button><b>${y}年${m}月</b><button class="btn sub" onclick="calShift(1)">▶</button></div>
+   <div class="calgrid">${"月火水木金土日".split("").map(w=>`<div class="calw">${w}</div>`).join("")}
+   ${cells.map(d=>{
+     const inM=d.slice(0,7)===calMonth,type=planTypeOf(d),isTest=p.tests.some(x=>x.date===d);
+     const ph=type==="B"?planPhaseOf(d).phase:0;
+     const mk=type==="B"?mainCh(mm[d]):"";
+     const tl=type==="B"?"":({A:"直",memo:"暗",off:"休"}[type]);
+     return `<button class="calc t-${type} ${inM?"":"out"} ${d===td?"today":""}" onclick="calTap('${d}')">
+       <span class="cn">${Number(d.slice(8))}</span>
+       <span class="ck">${isTest?"📝":(tl||mk)}</span>
+       <span class="cp">${ph?ph+"期":""}</span></button>`;}).join("")}</div>
+   <p class="note" style="margin-top:6px">日の下の字:国数社理英=その日のメイン教科、直=暗記＋直し、暗=暗記のみ、休=休み。1〜3期=テスト前の期。</p>
+  </div>
+  ${ed?`<div class="card"><h2>📝 テスト前の日数</h2>
+   <p class="note" style="margin-bottom:8px">テストの前日に終わるよう、1期→2期→3期と自動で切り替わります。${p.tests.length?`<br>登録ずみのテスト日:${p.tests.map(t=>mdOf(t.date)).join("、")}`:`<br>テスト日は上の「📝 テスト日」で日をタップして入れます。`}</p>
+   <div class="phrow">${[0,1,2].map(i=>`<label>${i+1}期 <select onchange="calSetPhase(${i},this.value)">${Array.from({length:14},(_,k)=>k+1).map(n=>`<option value="${n}" ${n===p.phase[i]?"selected":""}>${n}日</option>`).join("")}</select></label>`).join("")}</div>
+  </div>`:(p.tests.length?`<div class="card"><h2>📝 テスト</h2><p>${p.tests.map(t=>mdOf(t.date)+"("+WDAY[dowOf(t.date)]+")").join("、")} から</p></div>`:"")}`;};
+
+/* --- 保護者:今日と今週 --- */
+RENDER.week=function(){
+ const td=today(),mon=mondayOf(td),days=Array.from({length:7},(_,i)=>addDaysIso(mon,i));
+ const row=iso=>{
+  const info=planDayInfo(iso),dn=planDone(iso),c=planCount(info),fut=iso>td;
+  return `<div class="wkrow ${iso===td?"today":""} ${fut?"fut":""}">
+   <div class="wd"><b>${mdOf(iso)}</b>(${WDAY[dowOf(iso)]})</div>
+   <div><span class="chip t-${info.type}">${DAY_TYPES[info.type]}</span>${info.main?`<span class="chip main">${esc(info.mn)}</span>`:""}</div>
+   <div class="wmarks">${info.rows.map(r=>`<span class="wm ${dn[r.key]?"on":""}" title="${esc(r.title)}">${dn[r.key]?"✓":"・"}</span>`).join("")}</div>
+   <div class="wc">${info.rows.length&&!fut?c.n+"/"+c.all:""}</div></div>`;};
+ const info=planDayInfo(td),dn=planDone(td);
+ qs("#s-week").innerHTML=`
+  <div class="card"><h2>今日 ${mdOf(td)}(${WDAY[dowOf(td)]})</h2>
+   ${info.rows.length?info.rows.map(r=>`<div class="wkt ${dn[r.key]?"on":""}">${dn[r.key]?"✅":"⬜"} ${r.no} ${esc(r.title)} <small>${esc(r.hint)}</small></div>`).join(""):`<p class="note">今日の日課はありません(${DAY_TYPES[info.type]})。</p>`}</div>
+  <div class="card"><h2>今週</h2>${days.map(row).join("")}
+   <p class="note" style="margin-top:8px">✓=チェックずみ。左から①②…の順です。×の数と一覧は、ドリルができたらここに出ます。</p></div>`;};
+Object.assign(TITLES,{cal:"📅 カレンダー",week:"📊 今日と今週"});
+
 /* ---------- 起動 ---------- */
 (async function boot(){
  try{
-  await dbOpen();await loadAll();
+  await dbOpen();await loadAll();planInit();
   if(!D.meta.migration){
    const rep=await migrateFromThisBrowser();
    if(rep)toast("今のまなびばから引き継ぎました(デッキ"+rep.decks+"・カード"+rep.cards+"枚)");
@@ -1117,7 +1454,7 @@ Object.assign(TITLES,{card:"暗記カード",cman:"🃏 カード管理",lman:"�
  }catch(e){
   qs("#boot").textContent="この端末では保存の仕組み(IndexedDB)が使えません:"+e.message;return;}
  qs("#boot").remove();
- show();
+ show();planTimerRender();setInterval(planTick,1000);
 })();
 </script>
 </body>
