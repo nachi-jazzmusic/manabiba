@@ -77,11 +77,15 @@ body.parent .tabbar{display:none}
 .segs button{padding:6px 14px;border-radius:99px;border:1.5px solid var(--line);background:#fff;font-family:var(--disp);font-weight:700;font-size:14px}
 .segs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 /* 暗記カードの単元ごとのまとまり */
-.unit{margin-bottom:10px}
-.unit h3{font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:3px}
-.chips{display:flex;flex-wrap:wrap;gap:5px}
-.dchip{font-size:12.5px;padding:3px 10px;border-radius:99px;border:1.5px solid var(--line);background:#fff;white-space:nowrap}
-.dchip small{font-size:11px;color:var(--ink-soft);margin-left:4px}
+/* 単元名を左の列、デッキを同じ幅の枠で右に並べて、縦の線をそろえる */
+.unit{display:grid;grid-template-columns:120px 1fr;gap:6px 10px;align-items:start;padding:6px 0;border-bottom:1px solid var(--line)}
+.unit:last-child{border-bottom:none}
+.unit h3{font-size:12.5px;font-weight:700;color:var(--ink-soft);padding-top:4px;line-height:1.35}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:5px}
+.dchip{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:12.5px;padding:4px 10px;border-radius:10px;border:1.5px solid var(--line);background:#fff;min-width:0}
+.dchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dchip small{font-size:11px;color:var(--ink-soft);flex-shrink:0}
+@media(max-width:560px){.unit{grid-template-columns:1fr}.unit h3{padding-top:0}}
 .dchip.done{background:var(--mint-soft);border-color:var(--mint)}
 .dchip.none{color:var(--ink-soft);border-style:dashed}
 
@@ -236,6 +240,7 @@ async function migrateFrom(oldS,getImg,source){
     if(String(v).startsWith("idb:")){const data=await getImg(v);if(data)images[v]=data;else rep.imagesMissing++;}
     else if(String(v).startsWith("data:")){const id=newImgId();images[id]=v;c[f]=id;}}}}
  rep.images=Object.keys(images).length;
+ rep.bySub=SUBJECTS.map(s=>({n:s.name,c:decks.filter(d=>d.sub===s.id).length})).filter(x=>x.c).map(x=>x.n+x.c).join("・");
  const cardLog=clone(oldS.cardLog||{});rep.cardLogDays=Object.keys(cardLog).length;
  // リンク集(デジタルドリルと参考情報を1つにまとめる。NHK・YouTubeチャンネルは外し、スタサプを足す)
  const links=[];
@@ -262,7 +267,7 @@ async function migrateFrom(oldS,getImg,source){
 async function migrateFromThisBrowser(){
  const oldS=readOldState();
  if(!oldS)return null;
- return migrateFrom(oldS,await oldImgGetter(),"このパソコンの今のまなびば");}
+ return migrateFrom(oldS,await oldImgGetter(),"このブラウザ(このアドレス)に残っていた今のまなびばのデータ");}
 async function rerunMigration(){
  if(!readOldState()){toast("このパソコンには今のまなびばのデータが見つかりません");return;}
  if(!confirm("今のまなびばから、もう一度引き継ぎます。\n新しいまなびばの「暗記カード・リンク集・ポメの会話」は、今のまなびばの内容で置き換わります。\nよろしいですか?"))return;
@@ -356,7 +361,8 @@ const RENDER={
     ${units.map(g=>`<div class="unit"><h3>${esc(g.u)}</h3><div class="chips">${g.ds.map(d=>{
       const cs=d.cards||[],ok=cs.filter(c=>c.gs>=1).length,used=cs.some(c=>c.last);
       const cls=cs.length&&ok===cs.length?"done":(!used?"none":"");
-      return `<span class="dchip ${cls}">${esc(String(d.name||"").replace(/^[^｜]+｜/,""))}<small>${ok}/${cs.length}</small></span>`;}).join("")}</div></div>`).join("")}
+      const nm=String(d.name||"").replace(/^[^｜]+｜/,"");
+      return `<div class="dchip ${cls}" title="${esc(nm)}"><span>${esc(nm)}</span><small>${ok}/${cs.length}</small></div>`;}).join("")}</div></div>`).join("")}
    </div>`;},
  drill(){
   qs("#s-drill").innerHTML=`
@@ -388,7 +394,7 @@ const RENDER={
 
    <div class="card">
     <h2>🔁 引き継ぎ・💾 バックアップ</h2>
-    <p class="note">${m?`${esc(fmtDateTime(m.at))} 引き継ぎずみ:暗記カード ${m.decks}デッキ・${m.cards}枚/リンク ${m.links}件/ポメ ${m.chats}件・親ポメ ${m.pchats}件${m.imagesMissing?`/<b style="color:var(--red)">見つからない写真 ${m.imagesMissing}枚</b>`:""}`:"まだ今のまなびばから引き継いでいません。"}
+    <p class="note">${m?`${esc(fmtDateTime(m.at))} 引き継ぎずみ:暗記カード ${m.decks}デッキ${m.bySub?`(${esc(m.bySub)})`:""}・${m.cards}枚/リンク ${m.links}件/ポメ ${m.chats}件・親ポメ ${m.pchats}件${m.imagesMissing?`/<b style="color:var(--red)">見つからない写真 ${m.imagesMissing}枚</b>`:""}`:"まだ今のまなびばから引き継いでいません。"}
      ${D.meta.lastBackupAt?"<br>最後のバックアップ:"+esc(fmtDateTime(D.meta.lastBackupAt)):""}</p>
     <div class="btnrow">
      <button class="btn" onclick="exportBackup()">バックアップを書き出す</button>
