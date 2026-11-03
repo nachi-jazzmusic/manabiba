@@ -81,7 +81,9 @@ body.parent .tabbar{display:none}
 .unit{display:grid;grid-template-columns:120px 1fr;gap:6px 10px;align-items:start;padding:6px 0;border-bottom:1px solid var(--line)}
 .unit:last-child{border-bottom:none}
 .unit h3{font-size:12.5px;font-weight:700;color:var(--ink-soft);padding-top:4px;line-height:1.35}
-.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:5px}
+.chips{display:flex;flex-direction:column;gap:7px}
+/* 同じ教材のまとまり(例:〇〇(1)〜(3))ごとに行を分ける。列の幅は全部同じなので縦の線はそろう */
+.dgroup{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:5px}
 .dchip{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:12.5px;padding:4px 10px;border-radius:10px;border:1.5px solid var(--line);background:#fff;min-width:0}
 .dchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dchip small{font-size:11px;color:var(--ink-soft);flex-shrink:0}
@@ -358,11 +360,11 @@ const RENDER={
    <div class="segs">${subs.map(s=>`<button class="${s.id===cardsSub?"on":""}" onclick="cardsSub='${s.id}';renderCurrent()">${esc(s.name)}</button>`).join("")}</div>
    <div class="card">
     <p class="note" style="margin-bottom:8px">${mine.length}デッキ・${nCards}枚(うち🟢 ${nOk}枚)</p>
-    ${units.map(g=>`<div class="unit"><h3>${esc(g.u)}</h3><div class="chips">${g.ds.map(d=>{
+    ${units.map(g=>`<div class="unit"><h3>${esc(g.u)}</h3><div class="chips">${deckGroups(g.ds).map(grp=>`<div class="dgroup">${grp.map(d=>{
       const cs=d.cards||[],ok=cs.filter(c=>c.gs>=1).length,used=cs.some(c=>c.last);
       const cls=cs.length&&ok===cs.length?"done":(!used?"none":"");
-      const nm=String(d.name||"").replace(/^[^｜]+｜/,"");
-      return `<div class="dchip ${cls}" title="${esc(nm)}"><span>${esc(nm)}</span><small>${ok}/${cs.length}</small></div>`;}).join("")}</div></div>`).join("")}
+      const nm=deckShortName(d);
+      return `<div class="dchip ${cls}" title="${esc(nm)}"><span>${esc(nm)}</span><small>${ok}/${cs.length}</small></div>`;}).join("")}</div>`).join("")}</div></div>`).join("")}
    </div>`;},
  drill(){
   qs("#s-drill").innerHTML=`
@@ -418,6 +420,13 @@ const RENDER={
    <div class="card soon"><h2>🐕 親ポメ</h2><p class="note">相談の画面は、次の段階で今のまなびばから移します。いま引き継いでいる相談は ${n}件です。</p></div>`;}
 };
 let cardsSub=null; // 暗記カード画面で今選んでいる教科(画面用・保存しない)
+const deckShortName=d=>String(d.name||"").replace(/^[^｜]+｜/,"");
+/** 同じ教材のデッキ(名前の最後の「(1)」「①」などだけが違うもの)を、並び順を保ったまままとめる */
+function deckGroups(ds){
+ const base=d=>deckShortName(d).replace(/\s*[\(（]\s*\d+\s*[\)）]\s*$/,"").replace(/\s*[①-⑳]\s*$/,"").trim();
+ const out=[];
+ ds.forEach(d=>{const b=base(d);const g=out.find(x=>x.b===b);if(g)g.ds.push(d);else out.push({b,ds:[d]});});
+ return out.map(x=>x.ds);}
 
 /* ---------- 起動 ---------- */
 (async function boot(){
