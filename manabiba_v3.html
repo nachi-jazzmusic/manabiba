@@ -310,6 +310,10 @@ details.card[open] summary::before{content:"▾ "}
 .pad-card{background:#fff;border-radius:20px;padding:16px;max-width:720px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .pad-card h3{margin:0 0 8px;font-family:var(--disp);font-size:16px}
 #padCanvas{width:100%;height:200px;border:2px solid var(--line);border-radius:14px;background:#FCFCFA;touch-action:none;display:block}
+#padModal{padding:10px}
+#padModal .pad-card{max-width:1200px;height:calc(100vh - 20px);max-height:none;display:flex;flex-direction:column}
+#padModal #padCanvas{flex:1;height:auto;min-height:260px}
+#padModal .pad-acts .btn{padding:14px 28px;font-size:16px}
 .pad-acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
 .ansq{font-size:13.5px;color:var(--ink);margin-top:2px;font-weight:500;line-height:1.5}
 .tagpick2{display:flex;flex-wrap:wrap;gap:8px;max-width:720px}
@@ -3693,8 +3697,9 @@ function setChatSending(btn,onStop){btn.classList.add("stopping");btn.textConten
 function resetChatSending(btn,onSend){btn.classList.remove("stopping");btn.textContent="送る";btn.onclick=onSend;}
 let pomeAbort=null;
 async function sendPome(){if(pomeAbort)return; // 返答生成中は無視(連打・Enter二重送信対策)
+ flushChatVoiceInterim();
  const inp=qs("#pomeInput"),txt=inp.value.trim();if(!txt)return;
- stopChatVoice();
+ pauseChatVoice();
  const c=curChat();c.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";
  if(c.title==="新しい会話"||c.title==="はじめての会話")c.title=txt.slice(0,18);
  save();renderPome();
@@ -3711,7 +3716,8 @@ async function sendPome(){if(pomeAbort)return; // 返答生成中は無視(連�
  }catch(e){msg.content="⚠️ "+e.message;}
  pomeAbort=null;
  resetChatSending(btn,sendPome);
- save();renderPome();}
+ save();renderPome();
+ resumeChatVoice("sPome");}
 /** 親ポメの返信の下に出す「診断を反映」まわりのボタン・表示 */
 function diagActionHtml(m,i){
  if(!m.diag)return"";
@@ -3748,8 +3754,9 @@ function parsePPomeReply(out){
 function stripDanglingDiagMarker(s){const i=s.lastIndexOf("[[DIAG");return (i>=0&&!s.slice(i).includes("]]"))?s.slice(0,i).trimEnd():s;}
 let ppomeAbort=null;
 async function sendPPome(){if(ppomeAbort)return;
+ flushChatVoiceInterim();
  const inp=qs("#ppomeInput"),txt=inp.value.trim();if(!txt)return;
- stopChatVoice();
+ pauseChatVoice();
  const pc=curPChat();pc.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";
  if(pc.title==="新しい相談"||pc.title==="はじめての相談")pc.title=txt.slice(0,18);
  save();renderPPome();
@@ -3766,7 +3773,8 @@ async function sendPPome(){if(ppomeAbort)return;
  }catch(e){msg.content="⚠️ "+e.message;}
  ppomeAbort=null;
  resetChatSending(btn,sendPPome);
- save();renderPPome();}
+ save();renderPPome();
+ resumeChatVoice("sPPome");}
 /** 診断の確認モーダルをひらく(個別にチェックを外して除外できる) */
 let diagModalMsgIdx=null;
 function openDiagConfirm(i){
@@ -4170,41 +4178,71 @@ function voiceInput(targetId,after,btnEl){
  recog.onend=()=>{if(recogBtn){recogBtn.classList.remove("listening");recogBtn.textContent=recogBtn.dataset.orig||"🎤";}recogBtn=null;recog=null;};
  try{recog.start();}catch(e){toast("音声入力を開始できませんでした");recogBtn=null;recog=null;}}
 
-/* ---------- 音声入力(ポメに聞く・親ポメ専用・止めるまで続ける) ----------
+/* ---------- 音声入力(ポメに聞く・親ポメ専用・会話モード) ----------
  * voiceInput()は1回話したら自動で止まる仕様(他画面はこれを維持)。
- * チャットの2画面だけ、もう一度押すまで聞き取りを続ける別実装にする(数式変換もしない・そのまま追記)。 */
-let chatRecog=null,chatRecogBtn=null,chatRecogStatusEl=null,chatRecogManual=false,chatRecogGen=0;
+ * チャットの2画面だけは「会話モード」:マイクを1回押すと、送信→ポメの返事→また自動で聞き取り、を繰り返す。
+ * もう一度マイクを押す・画面を移る・マイクが使えないエラーの時だけ終わる。数式変換はせず、そのまま追記する。 */
+let chatRecog=null,chatRecogGen=0,chatVoiceMode=null,chatRecogNetErr=0;
+const CHAT_VOICE_FATAL=["not-allowed","service-not-allowed","audio-capture"]; // マイクが使えない=再開しても無駄なエラー
+function setChatVoiceUi(state,interim){
+ const m=chatVoiceMode;if(!m)return;
+ if(m.btn){
+  if(state==="off"){m.btn.classList.remove("listening");m.btn.textContent=m.btn.dataset.orig||"🎤";}
+  else{m.btn.classList.add("listening");m.btn.textContent="🔴";}}
+ if(m.statusEl)m.statusEl.textContent=
+  state==="listen"?"🎤 聞き取り中…("+(interim?interim:"話してね")+") 送ると、返事のあとまた聞き取ります。マイクを押すと終わり"
+  :state==="wait"?"🐶 返事を待っています…返事のあと自動で聞き取ります(マイクを押すと終わり)":"";}
+function haltChatRecog(){chatRecogGen++;if(chatRecog){try{chatRecog.stop();}catch(e){}}chatRecog=null;}
+/** 会話モードごと終わる(マイクの再押下・画面移動・エラー) */
 function stopChatVoice(){
- chatRecogGen++; // 古い録音の onend/onerror が後から来ても無視させる
- if(chatRecog){chatRecogManual=true;try{chatRecog.stop();}catch(e){}}
- chatRecog=null;
- if(chatRecogBtn){chatRecogBtn.classList.remove("listening");chatRecogBtn.textContent=chatRecogBtn.dataset.orig||"🎤";}
- if(chatRecogStatusEl)chatRecogStatusEl.textContent="";
- chatRecogBtn=null;chatRecogStatusEl=null;}
+ if(!chatVoiceMode){haltChatRecog();return;}
+ haltChatRecog();setChatVoiceUi("off");chatVoiceMode=null;}
+/** 送信時:聞き取りだけ止めて、会話モードは残す */
+function pauseChatVoice(){if(!chatVoiceMode)return;haltChatRecog();chatVoiceMode.interim="";setChatVoiceUi("wait");}
+/** 送信を押した瞬間に、まだ確定していない聞き取り途中の言葉があれば入力欄に足す(言いかけが消えないように) */
+function flushChatVoiceInterim(){
+ const m=chatVoiceMode;if(!m||!m.interim)return;
+ const el=document.getElementById(m.targetId);if(el)el.value+=m.interim;
+ m.interim="";}
+/** 返事のあと:まだ同じ画面にいれば、自動で聞き取りを再開する */
+function resumeChatVoice(screenId){
+ if(!chatVoiceMode||chatRecog)return;
+ const sc=qs("#"+screenId);
+ if(!sc||!sc.classList.contains("on")){stopChatVoice();return;}
+ startChatRecog();}
 function chatVoiceInput(targetId,statusId,btnEl){
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){alert("この端末・ブラウザでは音声入力が使えません。Chrome または Edge でお試しください。");return;}
- const el=document.getElementById(targetId);if(!el)return;
- if(chatRecog){stopChatVoice();return;} // 聞き取り中にもう一度押したら止める
- chatRecogManual=false;
- chatRecogBtn=btnEl||null;
- chatRecogStatusEl=statusId?document.getElementById(statusId):null;
- if(chatRecogBtn)chatRecogBtn.dataset.orig=chatRecogBtn.dataset.orig||chatRecogBtn.textContent;
- const myGen=chatRecogGen;
+ if(chatVoiceMode){stopChatVoice();return;} // 会話モード中にもう一度押したら終わる
+ if(!document.getElementById(targetId))return;
+ if(btnEl)btnEl.dataset.orig=btnEl.dataset.orig||btnEl.textContent;
+ chatVoiceMode={targetId,btn:btnEl||null,statusEl:statusId?document.getElementById(statusId):null};
+ startChatRecog();}
+function startChatRecog(){
+ const m=chatVoiceMode;if(!m)return;
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ const el=document.getElementById(m.targetId);if(!el){stopChatVoice();return;}
+ const myGen=++chatRecogGen;
+ chatRecogNetErr=0;
  function startOne(){
-  const r=new SR();r.lang="ja-JP";r.continuous=true;r.interimResults=false;r.maxAlternatives=1;
-  r.onstart=()=>{if(myGen!==chatRecogGen)return;
-   if(chatRecogBtn){chatRecogBtn.classList.add("listening");chatRecogBtn.textContent="🔴";}
-   if(chatRecogStatusEl)chatRecogStatusEl.textContent="🎤 聞き取り中…もう一度押すと止まります";};
+  const r=new SR();r.lang="ja-JP";r.continuous=true;r.interimResults=true;r.maxAlternatives=1;
+  r.onstart=()=>{if(myGen!==chatRecogGen)return;setChatVoiceUi("listen");};
   r.onresult=e=>{if(myGen!==chatRecogGen)return;
-   let add="";
-   for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)add+=(e.results[i][0].transcript||"");}
-   if(add){el.value+=add;el.selectionStart=el.selectionEnd=el.value.length;el.dispatchEvent(new Event("input",{bubbles:true}));}};
+   chatRecogNetErr=0;
+   let add="",interim="";
+   for(let i=e.resultIndex;i<e.results.length;i++){
+    const t=e.results[i][0].transcript||"";
+    if(e.results[i].isFinal)add+=t;else interim+=t;}
+   if(add){el.value+=add;el.selectionStart=el.selectionEnd=el.value.length;el.dispatchEvent(new Event("input",{bubbles:true}));}
+   m.interim=interim;
+   setChatVoiceUi("listen",interim);};
   r.onerror=e=>{if(myGen!==chatRecogGen)return;
-   toast("音声入力エラー:"+e.error);chatRecogManual=true;stopChatVoice();}; // エラー時は再開しない
+   if(CHAT_VOICE_FATAL.includes(e.error)){toast("マイクが使えません("+e.error+")。ブラウザのマイクの許可を確認してください");stopChatVoice();return;}
+   if(e.error==="network"&&++chatRecogNetErr>=3){toast("音声入力がつながりません(ネットワーク)。もう一度マイクを押してください");stopChatVoice();}
+   // 「声が聞こえない(no-speech)」などは止めない。このあとのonendで聞き取りを再開する
+  };
   r.onend=()=>{if(myGen!==chatRecogGen)return;
-   if(chatRecogManual){stopChatVoice();return;}
-   try{chatRecog=startOne();}catch(e){stopChatVoice();}}; // 無音などでブラウザ側が止めた場合は黙って再開する
+   try{chatRecog=startOne();}catch(e){stopChatVoice();}}; // 無音などでブラウザ側が止めても、送信するまで聞き取りを続ける
   r.start();
   return r;}
  try{chatRecog=startOne();}catch(e){toast("音声入力を開始できませんでした");stopChatVoice();}}
@@ -4220,7 +4258,7 @@ function openPad(targetId,after){padTarget=targetId;padAfter=after||null;
  setTimeout(()=>{const c=qs("#padCanvas");const r=c.getBoundingClientRect();
   c.width=Math.round(r.width*2);c.height=Math.round(r.height*2);
   padCtx=c.getContext("2d");padCtx.fillStyle="#FCFCFA";padCtx.fillRect(0,0,c.width,c.height);
-  padCtx.strokeStyle="#2A2A32";padCtx.lineWidth=6;padCtx.lineCap="round";padCtx.lineJoin="round";
+  padCtx.strokeStyle="#2A2A32";padCtx.lineWidth=8;padCtx.lineCap="round";padCtx.lineJoin="round";
   padDirty=false;bindPad(c);},60);}
 function bindPad(c){
  const pos=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height)];};
