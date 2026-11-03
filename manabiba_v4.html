@@ -101,6 +101,85 @@ body.parent .tabbar{display:none}
 .ptile.soon{border-style:dashed;background:var(--paper);color:var(--ink-soft);cursor:default}
 details.more summary{cursor:pointer;font-size:13px;color:var(--ink-soft);margin-top:6px}
 
+/* デッキをタップしてはじめる */
+.dchip.tap{cursor:pointer}
+.dchip.tap:active{background:var(--mint-soft)}
+.unit h3 .ugo{margin-left:6px;font-size:11.5px;font-weight:700;padding:1px 9px;border-radius:99px;border:1.5px solid var(--mint);background:var(--mint-soft);color:var(--ink)}
+
+/* 暗記カードをやる画面(1画面でやることは1つ。ボタンは大きく) */
+.cr-top{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.cr-top .grow{flex:1;min-width:0;font-size:13px;color:var(--ink-soft)}
+.cr-bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:10px}
+.cr-bar i{display:block;height:100%;background:var(--mint)}
+.cr-opts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:13px}
+.cr-opts .segs{margin:0}
+.cr-opts .segs button{padding:4px 11px;font-size:12.5px}
+.cr-card{background:#fff;border:2px solid var(--line);border-radius:22px;min-height:38vh;padding:22px 20px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;user-select:none;margin-bottom:12px}
+.cr-card .q{font-family:var(--disp);font-weight:900;font-size:clamp(26px,6vw,40px);line-height:1.4;word-break:break-word}
+.cr-card .a{font-family:var(--disp);font-weight:900;font-size:clamp(28px,6.5vw,44px);color:var(--mint);margin-top:14px;line-height:1.4;word-break:break-word}
+.cr-card .exp{margin-top:12px;font-size:14px;color:var(--ink-soft)}
+.cr-card .tapmsg{margin-top:16px;font-size:13px;color:var(--ink-soft)}
+.cr-card.shown{border-color:var(--mint)}
+.cr-card img{max-width:100%;max-height:26vh;border-radius:12px;margin-bottom:10px}
+.cr-judge{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.cr-judge button{min-height:78px;border-radius:18px;border:2px solid var(--line);background:#fff;font-family:var(--disp);font-weight:900;font-size:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px}
+.cr-judge button b{font-size:26px;line-height:1}
+.cr-judge button small{font-size:11px;font-weight:500;color:var(--ink-soft)}
+.cr-judge button:disabled{opacity:.55}
+.cr-judge button.tapped{border-color:var(--ink);background:var(--paper)}
+.cr-flash{min-height:26px;text-align:center;font-size:14px;margin-top:8px}
+.cr-end{text-align:center;padding:10px 0}
+.cr-end .big{font-size:56px;line-height:1.2}
+.cr-end h2{font-family:var(--disp);font-weight:900;font-size:21px;margin:6px 0}
+.cr-end .score{display:flex;gap:16px;justify-content:center;font-size:20px;font-family:var(--disp);font-weight:900;margin:8px 0}
+.cr-end .btnrow{justify-content:center;flex-direction:column;align-items:stretch;max-width:420px;margin:12px auto 0}
+.sortcard{background:#fff;border:2px solid var(--line);border-radius:18px;padding:18px;text-align:center;margin-bottom:12px}
+.sortcard .sq{font-family:var(--disp);font-weight:900;font-size:24px}
+.sortcard .sa{margin-top:8px;font-size:18px}
+.sortbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.sortbtns button{min-height:80px;border-radius:18px;border:2px solid var(--line);background:#fff;font-family:var(--disp);font-weight:900;font-size:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.sortbtns button small{font-size:11px;font-weight:500;color:var(--ink-soft)}
+
+/* チャット(ポメ・親ポメ):下のボタンの上まで使い、入力欄は画面の下に固定 */
+.chat{display:flex;flex-direction:column;height:calc(100vh - var(--bar-h) - var(--tab-h) - 44px)}
+body.parent .chat{height:calc(100vh - var(--bar-h) - 44px)}
+.chat-head{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.chat-head .grow{flex:1;min-width:0;font-size:13px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-scroll{flex:1;overflow-y:auto;padding:4px 2px 8px}
+.msg{display:flex;gap:8px;margin-bottom:10px;align-items:flex-start}
+.msg.me{flex-direction:row-reverse}
+.msg .pface{font-size:26px;flex-shrink:0}
+.bubble{background:#fff;border:1.5px solid var(--line);border-radius:4px 16px 16px 16px;padding:10px 14px;max-width:86%;white-space:pre-wrap;word-break:break-word;font-size:15px}
+.msg.me .bubble{background:var(--mint-soft);border-color:var(--mint);border-radius:16px 4px 16px 16px}
+.chat-in{display:flex;gap:6px;align-items:flex-end;padding-top:6px}
+.chat-in textarea{flex:1;min-width:0;padding:10px 12px;border:1.5px solid var(--line);border-radius:14px;background:#fff;resize:none;line-height:1.5}
+.chat-in .tool{width:46px;height:46px;border-radius:14px;border:1.5px solid var(--line);background:#fff;font-size:20px;flex-shrink:0}
+.chat-in .tool.listening{background:#FDEBEB;border-color:var(--red);animation:micpulse 1s infinite}
+.chat-in .send{min-width:64px;height:46px;padding:0 14px;border-radius:14px;background:var(--ink);color:#fff;font-family:var(--disp);font-weight:700;flex-shrink:0}
+.chat-in .send.stopping{background:var(--red-soft);color:#A33;border:1.5px solid var(--red)}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(224,110,110,.45)}50%{box-shadow:0 0 0 7px rgba(224,110,110,0)}}
+.voice-status{font-size:12px;color:#A33;min-height:16px;margin-top:2px}
+.hist-row{display:flex;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.hist-row.on{font-weight:700}
+.favstar{font-size:20px;color:var(--line)}
+.favstar.on{color:#E8B84B}
+
+/* 小さなウィンドウ(カードの中身を見る・手書き) */
+.ov{position:fixed;inset:0;background:rgba(30,30,40,.45);display:none;align-items:center;justify-content:center;z-index:60;padding:14px}
+.ov.open{display:flex}
+.ov-card{background:#fff;border-radius:20px;padding:16px;max-width:760px;width:100%;max-height:88vh;overflow-y:auto;position:relative}
+.ov-card h3{font-family:var(--disp);font-size:16px;margin-bottom:8px;padding-right:40px}
+.ov-x{position:absolute;top:10px;right:10px;width:40px;height:40px;border-radius:12px;font-size:20px}
+#padModal{padding:10px}
+#padModal .ov-card{max-width:1200px;height:calc(100vh - 20px);max-height:none;display:flex;flex-direction:column}
+#padCanvas{flex:1;min-height:260px;width:100%;border:2px solid var(--line);border-radius:14px;background:#FCFCFA;touch-action:none;display:block}
+.pad-acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.form-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+.form-row label{min-width:64px;font-size:13px;color:var(--ink-soft)}
+.form-row input,.form-row select{flex:1;min-width:140px;padding:8px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
+.tc{font-size:13px;display:grid;grid-template-columns:28px 1fr 1fr;gap:4px 8px;padding:5px 0;border-bottom:1px solid var(--line)}
+.ctxbox{white-space:pre-wrap;font-size:12.5px;background:var(--paper);border:1.5px dashed var(--line);border-radius:12px;padding:10px 12px;margin-top:6px}
+
 .toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 18px);transform:translate(-50%,16px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:50;max-width:92vw;text-align:center}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .boot{text-align:center;padding:60px 0;color:var(--ink-soft);font-family:var(--disp)}
@@ -123,6 +202,10 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--ink-soft);margin-
   <section class="screen" id="s-pome"></section>
   <section class="screen" id="s-parent"></section>
   <section class="screen" id="s-ppome"></section>
+  <section class="screen" id="s-card"></section>
+  <section class="screen" id="s-cman"></section>
+  <section class="screen" id="s-lman"></section>
+  <section class="screen" id="s-pset"></section>
 </main>
 
 <nav class="tabbar" id="tabbar">
@@ -135,6 +218,21 @@ details.more summary{cursor:pointer;font-size:13px;color:var(--ink-soft);margin-
 
 <input type="file" id="fileV4" accept=".json,application/json" style="display:none" onchange="importBackupFile(this)">
 <input type="file" id="fileV3" accept=".json,application/json" style="display:none" onchange="importOldBackupFile(this)">
+<div class="ov" id="ov" onclick="if(event.target===this)closeOv()"><div class="ov-card"><button class="ov-x" onclick="closeOv()" aria-label="とじる">✕</button><div id="ovBody"></div></div></div>
+<div class="ov" id="padModal" onclick="if(event.target===this)closePad()">
+  <div class="ov-card">
+    <button class="ov-x" onclick="closePad()" aria-label="とじる">✕</button>
+    <h3>✍️ 手書きで書く</h3>
+    <div class="note" style="margin-bottom:8px">指・ペン・マウスで、下のわくに<b>大きく</b>書いてください。書けたら「読み取る」を押します。</div>
+    <canvas id="padCanvas"></canvas>
+    <div class="pad-acts">
+      <button class="btn" id="padRead" onclick="readPad()">読み取る</button>
+      <button class="btn sub" onclick="clearPad()">消す</button>
+      <button class="btn sub" onclick="closePad()">とじる</button>
+      <span class="note" id="padMsg"></span>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -325,6 +423,7 @@ function importBackupFile(inp){
 const TITLES={home:"今日の日課",cards:"暗記カード",drill:"学校ドリル",links:"リンク集",pome:"ポメに聞く",parent:"🔑 保護者モード",ppome:"🐕 親ポメ"};
 let nav=["home"];
 function show(){
+ stopChatVoice(); // 画面を移ったら音声の会話モードは終わる
  const id=nav[nav.length-1];
  qsa(".screen").forEach(s=>s.classList.toggle("on",s.id==="s-"+id));
  qs("#title").textContent=TITLES[id]||"まなびば";
@@ -332,7 +431,7 @@ function show(){
  qsa("#tabbar button").forEach(b=>b.classList.toggle("on",b.dataset.t===nav[0]));
  qs("#modeBtn").textContent=document.body.classList.contains("parent")?"✓ おわる":"🔑 保護者";
  renderCurrent();window.scrollTo(0,0);}
-function goTab(id){nav=[id];show();}
+function goTab(id){if(id==="pome")chatFresh("pome");nav=[id];show();}
 function goTo(id){nav.push(id);show();}
 function goBack(){if(nav.length>1){nav.pop();show();}}
 function toggleParent(){
@@ -356,15 +455,15 @@ const RENDER={
   const units=[];mine.forEach(d=>{const u=d.unit||"単元なし";let g=units.find(x=>x.u===u);if(!g){g={u,ds:[]};units.push(g);}g.ds.push(d);});
   const nCards=mine.reduce((a,d)=>a+(d.cards||[]).length,0),nOk=mine.reduce((a,d)=>a+(d.cards||[]).filter(c=>c.gs>=1).length,0);
   qs("#s-cards").innerHTML=`
-   <p class="note" style="margin-bottom:8px">引き継いだデッキの一覧です(カードをめくる画面は次の段階で移します)。緑=全部🟢、点線=まだやっていない。</p>
+   <p class="note" style="margin-bottom:8px">やりたいデッキをタップ。緑=ぜんぶ🟢、点線=まだやっていない。</p>
    <div class="segs">${subs.map(s=>`<button class="${s.id===cardsSub?"on":""}" onclick="cardsSub='${s.id}';renderCurrent()">${esc(s.name)}</button>`).join("")}</div>
    <div class="card">
     <p class="note" style="margin-bottom:8px">${mine.length}デッキ・${nCards}枚(うち🟢 ${nOk}枚)</p>
-    ${units.map(g=>`<div class="unit"><h3>${esc(g.u)}</h3><div class="chips">${deckGroups(g.ds).map(grp=>`<div class="dgroup">${grp.map(d=>{
+    ${units.map(g=>`<div class="unit"><h3>${esc(g.u)}${g.ds.length>1?`<button class="ugo" onclick="startCards([${g.ds.map(d=>decks.indexOf(d)).join(",")}],'${esc(g.u).replace(/'/g,"")}')">まとめて▶</button>`:""}</h3><div class="chips">${deckGroups(g.ds).map(grp=>`<div class="dgroup">${grp.map(d=>{
       const cs=d.cards||[],ok=cs.filter(c=>c.gs>=1).length,used=cs.some(c=>c.last);
       const cls=cs.length&&ok===cs.length?"done":(!used?"none":"");
       const nm=deckShortName(d);
-      return `<div class="dchip ${cls}" title="${esc(nm)}"><span>${esc(nm)}</span><small>${ok}/${cs.length}</small></div>`;}).join("")}</div>`).join("")}</div></div>`).join("")}
+      return `<div class="dchip tap ${cls}" title="${esc(nm)}" onclick="startCards([${decks.indexOf(d)}])"><span>${esc(nm)}</span><small>${ok}/${cs.length}</small></div>`;}).join("")}</div>`).join("")}</div></div>`).join("")}
    </div>`;},
  drill(){
   qs("#s-drill").innerHTML=`
@@ -391,7 +490,10 @@ const RENDER={
     <div class="ptile soon"><b>② カレンダー</b><span>日の種類・テスト日・範囲(日課表の段階)</span></div>
     <div class="ptile soon"><b>③ ドリルの取り込み</b><span>ファイルを選ぶだけ(ドリルの段階)</span></div>
     <div class="ptile soon"><b>④ 問題の報告</b><span>「この問題おかしい」(ドリルの段階)</span></div>
-    <button class="ptile go" onclick="goTo('ppome')"><b>🐕 親ポメ</b><span>相談 ${(p.pchats||[]).length}件</span></button>
+    <button class="ptile go" onclick="chatFresh('ppome');goTo('ppome')"><b>🐕 親ポメ</b><span>相談・使い方の質問(${(p.pchats||[]).length}件)</span></button>
+    <button class="ptile go" onclick="goTo('cman')"><b>🃏 カード管理</b><span>今日のカンペ・済みの管理</span></button>
+    <button class="ptile go" onclick="goTo('lman')"><b>🔗 リンク管理</b><span>足す・消す・並べ替え</span></button>
+    <button class="ptile go" onclick="goTo('pset')"><b>🤖 ポメの設定</b><span>APIキー・ポメに渡す情報</span></button>
    </div>
 
    <div class="card">
@@ -427,6 +529,582 @@ function deckGroups(ds){
  const out=[];
  ds.forEach(d=>{const b=base(d);const g=out.find(x=>x.b===b);if(g)g.ds.push(d);else out.push({b,ds:[d]});});
  return out.map(x=>x.ds);}
+
+/* ============================================================
+   2段階目:暗記カード・ポメ・親ポメ・リンク管理(今のまなびばから移植)
+   ============================================================ */
+function chatKeydown(e,fn){
+ if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();fn();}
+}
+function autoGrow(el){
+ el.style.height="auto";
+ el.style.height=Math.min(el.scrollHeight,120)+"px";
+}
+function insertAtCursor(el,text,selStart,selEnd){
+ const s=(selStart!=null)?selStart:el.value.length;
+ const en=(selEnd!=null)?selEnd:el.value.length;
+ const before=el.value.slice(0,s),tail=el.value.slice(en);
+ el.value=before+text+tail;
+ const newPos=s+text.length;
+ el.focus();
+ try{el.setSelectionRange(newPos,newPos);}catch(e){}
+}
+/** Claude APIをストリーミングで呼ぶ。onTextには「ここまでの全文」を都度渡す(差分ではない)。
+ * signal(AbortController.signal)で中断できる。中断時は例外を投げず、それまでに生成された文章を返す
+ * (呼び出し側が「中断した返答も残す」処理をしやすくするため)。onText/signalは省略可(既存の呼び出し方と互換)。 */
+async function callClaude(system,messages,onText,signal){
+ const key=D.settings.apiKey;
+ if(!key)throw new Error("APIキーが未設定です。おうちメニュー→設定で入力してください。");
+ let full="";
+ try{
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",signal,
+   headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+   body:JSON.stringify({model:D.settings.model||"claude-sonnet-5",max_tokens:1000,system:system,messages:messages,stream:true})});
+  if(!res.ok){const t=await res.text();throw new Error("APIエラー "+res.status+": "+t.slice(0,200));}
+  const reader=res.body.getReader(),decoder=new TextDecoder();
+  let buf="";
+  while(true){
+   const {done,value}=await reader.read();
+   if(done)break;
+   buf+=decoder.decode(value,{stream:true});
+   const lines=buf.split("\n");buf=lines.pop();
+   for(const line of lines){
+    if(!line.startsWith("data: "))continue;
+    let ev;try{ev=JSON.parse(line.slice(6));}catch(e){continue;}
+    if(ev.type==="content_block_delta"&&ev.delta&&ev.delta.type==="text_delta"){
+     full+=ev.delta.text;
+     if(onText)onText(full);
+    }
+   }
+  }
+ }catch(e){
+  if(e.name==="AbortError")return full; // 中断:エラーにせず、ここまでの文章を返す
+  throw e;
+ }
+ return full;}
+/** 送信中は送るボタンを「⏹ 中断」に切り替える(ポメに聞く・親ポメで共通の見た目・動き) */
+function setChatSending(btn,onStop){btn.classList.add("stopping");btn.textContent="⏹ 中断";btn.onclick=onStop;}
+function resetChatSending(btn,onSend){btn.classList.remove("stopping");btn.textContent="送る";btn.onclick=onSend;}
+let pomeAbort=null;
+
+/** 送信中は送るボタンを「⏹ 中断」に切り替える(ポメに聞く・親ポメで共通の見た目・動き) */
+function setChatSending(btn,onStop){btn.classList.add("stopping");btn.textContent="⏹ 中断";btn.onclick=onStop;}
+function resetChatSending(btn,onSend){btn.classList.remove("stopping");btn.textContent="送る";btn.onclick=onSend;}
+/* ---------- 音声入力(ポメに聞く・親ポメ専用・会話モード) ----------
+ * voiceInput()は1回話したら自動で止まる仕様(他画面はこれを維持)。
+ * チャットの2画面だけは「会話モード」:マイクを1回押すと、送信→ポメの返事→また自動で聞き取り、を繰り返す。
+ * もう一度マイクを押す・画面を移る・マイクが使えないエラーの時だけ終わる。数式変換はせず、そのまま追記する。 */
+let chatRecog=null,chatRecogGen=0,chatVoiceMode=null,chatRecogNetErr=0;
+const CHAT_VOICE_FATAL=["not-allowed","service-not-allowed","audio-capture"]; // マイクが使えない=再開しても無駄なエラー
+function setChatVoiceUi(state,interim){
+ const m=chatVoiceMode;if(!m)return;
+ if(m.btn){
+  if(state==="off"){m.btn.classList.remove("listening");m.btn.textContent=m.btn.dataset.orig||"🎤";}
+  else{m.btn.classList.add("listening");m.btn.textContent="🔴";}}
+ if(m.statusEl)m.statusEl.textContent=
+  state==="listen"?"🎤 聞き取り中…("+(interim?interim:"話してね")+") 送ると、返事のあとまた聞き取ります。マイクを押すと終わり"
+  :state==="wait"?"🐶 返事を待っています…返事のあと自動で聞き取ります(マイクを押すと終わり)":"";}
+function haltChatRecog(){chatRecogGen++;if(chatRecog){try{chatRecog.stop();}catch(e){}}chatRecog=null;}
+/** 会話モードごと終わる(マイクの再押下・画面移動・エラー) */
+function stopChatVoice(){
+ if(!chatVoiceMode){haltChatRecog();return;}
+ haltChatRecog();setChatVoiceUi("off");chatVoiceMode=null;}
+/** 送信時:聞き取りだけ止めて、会話モードは残す */
+function pauseChatVoice(){if(!chatVoiceMode)return;haltChatRecog();chatVoiceMode.interim="";setChatVoiceUi("wait");}
+/** 送信を押した瞬間に、まだ確定していない聞き取り途中の言葉があれば入力欄に足す(言いかけが消えないように) */
+function flushChatVoiceInterim(){
+ const m=chatVoiceMode;if(!m||!m.interim)return;
+ const el=document.getElementById(m.targetId);if(el)el.value+=m.interim;
+ m.interim="";}
+/** 返事のあと:まだ同じ画面にいれば、自動で聞き取りを再開する */
+function resumeChatVoice(screenId){
+ if(!chatVoiceMode||chatRecog)return;
+ const sc=qs("#"+screenId);
+ if(!sc||!sc.classList.contains("on")){stopChatVoice();return;}
+ startChatRecog();}
+function chatVoiceInput(targetId,statusId,btnEl){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){alert("この端末・ブラウザでは音声入力が使えません。Chrome または Edge でお試しください。");return;}
+ if(chatVoiceMode){stopChatVoice();return;} // 会話モード中にもう一度押したら終わる
+ if(!document.getElementById(targetId))return;
+ if(btnEl)btnEl.dataset.orig=btnEl.dataset.orig||btnEl.textContent;
+ chatVoiceMode={targetId,btn:btnEl||null,statusEl:statusId?document.getElementById(statusId):null};
+ startChatRecog();}
+function startChatRecog(){
+ const m=chatVoiceMode;if(!m)return;
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ const el=document.getElementById(m.targetId);if(!el){stopChatVoice();return;}
+ const myGen=++chatRecogGen;
+ chatRecogNetErr=0;
+ function startOne(){
+  const r=new SR();r.lang="ja-JP";r.continuous=true;r.interimResults=true;r.maxAlternatives=1;
+  r.onstart=()=>{if(myGen!==chatRecogGen)return;setChatVoiceUi("listen");};
+  r.onresult=e=>{if(myGen!==chatRecogGen)return;
+   chatRecogNetErr=0;
+   let add="",interim="";
+   for(let i=e.resultIndex;i<e.results.length;i++){
+    const t=e.results[i][0].transcript||"";
+    if(e.results[i].isFinal)add+=t;else interim+=t;}
+   if(add){el.value+=add;el.selectionStart=el.selectionEnd=el.value.length;el.dispatchEvent(new Event("input",{bubbles:true}));}
+   m.interim=interim;
+   setChatVoiceUi("listen",interim);};
+  r.onerror=e=>{if(myGen!==chatRecogGen)return;
+   if(CHAT_VOICE_FATAL.includes(e.error)){toast("マイクが使えません("+e.error+")。ブラウザのマイクの許可を確認してください");stopChatVoice();return;}
+   if(e.error==="network"&&++chatRecogNetErr>=3){toast("音声入力がつながりません(ネットワーク)。もう一度マイクを押してください");stopChatVoice();}
+   // 「声が聞こえない(no-speech)」などは止めない。このあとのonendで聞き取りを再開する
+  };
+  r.onend=()=>{if(myGen!==chatRecogGen)return;
+   try{chatRecog=startOne();}catch(e){stopChatVoice();}}; // 無音などでブラウザ側が止めても、送信するまで聞き取りを続ける
+  r.start();
+  return r;}
+ try{chatRecog=startOne();}catch(e){toast("音声入力を開始できませんでした");stopChatVoice();}}
+let padTarget=null,padAfter=null,padCtx=null,padDrawing=false,padDirty=false;
+let padSelStart=null,padSelEnd=null;
+function openPad(targetId,after){padTarget=targetId;padAfter=after||null;
+ // 開いた時点のカーソル位置(選択範囲)を記録。手入力の途中から手書きに切り替えても続きから入る
+ const tel=document.getElementById(targetId);
+ padSelStart=tel&&tel.selectionStart!=null?tel.selectionStart:(tel?tel.value.length:0);
+ padSelEnd=tel&&tel.selectionEnd!=null?tel.selectionEnd:(tel?tel.value.length:0);
+ qs("#padModal").classList.add("open");qs("#padMsg").textContent="";
+ setTimeout(()=>{const c=qs("#padCanvas");const r=c.getBoundingClientRect();
+  c.width=Math.round(r.width*2);c.height=Math.round(r.height*2);
+  padCtx=c.getContext("2d");padCtx.fillStyle="#FCFCFA";padCtx.fillRect(0,0,c.width,c.height);
+  padCtx.strokeStyle="#2A2A32";padCtx.lineWidth=8;padCtx.lineCap="round";padCtx.lineJoin="round";
+  padDirty=false;bindPad(c);},60);}
+function bindPad(c){
+ const pos=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height)];};
+ c.onpointerdown=e=>{e.preventDefault();c.setPointerCapture(e.pointerId);padDrawing=true;padDirty=true;const[x,y]=pos(e);padCtx.beginPath();padCtx.moveTo(x,y);};
+ c.onpointermove=e=>{if(!padDrawing)return;const[x,y]=pos(e);padCtx.lineTo(x,y);padCtx.stroke();};
+ c.onpointerup=c.onpointerleave=c.onpointercancel=()=>{padDrawing=false;};}
+function clearPad(){const c=qs("#padCanvas");if(!padCtx)return;padCtx.fillStyle="#FCFCFA";padCtx.fillRect(0,0,c.width,c.height);padDirty=false;qs("#padMsg").textContent="";}
+function closePad(){qs("#padModal").classList.remove("open");}
+async function readPad(){
+ if(!padDirty){qs("#padMsg").textContent="まだ何も書かれていません";return;}
+ if(!D.settings.apiKey){qs("#padMsg").textContent="手書きの読み取りにはAPIキーが必要です(保護者モード→🤖ポメの設定)";return;}
+ const btn=qs("#padRead");btn.disabled=true;const msg=qs("#padMsg");msg.textContent="読み取り中…";
+ try{
+  const data=qs("#padCanvas").toDataURL("image/png").split(",")[1];
+  const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+   headers:{"Content-Type":"application/json","x-api-key":D.settings.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+   body:JSON.stringify({model:D.settings.model||"claude-sonnet-5",max_tokens:100,
+    system:"手書き画像に書かれている数式・数値・単語だけを、そのまま文字にして返す。説明・前置き・記号の装飾は一切つけない。分数は a/b の形。読み取れない場合は ? だけを返す。",
+    messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/png",data:data}},{type:"text",text:"これを文字にして。答えの文字列だけ返して。"}]}]})});
+  if(!res.ok)throw new Error("APIエラー "+res.status);
+  const j=await res.json();
+  const t=(j.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").trim();
+  if(!t||t==="?"){msg.textContent="読み取れませんでした。もう少し大きく書いてみてください。";}
+  else{const el=document.getElementById(padTarget);
+   if(el){insertAtCursor(el,t,padSelStart,padSelEnd);el.dispatchEvent(new Event("input",{bubbles:true}));if(typeof padAfter==="function")padAfter();}
+   msg.textContent="読み取り:"+t;toast("入力しました:"+t);setTimeout(closePad,700);}
+ }catch(e){msg.textContent="失敗:"+e.message.slice(0,60);}
+ btn.disabled=false;}
+
+/* ポメ(香凜さん用)の指示文。今のまなびばと同じ内容(暗記ものはすぐ答え、考える問題はヒントで導く) */
+const POME_SYS=`あなたは「ポメ」。中学1年生・香凜(かりん)さんの学習をサポートする犬のキャラクター。
+
+# 対応教科
+国語・数学・理科・社会・英語の5教科すべて。どの教科も「担当外」と断らず、同じように付き合う。
+
+# 最優先ルール:質問をA・B・Cに分けてから答える
+判断基準:「答えを知っていれば一瞬で済むか?」Yes→A、No→B。
+
+A. 覚えていれば答えられる質問(漢字・英単語・用語・年号・公式・「どっちが正しい?」など)
+思い出せないものに遠回りさせると、時間とやる気を失うだけ。すぐ答える。
+1. 最初の1文で答えをはっきり言う
+2. 覚え方のコツを一言(語呂合わせ・似たものとの違い・由来など)
+3. 「じゃあこれは?」と確認問題を1問だけ出す
+
+B. 考えれば解ける質問(計算・文章題・理由の説明・資料の読み取り・作文など)
+自分で考えることで力がつく。問題の答え(数値・選択肢・訳・模範解答)は言わず、問いの形でヒントを出す。「わかった?」のようなyes/noで終わる問いにはしない。
+
+C. 参照資料の場所(「動画どこ?」「やさまるの何ページ?」など)
+【今の状況】にあるページ番号・動画番号をそのまま教える。
+
+切り替え:
+- Bを解いている途中でも、公式・用語・単語など「Aにあたる部品」を聞かれたら、その部品はAとしてすぐ答える。問題自体の答えは言わない。
+- Aの答えに「なんで?」と聞かれたら、そこからはBとして扱う。
+
+# Bの進め方(手順ではなく方針)
+- つまずきが「どこで」起きているかを決めつけず、1問目は状況を切り分ける問いにする。
+- 返答に合わせて問いの抽象度を上げ下げする。わかっている部分は聞き直さない。
+- 本人が以前使った表現があれば、それを使って問いかける。
+- 同じ論点で3ターン前進しない、または「教えて」が2回出たら、次の1手だけ具体的に示し「ここから先は自分でやってみて」とつなぐ(最終的な答えは言わない)。
+
+# 香凜さんの傾向(参考。決めつけない)
+- 手順の最後で崩れやすい(約分忘れ、代入後の計算、符号)
+- ドリルではできるのにテストで崩れる(再現性不足)
+- 英語はbe動詞文と一般動詞文が混ざりやすい
+- 応用問題を見た瞬間に「わからない」と止まりやすい。まず1手目を一緒に
+
+# 話し方
+- 1ターン2〜3文。長い解説を一度に返さない。
+- 友達のような話し言葉(です・ます調は使わない)。絵文字は🐾程度に控えめ。
+- 説教や「なんで間違えたの?」のような詰問はしない。できたことは素直に喜ぶ。
+
+# 例
+香凜:「けんとうって、検討?見当?」
+ポメ:「"検討"はよく調べて考えること、"見当"はだいたいの予想だよ!見当は『見て当てる』で覚えよう🐾 じゃあ問題、『犯人の〇〇がつかない』はどっち?」
+
+香凜:「2x+3=11がわかんない」
+ポメ:「一緒にやろう!xの横にくっついてる『+3』をどかしたいんだけど、両辺に何をすればいいと思う?」`;
+
+/* ---------- 小さなウィンドウ ---------- */
+function openOv(html){qs("#ovBody").innerHTML=html;qs("#ov").classList.add("open");}
+function closeOv(){qs("#ov").classList.remove("open");}
+
+/* ---------- 暗記カードをやる ---------- */
+const deckNameOf=d=>String(d.name||"");
+async function cardImgGet(ref){
+ if(!ref)return null;
+ if(String(ref).startsWith("idb:"))return await dbGet("images",ref);
+ return ref;}
+const shuffleArr=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+function todayCardLog(){
+ const t=today();
+ if(!D.cards.cardLog)D.cards.cardLog={};
+ if(!D.cards.cardLog[t])D.cards.cardLog[t]=[];
+ return D.cards.cardLog[t];}
+let CR=null; // 今やっているカードの状態(画面用・保存しない)
+function startCards(idxs,name){
+ const decks=D.cards.decks;
+ idxs=idxs.filter(i=>decks[i]&&(decks[i].cards||[]).length);
+ if(!idxs.length){toast("カードがありません");return;}
+ const prev=CR;
+ CR={idxs,name:name||deckShortName(decks[idxs[0]]),mode:prev?prev.mode:"solve",shuffle:prev?prev.shuffle:false,
+  deckOf:new Map(),queue:[],i:0,wrong:[],log:[],last:null,busy:false,timer:null,shown:false,hint:false,sort:null};
+ idxs.forEach(i=>decks[i].cards.forEach(c=>CR.deckOf.set(c,deckNameOf(decks[i]))));
+ cardsBuildQueue();
+ goTo("card");}
+const cardsPool=()=>CR.idxs.flatMap(i=>D.cards.decks[i].cards);
+function cardsBuildQueue(base){
+ if(CR.timer){clearTimeout(CR.timer);CR.timer=null;}
+ const b=base||cardsPool();
+ CR.queue=CR.shuffle?shuffleArr(b):b.slice();
+ CR.i=0;CR.wrong=[];CR.log=[];CR.last=null;CR.busy=false;CR.shown=false;CR.hint=false;CR.sort=null;}
+const cleanExp=e=>String(e||"").replace(/^📷[^\]]*\]\s*/,"");
+function cardFaceHtml(c){
+ const explain=CR.mode==="explain";
+ let h=(c.img?`<div id="crImgF"></div>`:"")+`<div class="q">${esc(c.q)}</div>`;
+ if(CR.shown){
+  h+=(c.imgBack?`<div id="crImgB"></div>`:"")+`<div class="a">${esc(c.a)}</div>`;
+  if(cleanExp(c.exp))h+=`<div class="exp">${esc(cleanExp(c.exp))}</div>`;
+ }else{
+  if(cleanExp(c.exp))h+=CR.hint?`<div class="exp">💡 ${esc(cleanExp(c.exp))}</div>`:`<button class="btn sub" style="min-height:36px;padding:4px 14px;font-size:13px;margin-top:12px" onclick="event.stopPropagation();cardHint()">💡 ヒント</button>`;
+  h+=`<div class="tapmsg">${explain?"お母さんに説明してから、タップして答えを見る":"頭の中で(またはノートで)答えてから、タップして答えを見る"}</div>`;
+ }
+ return h;}
+async function cardLoadImgs(c){
+ try{
+  if(c.img){const u=await cardImgGet(c.img);const el=qs("#crImgF");if(u&&el&&CR&&CR.queue[CR.i]===c)el.innerHTML=`<img src="${u}" alt="">`;}
+  if(CR&&CR.shown&&c.imgBack){const u=await cardImgGet(c.imgBack);const el=qs("#crImgB");if(u&&el&&CR.queue[CR.i]===c)el.innerHTML=`<img src="${u}" alt="">`;}
+ }catch(e){}}
+function cardFlip(){
+ if(!CR||CR.busy)return;
+ CR.shown=!CR.shown;
+ const c=CR.queue[CR.i],box=qs("#crCard");if(!c||!box)return;
+ box.classList.toggle("shown",CR.shown);box.innerHTML=cardFaceHtml(c);cardLoadImgs(c);}
+function cardHint(){CR.hint=true;const c=CR.queue[CR.i],box=qs("#crCard");if(c&&box){box.innerHTML=cardFaceHtml(c);cardLoadImgs(c);}}
+function cardMode(m){CR.mode=m;renderCurrent();}
+function cardShuffle(on){CR.shuffle=on;cardsBuildQueue();renderCurrent();}
+function cardJudge(v){
+ if(!CR||CR.busy)return;CR.busy=true;
+ const c=CR.queue[CR.i];
+ qsa(".cr-judge button").forEach(b=>{b.disabled=true;if(+b.dataset.v===v)b.classList.add("tapped");});
+ const fl=qs("#crFlash");
+ if(fl)fl.innerHTML=(v===2?"🟢 <b>おぼえた!</b>":v===1?"🟡 <b>もう少し</b>":"🔴 <b>まだ</b>")+` <span class="note">… 次のカードへ</span>`;
+ CR.last={card:c,prevLv:c.lv,prevLast:c.last,prevGs:c.gs};
+ c.lv=v;c.last=today();c.gs=v===2?(c.gs||0)+1:0;
+ todayCardLog().push({q:c.q,a:c.a,v,deck:CR.deckOf.get(c)||""});
+ CR.log.push({q:c.q,v});
+ if(v<2)CR.wrong.push(c);
+ CR.i++;save("cards");
+ CR.timer=setTimeout(()=>{CR.timer=null;CR.busy=false;CR.shown=false;CR.hint=false;renderCurrent();},1300);}
+function cardUndo(){
+ if(!CR||!CR.last)return;
+ if(CR.timer){clearTimeout(CR.timer);CR.timer=null;}
+ const l=CR.last,c=l.card;
+ c.lv=l.prevLv;c.last=l.prevLast;c.gs=l.prevGs;
+ const log=todayCardLog();if(log.length)log.pop();
+ if(CR.log.length)CR.log.pop();
+ if(CR.wrong.length&&CR.wrong[CR.wrong.length-1]===c)CR.wrong.pop();
+ CR.i=Math.max(0,CR.i-1);CR.last=null;CR.busy=false;CR.shown=false;CR.hint=false;
+ save("cards");renderCurrent();toast("↩️ 取り消しました");}
+function cardsDrawEnd(){
+ const g=CR.log.filter(r=>r.v===2).length,y=CR.log.filter(r=>r.v===1).length,r0=CR.log.filter(r=>r.v===0).length;
+ const perfect=!CR.wrong.length;
+ qs("#s-card").innerHTML=`
+  <div class="cr-end">
+   <div class="big">${perfect?"🎉":"👏"}</div>
+   <h2>${esc(CR.name)}<br>${CR.queue.length}枚 1周おわり!</h2>
+   <div class="score"><span>🟢 ${g}</span><span>🟡 ${y}</span><span>🔴 ${r0}</span></div>
+   <p class="note">${perfect?"ぜんぶ 🟢 だったよ。すごい!":`あと <b>${CR.wrong.length}枚</b>。ここだけやれば1周ぶん覚えたことになるよ。`}</p>
+   <div class="btnrow">
+    ${CR.wrong.length?`<button class="btn" onclick="cardRetryWrong()">🔁 まちがえた${CR.wrong.length}枚をもう一度</button>
+    <button class="btn sub" onclick="cardSortStart()">🔍 まちがえた${CR.wrong.length}枚を仕分ける</button>`:""}
+    <button class="btn sub" onclick="cardsBuildQueue();renderCurrent()">↻ 最初からもう一度(${cardsPool().length}枚)</button>
+    <button class="btn sub" onclick="goBack()">✅ おわる</button>
+   </div>
+  </div>`;}
+function cardRetryWrong(){cardsBuildQueue(CR.wrong.slice());renderCurrent();}
+/* まちがえたカードの仕分け(うっかり/まだわかってない) */
+function cardSortStart(){CR.sort={q:CR.wrong.slice(),i:0};renderCurrent();}
+function cardsDrawSort(){
+ const s=CR.sort;
+ if(s.i>=s.q.length){
+  const miss=s.q.filter(c=>c.sortTag==="miss").length,notyet=s.q.filter(c=>c.sortTag==="notyet").length;
+  qs("#s-card").innerHTML=`<div class="cr-end"><div class="big">🔍</div><h2>仕分け おわり!</h2>
+   <div class="score"><span>🟡 うっかり ${miss}</span><span>🔴 まだ ${notyet}</span></div>
+   <p class="note">${notyet?`🔴の${notyet}枚は、このあと<b>お母さんと一緒に</b>見てみよう。`:"ぜんぶ「うっかりミス」だったよ。やり方はわかってるということ!"}</p>
+   <div class="btnrow"><button class="btn sub" onclick="CR.sort=null;cardsBuildQueue();renderCurrent()">↻ 最初からもう一度</button><button class="btn sub" onclick="goBack()">✅ おわる</button></div></div>`;
+  return;}
+ const c=s.q[s.i];
+ qs("#s-card").innerHTML=`
+  <p class="note" style="text-align:center;margin-bottom:6px">仕分け ${s.i+1} / ${s.q.length}枚目</p>
+  <div class="sortcard"><div class="sq">${esc(c.q)}</div><div class="sa">正しい答え:<b>${esc(c.a)}</b></div>${cleanExp(c.exp)?`<div class="note" style="margin-top:6px">${esc(cleanExp(c.exp))}</div>`:""}</div>
+  <p style="text-align:center;font-weight:700;margin-bottom:8px">この問題、どっちだった?</p>
+  <div class="sortbtns">
+   <button onclick="cardSortJudge('miss')">🟡 うっかりミス<small>やり方はわかってた</small></button>
+   <button onclick="cardSortJudge('notyet')">🔴 まだわかってない<small>やり方からあやしい</small></button></div>
+  <button class="btn sub" style="width:100%" onclick="CR.sort.i=CR.sort.q.length;renderCurrent()">とばして終わる</button>`;}
+function cardSortJudge(kind){
+ const s=CR.sort,c=s.q[s.i];
+ c.lv=kind==="miss"?1:0;c.gs=0;c.last=today();c.sortTag=kind;
+ const log=todayCardLog();
+ for(let i=log.length-1;i>=0;i--){if(log[i].q===c.q){log[i].v=kind==="miss"?1:0;log[i].sortTag=kind;break;}}
+ s.i++;save("cards");renderCurrent();}
+RENDER.card=function(){
+ if(!CR){qs("#s-card").innerHTML=`<div class="card"><p class="note">暗記カードの画面からデッキを選んでください。</p></div>`;return;}
+ if(CR.sort){cardsDrawSort();return;}
+ if(CR.i>=CR.queue.length){cardsDrawEnd();return;}
+ const c=CR.queue[CR.i],pool=cardsPool();
+ const green=pool.filter(x=>x.gs>=1).length,pct=Math.round(CR.i/CR.queue.length*100);
+ const explain=CR.mode==="explain";
+ qs("#s-card").innerHTML=`
+  <div class="cr-top"><div class="grow"><b>${esc(CR.name)}</b>　${CR.i+1} / ${CR.queue.length}枚目</div>
+   ${CR.last?`<button class="btn sub" style="min-height:36px;padding:4px 12px;font-size:13px" onclick="cardUndo()">↩️ 取り消す</button>`:""}</div>
+  <div class="cr-bar"><i style="width:${pct}%"></i></div>
+  <div class="cr-opts"><div class="segs"><button class="${!explain?"on":""}" onclick="cardMode('solve')">✏️ ひとりで</button><button class="${explain?"on":""}" onclick="cardMode('explain')">🗣 お母さんと説明</button></div>
+   <label><input type="checkbox" ${CR.shuffle?"checked":""} onchange="cardShuffle(this.checked)"> 🔀 ランダム</label>
+   <span class="note">おぼえた ${green}/${pool.length}・今日 ${todayCardLog().length}枚</span></div>
+  <div class="cr-card ${CR.shown?"shown":""}" id="crCard" onclick="cardFlip()">${cardFaceHtml(c)}</div>
+  <div class="cr-judge">
+   ${explain
+    ?`<button data-v="0" onclick="cardJudge(0)"><b>🔴</b>説明できなかった</button>
+      <button data-v="1" onclick="cardJudge(1)"><b>🟡</b>見ながらなら説明できた</button>
+      <button data-v="2" onclick="cardJudge(2)"><b>🟢</b>自分のことばで説明できた</button>`
+    :`<button data-v="0" onclick="cardJudge(0)"><b>🔴</b>わからなかった</button>
+      <button data-v="1" onclick="cardJudge(1)"><b>🟡</b>答えを見てわかった<small>(見る前は出てこなかった)</small></button>
+      <button data-v="2" onclick="cardJudge(2)"><b>🟢</b>自力で答えられた</button>`}</div>
+  <div class="cr-flash" id="crFlash"></div>
+  <p class="note" style="text-align:center">1周おわるまで、同じカードは出てきません。</p>`;
+ cardLoadImgs(c);};
+
+/* ---------- 保護者:暗記カードの管理(済みにする・中身を見る・今日のカンペ) ---------- */
+function setDeckDone(d,done){
+ (d.cards||[]).forEach(c=>{
+  if(done){if(!(c.gs>=1)){c.gs=1;c.lv=2;c.last=c.last||today();}}
+  else{c.gs=0;c.lv=0;}});}
+const deckAllDone=d=>(d.cards||[]).length>0&&d.cards.every(c=>c.gs>=1);
+function toggleDeckDone(i){const d=D.cards.decks[i];if(!d)return;setDeckDone(d,!deckAllDone(d));save("cards");renderCurrent();}
+function toggleUnitDone(idxs){
+ const ds=idxs.map(i=>D.cards.decks[i]).filter(Boolean);
+ const all=ds.every(deckAllDone);
+ ds.forEach(d=>setDeckDone(d,!all));save("cards");renderCurrent();
+ toast(all?"未着手にもどしました":"まるごと済みにしました");}
+function peekDeck(i){
+ const d=D.cards.decks[i];if(!d)return;
+ openOv(`<h3>👀 ${esc(deckShortName(d))}(記録は残りません)</h3>${(d.cards||[]).map((c,n)=>`<div class="tc"><span>${n+1}</span><span>${esc(c.q)}</span><span>→ ${esc(c.a)}</span></div>`).join("")}`);}
+RENDER.cman=function(){
+ const decks=D.cards.decks||[];
+ const log=todayCardLog();
+ const ng=log.filter(r=>r.v<2);
+ const subs=SUBJECTS.filter(s=>decks.some(d=>d.sub===s.id));
+ if(!subs.some(s=>s.id===cardsSub))cardsSub=subs.length?subs[0].id:null;
+ const mine=decks.map((d,i)=>i).filter(i=>decks[i].sub===cardsSub);
+ const units=[];mine.forEach(i=>{const u=decks[i].unit||"単元なし";let g=units.find(x=>x.u===u);if(!g){g={u,is:[]};units.push(g);}g.is.push(i);});
+ qs("#s-cman").innerHTML=`
+  <div class="card"><h2>📢 今日のカンペ(${log.length}枚)</h2>
+   ${log.length?`<p class="note" style="margin-bottom:6px">お母さんが問題を声に出して出題→香凜さんが口で答える→右の答えで確認、に使います。時間がなければ、🔴🟡の${ng.length}枚だけで大丈夫です。</p>
+    <details class="more"><summary>${ng.length?`🔴🟡 ${ng.length}枚を見る`:"今日はぜんぶ🟢です"}</summary>
+     ${ng.map(r=>`<div class="tc"><span>${r.v===1?"🟡":"🔴"}</span><span>${esc(r.q)}${r.sortTag?` <span class="tag">${r.sortTag==="miss"?"うっかり":"まだ"}</span>`:""}</span><span>→ ${esc(r.a)}</span></div>`).join("")}</details>
+    <details class="more"><summary>今日やった${log.length}枚ぜんぶを見る</summary>
+     ${log.map(r=>`<div class="tc"><span>${r.v===2?"🟢":r.v===1?"🟡":"🔴"}</span><span>${esc(r.q)}</span><span>→ ${esc(r.a)}</span></div>`).join("")}</details>`
+   :`<p class="note">今日はまだカードをやっていません。</p>`}</div>
+  <div class="card"><h2>✅ 済みの管理</h2>
+   <p class="note" style="margin-bottom:6px">記録に残っていないけれど、もう終わっている所を「済み」にできます。札をタップすると、そのデッキの済み/未着手が切り替わります。</p>
+   <div class="segs">${subs.map(s=>`<button class="${s.id===cardsSub?"on":""}" onclick="cardsSub='${s.id}';renderCurrent()">${esc(s.name)}</button>`).join("")}</div>
+   ${units.map(g=>`<div class="unit"><h3>${esc(g.u)}<button class="ugo" onclick="toggleUnitDone([${g.is.join(",")}])">${g.is.every(i=>deckAllDone(decks[i]))?"未着手にもどす":"まるごと済みに"}</button></h3>
+    <div class="chips"><div class="dgroup">${g.is.map(i=>{const d=decks[i],cs=d.cards||[],ok=cs.filter(c=>c.gs>=1).length;const cls=deckAllDone(d)?"done":(!cs.some(c=>c.last)?"none":"");
+      return `<div class="dchip tap ${cls}" onclick="toggleDeckDone(${i})"><span>${esc(deckShortName(d))}</span><small>${ok}/${cs.length}</small></div>`;}).join("")}</div></div></div>`).join("")}
+  </div>`;};
+
+/* ---------- リンク集の管理(保護者) ---------- */
+function addLink(){
+ const name=qs("#ln_name").value.trim(),url=qs("#ln_url").value.trim(),sub=qs("#ln_sub").value;
+ if(!name||!/^https?:\/\//.test(url)){toast("名前と、https:// で始まるアドレスを入れてください");return;}
+ D.links.push({id:"l"+Date.now().toString(36),name,url,subs:sub?[sub]:[],icon:"🔗",thumb:"",note:""});
+ save("links");toast("追加しました");renderCurrent();}
+function deleteLink(i){
+ const l=D.links[i];if(!l||!confirm("「"+l.name+"」を消しますか?"))return;
+ D.links.splice(i,1);save("links");renderCurrent();}
+function moveLink(i,dir){
+ const j=i+dir;if(j<0||j>=D.links.length)return;
+ [D.links[i],D.links[j]]=[D.links[j],D.links[i]];save("links");renderCurrent();}
+RENDER.lman=function(){
+ qs("#s-lman").innerHTML=`
+  <div class="card"><h2>🔗 リンクを足す</h2>
+   <div class="form-row"><label>名前</label><input type="text" id="ln_name" placeholder="例:英語 教科書の音声"></div>
+   <div class="form-row"><label>アドレス</label><input type="text" id="ln_url" placeholder="https://..."></div>
+   <div class="form-row"><label>教科</label><select id="ln_sub"><option value="">全教科</option>${SUBJECTS.map(s=>`<option value="${s.id}">${s.name}</option>`).join("")}</select></div>
+   <button class="btn" onclick="addLink()">追加する</button></div>
+  <div class="card"><h2>今のリンク(${D.links.length}件)</h2>
+   ${D.links.map((l,i)=>`<div class="list-row"><div class="grow"><b>${esc(l.name)}</b><div class="note">${(l.subs||[]).map(subName).join("・")||"全教科"}</div></div>
+    <button class="btn sub" style="min-height:36px;padding:2px 10px" onclick="moveLink(${i},-1)" ${i===0?"disabled":""}>▲</button>
+    <button class="btn sub" style="min-height:36px;padding:2px 10px" onclick="moveLink(${i},1)" ${i===D.links.length-1?"disabled":""}>▼</button>
+    <button class="btn danger" style="min-height:36px;padding:2px 10px" onclick="deleteLink(${i})">✕</button></div>`).join("")}</div>`;};
+
+/* ---------- ポメ・親ポメ(会話) ---------- */
+/** ポメに渡している「今の状況」。保護者画面の「ポメの設定」にも同じものをそのまま見せる。
+ * ワークドリル・日課表を組み込んだら、ここに足す(足したら説明書(MANUAL)も直す)。 */
+function ctxSummary(){
+ const log=D.cards.cardLog||{};
+ const days=Object.keys(log).sort().slice(-3);
+ const total=days.reduce((a,d)=>a+log[d].length,0);
+ const seen=new Set(),wrong=[];
+ days.slice().reverse().forEach(d=>log[d].slice().reverse().forEach(r=>{
+  if(r.v<2&&!seen.has(r.q)&&wrong.length<8){seen.add(r.q);wrong.push(r.q+"→"+r.a);}}));
+ return `【今の状況】\n今日:${today()}\n暗記カード(直近3日に記録のある日の分):${total}枚やった。まだ覚えていないもの:${wrong.join(" / ")||"なし"}\n(ワークドリル・日課表はまだ組み込み前なので、情報はありません)`;}
+const PPOME_SYS=`あなたは「親ポメ」。中学1年生・香凜さんの保護者(お母さん)向けの学習コーチAI。
+
+# 役割
+子ども向けのポメとは違い、保護者には直接的で具体的な助言をする。ソクラテス式にしない。事実の要約と、明日から使える具体的な行動提案を返す。
+
+# 方針
+- 進捗データを踏まえ、まず状況を短く要約(2〜3行)
+- 次に「今週やるべきこと」を1〜2個に絞って具体的に提案
+- 声かけの例文を求められたら、実際に使える言い回しをそのまま示す
+- 「わかった?」のようなyes/noで終わる質問を親が使わないよう促す
+- 香凜さんの傾向:仕上げで崩れる、テストで再現できない、応用で止まりやすい、期末の結果にショックを受けた経験がある(自信を折らない配慮が要る)
+- 学習量を増やす提案より、続く仕組みを優先する。親の負担が増える提案は慎重に
+
+# まなびばの使い方を聞かれたとき
+下の【まなびばの説明書】に書いてあることだけを根拠に、操作を順番に短く答える。書かれていない機能や操作は「まだ作っていない」「分かりません」と答え、推測で操作方法を作らない。`;
+/** まなびばの説明書。親ポメが「〇〇はどうすればいい?」に答えるための資料。機能を変えたら必ず一緒に直すこと。 */
+const MANUAL=`## 全体
+- 画面の下に5つのボタン:ホーム/暗記カード/学校ドリル/リンク集/ポメ。右上の「🔑 保護者」で保護者モード(お母さん用)に入り、「✓ おわる」で戻る。
+- 左上の「←」は1つ前の画面に戻る。
+- データはこのパソコンのブラウザの中だけに保存される。別のブラウザで開くと別のデータになる。
+- ホームと学校ドリルは、まだ作っていない(日課表・ワークドリルはこれから作る)。
+
+## 暗記カード(香凜さん)
+- 教科のボタンで切り替え、単元ごとにデッキが並ぶ。デッキをタップするとカードが始まる。単元名の横の「まとめて▶」でその単元を全部続けてやる。
+- カードをタップすると答えが出る。🔴わからなかった/🟡答えを見てわかった/🟢自力で答えられた、を押すと記録され次のカードへ。🟢が付いたカードが「覚えた」。
+- 「↩️ 取り消す」で直前の判定を取り消せる。「お母さんと説明」にすると説明する用の言い方になる。「ランダム」で順番を混ぜる。
+- 1周終わると、まちがえたカードだけやり直す/まちがえたカードを仕分ける(うっかり/まだわかってない)を選べる。
+
+## 暗記カード(保護者モード→🃏カード管理)
+- 「今日のカンペ」:今日やったカードの問題と答えの一覧。お母さんが声に出して出題するのに使う。🔴🟡だけで十分。
+- 「済みの管理」:記録が無いけれど終わっているデッキを、札をタップして「済み」にする。単元名の横のボタンで単元まるごと済み/未着手にもどす。
+
+## リンク集
+- リンク集のボタンをタップすると別のタブで開く。足す・消す・並べ替えは、保護者モード→🔗リンク管理。
+
+## ポメ
+- ポメ(香凜さん用):考え方を引き出す係。暗記ものは答えをすぐ教える。入力は文字・🎤音声(会話モード:押すと返事のあとも自動で聞き取り、もう一度押すと終わる)・✍️手書き。返事の途中で「⏹ 中断」できる。
+- 親ポメ(お母さん用):保護者モードのタイルから開く。教え方や進め方の相談ができる。ここで聞けば、まなびばの使い方も答える。
+- ポメに渡している情報(今の状況)は、保護者モード→🤖ポメの設定で見られる。
+- ポメの設定:APIキー・モデル名の変更、接続テスト。
+
+## バックアップ(保護者モード)
+- 「バックアップを書き出す」でファイルが保存される(APIキーも入っているので人に渡さない)。「バックアップを読み込む」で戻せる。`;
+const CHAT={
+ pome:{key:"chats",face:"🐶",ph:"ポメにメッセージ…",fresh:"新しい会話",first:"はじめての会話",head:"🐶 ポメ"},
+ ppome:{key:"pchats",face:"🐕",ph:"親ポメに相談…",fresh:"新しい相談",first:"はじめての相談",head:"🐕 親ポメ"}};
+const chatAbort={pome:null,ppome:null};
+const chatsOf=k=>D.pome[CHAT[k].key];
+const newChatObj=k=>({id:(k==="pome"?"c":"p")+Date.now(),title:CHAT[k].fresh,date:today(),fav:false,msgs:[]});
+function chatCur(k){const a=chatsOf(k);if(!a.length)a.push(newChatObj(k));return a[0];}
+/** 画面を開いた時:過去の会話は残したまま、使われていない空の会話が先頭に無ければ新しく用意する */
+function chatFresh(k){const a=chatsOf(k);if(!a.length||a[0].msgs.length){a.unshift(newChatObj(k));save("pome");}}
+function chatNew(k){chatFresh(k);if(chatsOf(k)[0].msgs.length===0)chatBuild(k);}
+function chatBuild(k){
+ qs("#s-"+k).innerHTML=`<div class="chat">
+  <div class="chat-head"><div class="grow" id="${k}Title"></div>
+   <button class="btn sub" style="min-height:38px;padding:4px 14px;font-size:13px" onclick="chatNew('${k}')">＋ 新しい</button>
+   <button class="btn sub" style="min-height:38px;padding:4px 14px;font-size:13px" onclick="chatHist('${k}')">💬 これまで</button></div>
+  <div class="chat-scroll" id="${k}Msgs"></div>
+  <div class="voice-status" id="${k}VoiceStatus"></div>
+  <div class="chat-in"><textarea id="${k}Input" rows="1" placeholder="${CHAT[k].ph}" onkeydown="chatKeydown(event,()=>chatSend('${k}'))" oninput="autoGrow(this)"></textarea>
+   <button class="tool" title="声で入力(会話モード)" onclick="chatVoiceInput('${k}Input','${k}VoiceStatus',this)">🎤</button>
+   <button class="tool" title="手書き" onclick="openPad('${k}Input')">✍️</button>
+   <button class="send" id="${k}Send" onclick="chatSend('${k}')">送る</button></div></div>`;
+ chatMsgs(k);
+ if(chatAbort[k]){const b=qs("#"+k+"Send");if(b)setChatSending(b,()=>chatAbort[k]&&chatAbort[k].abort());}}
+function chatMsgs(k){
+ const box=qs("#"+k+"Msgs");if(!box)return;
+ const c=chatCur(k),f=CHAT[k].face;
+ const t=qs("#"+k+"Title");if(t)t.textContent=c.title;
+ box.innerHTML=c.msgs.length?c.msgs.map(m=>`<div class="msg ${m.role==="user"?"me":""}">${m.role==="user"?"":`<span class="pface">${f}</span>`}<div class="bubble">${esc(m.content)}</div></div>`).join("")
+  :`<div class="msg"><span class="pface">${f}</span><div class="bubble">${k==="pome"?"こんにちは!今日はどこで困った?　問題をそのまま書いてくれてもいいよ🐾":esc(ctxSummary())+"\n\n何について相談しますか?(例:「日課表を変えたい時はどうすればいい?」「説明タイムで代入をどう聞けばいい?」)"}</div></div>`;
+ box.scrollTop=box.scrollHeight;}
+function chatHist(k){
+ const a=chatsOf(k);
+ openOv(`<h3>${CHAT[k].head} これまでの${k==="pome"?"会話":"相談"}</h3>${a.map((ch,i)=>`<div class="hist-row ${i===0?"on":""}" onclick="chatOpen('${k}',${i})">
+  <button class="favstar ${ch.fav?"on":""}" onclick="event.stopPropagation();chatFav('${k}',${i})">★</button>
+  <div class="grow"><div>${esc(ch.title||"会話")}</div><div class="note">${esc(ch.date||"")}・${(ch.msgs||[]).length}件</div></div></div>`).join("")||`<p class="note">まだありません</p>`}`);}
+function chatOpen(k,i){const a=chatsOf(k);const c=a.splice(i,1)[0];a.unshift(c);save("pome");closeOv();chatBuild(k);}
+function chatFav(k,i){const a=chatsOf(k);a[i].fav=!a[i].fav;a.sort((x,y)=>(y.fav?1:0)-(x.fav?1:0));save("pome");chatHist(k);}
+async function chatSend(k){
+ if(chatAbort[k])return;
+ flushChatVoiceInterim();
+ const inp=qs("#"+k+"Input"),txt=inp?inp.value.trim():"";if(!txt)return;
+ pauseChatVoice();
+ const c=chatCur(k);c.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";
+ if(c.title===CHAT[k].fresh||c.title===CHAT[k].first)c.title=txt.slice(0,18);
+ save("pome");chatMsgs(k);
+ const history=c.msgs.map(m=>({role:m.role,content:m.content}));
+ const msg={role:"assistant",content:""};c.msgs.push(msg);
+ const btn=qs("#"+k+"Send");
+ chatAbort[k]=new AbortController();
+ if(btn)setChatSending(btn,()=>chatAbort[k]&&chatAbort[k].abort());
+ try{
+  const sys=k==="pome"?POME_SYS+"\n\n"+ctxSummary():PPOME_SYS+"\n\n# まなびばの説明書\n"+MANUAL+"\n\n"+ctxSummary();
+  const out=await callClaude(sys,history,t=>{msg.content=t;chatMsgs(k);},chatAbort[k].signal);
+  msg.content=out;
+  if(!out)c.msgs.pop();
+ }catch(e){msg.content="⚠️ "+e.message;}
+ chatAbort[k]=null;
+ const b2=qs("#"+k+"Send");if(b2)resetChatSending(b2,()=>chatSend(k));
+ save("pome");chatMsgs(k);
+ resumeChatVoice("s-"+k);}
+RENDER.pome=function(){chatBuild("pome");};
+RENDER.ppome=function(){chatBuild("ppome");};
+
+/* ---------- ポメの設定(保護者)・ポメに渡している情報 ---------- */
+async function savePomeSettings(){
+ D.settings.apiKey=qs("#ps_key").value.trim();
+ D.settings.model=qs("#ps_model").value.trim()||"claude-sonnet-5";
+ await save("settings");toast("保存しました");}
+async function testApi(){
+ const el=qs("#ps_res");el.textContent="接続中…";
+ try{const out=await callClaude("短く挨拶だけ返して。",[{role:"user",content:"1文で挨拶して"}]);
+  el.textContent="✅ つながりました:"+out.slice(0,40);el.style.color="var(--mint)";}
+ catch(e){el.textContent="❌ "+e.message.slice(0,80);el.style.color="var(--red)";}}
+RENDER.pset=function(){
+ qs("#s-pset").innerHTML=`
+  <div class="card"><h2>🤖 ポメ(Claude API)の設定</h2>
+   <div class="form-row"><label>APIキー</label><input type="password" id="ps_key" value="${esc(D.settings.apiKey||"")}" placeholder="sk-ant-..."></div>
+   <div class="form-row"><label>モデル</label><input type="text" id="ps_model" value="${esc(D.settings.model||"")}" placeholder="claude-sonnet-5"></div>
+   <div class="btnrow"><button class="btn" onclick="savePomeSettings()">保存</button><button class="btn sub" onclick="testApi()">接続テスト</button></div>
+   <p class="note" id="ps_res" style="margin-top:6px"></p>
+   <p class="note">キーはこのパソコンのブラウザの中にだけ保存されます。</p></div>
+  <div class="card"><h2>ポメに渡している情報</h2>
+   <p class="note">ポメは、会話のたびに次の「今の状況」を一緒に受け取ります。これ以外の記録は見ていません。</p>
+   <div class="ctxbox">${esc(ctxSummary())}</div>
+   <details class="more"><summary>親ポメが持っている「まなびばの説明書」</summary><div class="ctxbox">${esc(MANUAL)}</div></details></div>`;};
+
+/* 画面の名前 */
+Object.assign(TITLES,{card:"暗記カード",cman:"🃏 カード管理",lman:"🔗 リンク管理",pset:"🤖 ポメの設定"});
 
 /* ---------- 起動 ---------- */
 (async function boot(){
