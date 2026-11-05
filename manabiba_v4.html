@@ -236,6 +236,70 @@ body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
 .wc{font-family:var(--disp);font-weight:900;min-width:34px;text-align:right}
 .wkt{padding:4px 0;font-size:14px}
 .wkt small{color:var(--ink-soft);display:block;margin-left:26px}
+
+/* 4段階目:ワークドリル */
+.viewer{position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;cursor:grab;background:#e9eeec;border-radius:14px;border:1.5px solid var(--line);touch-action:none;margin-bottom:8px}
+.vwrap{position:absolute;left:0;top:0;transform-origin:0 0}
+.vwrap img{display:block;user-select:none;-webkit-user-drag:none;pointer-events:none}
+.vframe{position:absolute;border:3px solid #E8794B;border-radius:6px;display:none;pointer-events:none;box-shadow:0 0 0 9999px rgba(0,0,0,.08)}
+.vbtns{position:absolute;right:6px;top:6px;display:flex;gap:6px;z-index:2}
+.viewer.grabbing{cursor:grabbing}
+.vbtns button{background:rgba(255,255,255,.92);border:1.5px solid var(--line);border-radius:99px;padding:3px 10px;font-size:12px;font-weight:700}
+.vload{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:13px}
+.sv-head{display:flex;align-items:center;gap:4px;font-size:13px;margin-bottom:6px;white-space:nowrap;overflow:hidden}
+.sv-head .grow{flex:1}.svpos{font-family:var(--disp);font-weight:900}
+.sv-items{max-height:calc(100vh - var(--bar-h) - var(--tab-h) - 42vh - 90px);overflow-y:auto;overscroll-behavior:contain}
+body.hasTimer .sv-items{max-height:calc(100vh - var(--bar-h) - var(--tab-h) - 42vh - 140px)}
+#s-solve{margin-bottom:-20px}
+.sv-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.sv-no{flex:none;min-width:40px;font-family:var(--disp);font-weight:900;font-size:17px;padding-top:6px}
+.sv-body{flex:1;min-width:0}
+.ainp{width:100%;font-size:20px;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:#fff}
+.ainp:focus{outline:none;border-color:var(--mint)}
+.ainrow{display:flex;gap:6px;align-items:stretch}
+.ainrow .ainp{flex:1;min-width:0}
+.ainrow .atool{flex:0 0 auto;width:48px;font-size:22px;border:2px solid var(--line);border-radius:12px;background:#fff}
+.ainrow .atool.listening{background:#FDEBEB;border-color:var(--red);animation:micpulse 1s infinite}
+.chs{display:flex;gap:8px;flex-wrap:wrap}
+.chb{min-width:58px;min-height:52px;padding:6px 14px;border-radius:14px;border:2px solid var(--line);background:#fff;font-size:20px;font-weight:700;font-family:var(--disp)}
+.chb.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.chb.ng{background:var(--red-soft);border-color:var(--red);color:var(--red)}
+.ord{display:flex;gap:6px;flex-wrap:wrap;min-height:44px;align-items:center;margin-bottom:6px;padding:4px 0}
+.ord:not(.pool){border-bottom:2px dashed var(--line)}
+.wchip{padding:6px 14px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:18px}
+.wchip.on{background:var(--blue-soft);border-color:var(--blue)}
+.res{font-family:var(--disp);font-weight:900;font-size:20px}
+.res.ok{color:var(--mint)}.res.ng{color:var(--red)}
+.cmp{display:grid;gap:4px;margin:4px 0;font-size:19px}
+.cmp small{display:inline-block;width:48px;font-size:12px;color:var(--ink-soft)}
+mark.dm{background:var(--red-soft);color:var(--red);font-weight:700;border-bottom:2px solid var(--red)}
+mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:2px solid var(--mint)}
+.exp{font-size:13px;color:var(--ink-soft);background:var(--paper);border-radius:10px;padding:6px 10px;margin-top:4px}
+.ansline{font-weight:700;margin:4px 0}
+.rubs{display:flex;flex-direction:column;gap:4px;margin:6px 0}
+.rub{display:flex;align-items:center;gap:8px;font-size:15px;padding:6px 10px;border:1.5px solid var(--line);border-radius:10px;background:#fff}
+.rub input{width:22px;height:22px}
+.btn.ok{background:var(--mint)}
+.btn.big{min-height:58px;font-size:18px;padding:10px 28px}
+.btn.wide{width:100%;margin-bottom:12px}
+.btn.sm{min-height:38px;padding:4px 12px;font-size:13px}
+.sv-acts{padding:12px 0 4px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.sv-small{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.drhead{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.drhead h2{margin:0}
+.pgchips{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px}
+.pgc{padding:8px 0;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:14px}
+.pgc.none{border-style:dashed;color:var(--ink-soft)}
+.pgc.done{background:var(--mint-soft);border-color:var(--mint)}
+.pgc.x{background:var(--red-soft);border-color:var(--red)}
+.pgc.cur{background:var(--ink);color:#fff;border-color:var(--ink)}
+.flowl{list-style:none;counter-reset:f;display:flex;flex-direction:column;gap:8px;margin:6px 0 12px}
+.flowl li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 12px;border-radius:12px;background:var(--paper);border:1.5px solid var(--line)}
+.flowl li span{grid-column:1/-1;font-size:13px;color:var(--ink-soft)}
+.bkrow,.xrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.warnl{font-size:13px;margin:6px 0 0 18px}
+.dtab{display:grid;grid-template-columns:auto repeat(3,1fr);gap:4px 10px;font-size:14px;text-align:right}
+.dtab>*:nth-child(4n+1){text-align:left}
 </style>
 </head>
 <body>
@@ -262,6 +326,10 @@ body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
   <section class="screen" id="s-pset"></section>
   <section class="screen" id="s-cal"></section>
   <section class="screen" id="s-week"></section>
+  <section class="screen" id="s-solve"></section>
+  <section class="screen" id="s-dimp"></section>
+  <section class="screen" id="s-drep"></section>
+  <section class="screen" id="s-dpaper"></section>
 </main>
 
 <nav class="tabbar" id="tabbar">
@@ -273,6 +341,7 @@ body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
   <button data-t="pome" class="pome" onclick="goTab('pome')"><span class="ic">🐶</span>ポメ</button>
 </nav>
 
+<input type="file" id="fileDrill" accept=".json,application/json" multiple style="display:none" onchange="drillImportFile(this)">
 <input type="file" id="fileV4" accept=".json,application/json" style="display:none" onchange="importBackupFile(this)">
 <input type="file" id="fileV3" accept=".json,application/json" style="display:none" onchange="importOldBackupFile(this)">
 <div class="ov" id="ov" onclick="if(event.target===this)closeOv()"><div class="ov-card"><button class="ov-x" onclick="closeOv()" aria-label="とじる">✕</button><div id="ovBody"></div></div></div>
@@ -299,7 +368,7 @@ body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
    今のまなびば(manabiba_v3.html)のデータは「読むだけ」で、書き込まない。
    ============================================================ */
 "use strict";
-const BUILD_ID="2026-11-03b(日課表)";
+const BUILD_ID="2026-11-03c(ワークドリル)";
 const qs=s=>document.querySelector(s), qsa=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");};
@@ -350,6 +419,7 @@ const KV_DEFAULTS=()=>({
  links:[],                             // リンク集
  pome:{chats:[],pchats:[]},            // ポメ・親ポメの会話
  settings:{apiKey:"",model:"claude-sonnet-5"},
+ drill:{books:{},log:{},skip:{},reports:[],alt:{}}, // ワークドリル(問題の形・○×の記録。写真は pages ストア)
  plan:{anchor:"",days:{},tests:[],phase:[5,5,3],done:{},timer:null}, // 日課表(日の種類・テスト日・チェック・タイマー)
  meta:{}                               // 引き継ぎの記録など
 });
@@ -519,9 +589,6 @@ const RENDER={
       const nm=deckShortName(d);
       return `<div class="dchip tap ${cls}" title="${esc(nm)}" onclick="startCards([${decks.indexOf(d)}])"><span>${esc(nm)}</span><small>${ok}/${cs.length}</small></div>`;}).join("")}</div>`).join("")}</div></div>`).join("")}
    </div>`;},
- drill(){
-  qs("#s-drill").innerHTML=`
-   <div class="card soon"><h2>✏️ ワークドリル</h2><p class="note">学校ワークのページ写真をそのまま出して、1問ずつ解く画面です(作る順番の4段階目で作ります)。</p></div>`;},
  links(){
   const ls=D.links||[];
   qs("#s-links").innerHTML=ls.length?`<div class="link-grid">${ls.map(l=>`
@@ -540,10 +607,11 @@ const RENDER={
   const p=D.pome||{};
   qs("#s-parent").innerHTML=`
    <div class="ptiles">
-    <button class="ptile go" onclick="goTo('week')"><b>① 今日と今週</b><span>終わった行(×の数はドリルの段階で)</span></button>
+    <button class="ptile go" onclick="goTo('week')"><b>① 今日と今週</b><span>終わった行・ドリルの×</span></button>
     <button class="ptile go" onclick="goTo('cal')"><b>② カレンダー</b><span>日の種類・メイン教科・テスト日</span></button>
-    <div class="ptile soon"><b>③ ドリルの取り込み</b><span>ファイルを選ぶだけ(ドリルの段階)</span></div>
-    <div class="ptile soon"><b>④ 問題の報告</b><span>「この問題おかしい」(ドリルの段階)</span></div>
+    <button class="ptile go" onclick="goTo('dimp')"><b>③ ドリルの取り込み</b><span>ファイルを選ぶだけ</span></button>
+    <button class="ptile go" onclick="goTo('drep')"><b>④ 問題の報告</b><span>「この問題おかしい」${((D.drill||{}).reports||[]).filter(r=>!r.done).length}件</span></button>
+    <button class="ptile go" onclick="goTo('dpaper')"><b>📝 紙の×を入れる</b><span>紙のワークの×をタップで</span></button>
     <button class="ptile go" onclick="chatFresh('ppome');goTo('ppome')"><b>🐕 親ポメ</b><span>相談・使い方の質問(${(p.pchats||[]).length}件)</span></button>
     <button class="ptile go" onclick="goTo('cman')"><b>🃏 カード管理</b><span>今日のカンペ・済みの管理</span></button>
     <button class="ptile go" onclick="goTo('lman')"><b>🔗 リンク管理</b><span>足す・消す・並べ替え</span></button>
@@ -741,7 +809,7 @@ async function readPad(){
   const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
    headers:{"Content-Type":"application/json","x-api-key":D.settings.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
    body:JSON.stringify({model:D.settings.model||"claude-sonnet-5",max_tokens:100,
-    system:"手書き画像に書かれている数式・数値・単語だけを、そのまま文字にして返す。説明・前置き・記号の装飾は一切つけない。分数は a/b の形。読み取れない場合は ? だけを返す。",
+    system:"手書き画像に書かれている文字(数式・数値・単語・英文・日本語)だけを、そのまま文字にして返す。つづり・漢字・大文字小文字・記号の書きまちがいがあっても絶対に直さず、書かれたとおりに返す。説明・前置き・記号の装飾は一切つけない。分数は a/b の形。読み取れない場合は ? だけを返す。",
     messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/png",data:data}},{type:"text",text:"これを文字にして。答えの文字列だけ返して。"}]}]})});
   if(!res.ok)throw new Error("APIエラー "+res.status);
   const j=await res.json();
@@ -1028,7 +1096,14 @@ function ctxSummary(){
  const seen=new Set(),wrong=[];
  days.slice().reverse().forEach(d=>log[d].slice().reverse().forEach(r=>{
   if(r.v<2&&!seen.has(r.q)&&wrong.length<8){seen.add(r.q);wrong.push(r.q+"→"+r.a);}}));
- return `【今の状況】\n今日:${today()}\n暗記カード(直近3日に記録のある日の分):${total}枚やった。まだ覚えていないもの:${wrong.join(" / ")||"なし"}\n(ワークドリル・日課表はまだ組み込み前なので、情報はありません)`;}
+ return `【今の状況】\n今日:${today()}\n暗記カード(直近3日に記録のある日の分):${total}枚やった。まだ覚えていないもの:${wrong.join(" / ")||"なし"}${ctxPlanDrill()}`;}
+function ctxPlanDrill(){
+ let s="";
+ try{const info=planDayInfo(today()),dn=planDone(today());
+  s+="\n今日の日課:"+DAY_TYPES[info.type]+(info.main?"・メイン教科 "+info.mn:"")+(info.rows.length?"。"+info.rows.map(r=>r.no+r.title+(dn[r.key]?"(済)":"")).join(" "):"");}catch(e){}
+ try{const X=drillIndex(),xs=Object.keys(X.items).filter(id=>drillState(id)==="x").slice(0,8);
+  s+="\n学校ドリルで×が残っている問題:"+(xs.length?xs.map(id=>{const x=X.items[id],l=drillLast(id);return subLabel(x.B.sub)+" "+x.B.book.workbook+" p"+x.B.page+" "+(x.B.bl.no||"")+(x.it.no||"")+"(本人の答え「"+l.a+"」/正解「"+(x.it.answer||"")+"」)";}).join(" / "):"なし");}catch(e){}
+ return s;}
 const PPOME_SYS=`あなたは「親ポメ」。中学1年生・香凜さんの保護者(お母さん)向けの学習コーチAI。
 
 # 役割
@@ -1049,7 +1124,31 @@ const MANUAL=`## 全体
 - 画面の下に6つのボタン:ホーム/カレンダー/暗記カード/学校ドリル/リンク集/ポメ。右上の「🔑 保護者」で保護者モード(お母さん用)に入り、「✓ おわる」で戻る。
 - 左上の「←」は1つ前の画面に戻る。
 - データはこのパソコンのブラウザの中だけに保存される。別のブラウザで開くと別のデータになる。
-- 学校ドリルは、まだ作っていない(これから作る)。ホームの「今日の日課」の中のドリルの行(前日の×・学校ワーク)も、いまはチェックだけ。
+- ホームの「今日の日課」の中のドリルの行(前日の×・学校ワーク)は、まだドリルとつながっていない(次の段階で作る)。いまは「学校ドリル」から解いて、チェックを付ける。
+
+## 学校ドリル(香凜さん)
+- 学校ワークのページの写真がそのまま出て、今の大問に自動でズームし、オレンジの枠が付く。指でピンチ・ドラッグ(パソコンはマウスでつかむ)すると動かせる。「＋」「－」で大きく・小さく。「ページ全体」でページ全部、「問題へ」で大問に戻る。
+- 下に小問の答える欄が並ぶ。選択はタップ、語句・数・英文は入力、並べかえは語をタップして並べてから完成した文を自分で書く。答えたら「こたえあわせ」。
+- 入力の欄の横の🎤=声で入れる(1回話すと止まる。英語の問題は英語で聞き取る。数学は「エックス イコール マイナス 3」→x=-3 のように記号にする)。✍️=手書きで書いて「読み取る」(Claudeが読むのでAPIキーが要る。書きまちがいは直さずにそのまま読む)。どちらも入った字は欄の中で直せる。声で入れた英語は、つづりや大文字・ピリオドが自分で書いたものではないので、確かめてから「こたえあわせ」する。
+- 判定:全角・半角と空白の違いは気にしない。英語のコンマ・?・大文字、数学の符号と単位は判定に入る。まちがえると、自分の答えと正解を上下に並べ、違う文字に色が付く。
+- 式・記述・作図(ノートに書く問題)は「答えを見る」で答えのページが出る。採点の目安を全部☑すると「○ できた」が押せる。
+- 「次へ」で次の大問へ。同じページならズームの場所だけが動く。
+- 「まだ習ってない」:授業でまだやっていない大問を飛ばす。1週間たったら、また出る。
+- 「この問題おかしい」:写真の位置ずれ・正解のまちがいなどを、お母さんに知らせる。その問題は×にならず、直すまで出ない。
+- 画面:上の「🔁 ×の解き直し」=前の日までの×を、教科をまたいで古い順に出す(×だった小問だけ)。教科ごとの「▶ つづきから」=まだ解いていない問題をページ順に10大問まで。ページの札(p52など)をタップすると、○だった問題も含めてそのページを最初から全部解ける(○だった問題をもう一度やりたい時はこれ。今日×だった問題だけは、あしたまで出さない)。札の色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。
+- ×のルール:×は自動で×リストに入る。同じ日には出し直さない(答えを見た直後に解いても意味がないため)。2回続けて○で卒業。3回以上×の問題は「苦手」として保護者画面に出る。
+
+## ドリルの取り込み(保護者モード→③ドリルの取り込み)
+- 3ステップ:①スマホでワークの問題ページと答えのページを撮る ②Claudeのプロジェクト「まなびば変換」で新しいチャットを開いて写真を送る→ファイルができる ③このパソコンで「ファイルを選ぶ」。
+- はじめての時だけ、同じ画面の「Claudeのプロジェクトの準備」にある指示の文をコピーして、Claudeのプロジェクトの指示に貼る(コード実行・ファイル作成をオンにする)。
+- 同じページを入れ直すと上書きし、解いた記録はそのまま残る。入っているワークは「消す」で消せる(解いた記録は残る)。
+- 本物のワークが届くまで試せるように「🧪 お試しのワークを入れる」がある(数学2ページ・英語1ページ)。いらなくなったら「消す」。
+
+## 問題の報告(保護者モード→④問題の報告)
+- 香凜さんが「この問題おかしい」を押した問題の一覧。「報告をまとめてコピー」→Claudeの「まなびば変換」の新しいチャットに、そのページの写真といっしょに貼ると、直したファイルができる。取り込み直したら「直した」を押す。
+
+## 紙の×を入れる(保護者モード→📝紙の×を入れる)
+- 紙のワークで×だった問題を、ワーク→ページ→問題番号の順にタップするとドリルの×に入る。あしたからの「×の解き直し」に出る。もう一度タップで取り消し。
 
 ## ホーム(今日の日課・香凜さん)
 - 開くと今日の日の種類(通常/暗記＋直し/暗記のみ/休み)とメイン教科、その日のやることが上から順に並ぶ。次にやる行は緑の枠で目立つ。
@@ -1073,7 +1172,9 @@ const MANUAL=`## 全体
 - 日課表を変えたいときは、ここで日をタップして直す。直したものは保存されるので、保存ボタンは無い。
 
 ## 今日と今週(保護者モード→①今日と今週)
-- 今日の行ごとのチェックと、今週(月〜日)の日ごとの種類・メイン教科・終わった行の数が見られる。×の数と一覧は、ドリルができたら出る。
+- 今日の行ごとのチェックと、今週(月〜日)の日ごとの種類・メイン教科・終わった行の数が見られる。
+- ドリルの今日の×の一覧(本人の答えと正解)、今週の曜日ごとの×の数、教科ごとの「全問題/解いた/×のこり」、苦手(3回以上×)の一覧も出る。
+- 自動判定で×になったが、本当は正しい書き方だった時は「○に直す」を押す(その答えは次から正解になる)。○に直せるのは保護者だけ。
 
 ## 暗記カード(香凜さん)
 - 教科のボタンで切り替え、単元ごとにデッキが並ぶ。デッキをタップするとカードが始まる。単元名の横の「まとめて▶」でその単元を全部続けてやる。
@@ -1091,7 +1192,7 @@ const MANUAL=`## 全体
 ## ポメ
 - ポメ(香凜さん用):考え方を引き出す係。暗記ものは答えをすぐ教える。入力は文字・🎤音声(会話モード:押すと返事のあとも自動で聞き取り、もう一度押すと終わる)・✍️手書き。返事の途中で「⏹ 中断」できる。
 - 親ポメ(お母さん用):保護者モードのタイルから開く。教え方や進め方の相談ができる。ここで聞けば、まなびばの使い方も答える。
-- ポメに渡している情報(今の状況)は、保護者モード→🤖ポメの設定で見られる。
+- ポメに渡している情報(今の状況)は、保護者モード→🤖ポメの設定で見られる。中身は、暗記カードの直近の覚えていないもの、今日の日課、学校ドリルで×が残っている問題(本人の答えと正解)。
 - ポメの設定:APIキー・モデル名の変更、接続テスト。
 
 ## バックアップ(保護者モード)
@@ -1324,7 +1425,7 @@ function planRowGo(key){
  else if(r.act==="link"){
   const l=(D.links||[]).find(x=>/スタサプ|studysapuri/i.test((x.name||"")+(x.url||"")));
   if(l)window.open(l.url,"_blank","noopener");else toast("スタサプのリンクが見つかりません(🔑保護者→🔗リンク管理)");}
- else if(r.act==="drill")toast("ドリルは、これから作ります。いまはチェックだけ付けてね");
+ else if(r.act==="drill")toast("ドリルとのつなぎは次の段階で作ります。いまは「学校ドリル」から解いて、チェックを付けてね");
  renderCurrent();}
 function planToggle(key){
  const iso=today(),on=!planDone(iso)[key];
@@ -1440,8 +1541,506 @@ RENDER.week=function(){
   <div class="card"><h2>今日 ${mdOf(td)}(${WDAY[dowOf(td)]})</h2>
    ${info.rows.length?info.rows.map(r=>`<div class="wkt ${dn[r.key]?"on":""}">${dn[r.key]?"✅":"⬜"} ${r.no} ${esc(r.title)} <small>${esc(r.hint)}</small></div>`).join(""):`<p class="note">今日の日課はありません(${DAY_TYPES[info.type]})。</p>`}</div>
   <div class="card"><h2>今週</h2>${days.map(row).join("")}
-   <p class="note" style="margin-top:8px">✓=チェックずみ。左から①②…の順です。×の数と一覧は、ドリルができたらここに出ます。</p></div>`;};
+   <p class="note" style="margin-top:8px">✓=チェックずみ。左から①②…の順です。ドリルの×は下に出ます。</p></div>`;};
 Object.assign(TITLES,{cal:"📅 カレンダー",week:"📊 今日と今週"});
+
+/* ---------- 4段階目:ワークドリル ----------
+ * ワークのページ写真を丸ごと出し、大問の位置にズームして、小問ごとに答える。答え合わせ・×の記録・出し直しはアプリがやる。
+ * 写真:IndexedDB pages ストア(キー「本のキー|q|ページ」=問題ページ、「本のキー|a|ページ」=そのページの解答ページ)
+ * D.drill = {books:{本のキー:{key,workbook,subject,importedAt,pages:[{page,answerPage,blocks:[{bid,unit,no,region,answerRegion,items}]}]}},
+ *            log:{小問id:[{d:日付,ok,a:答え,paper?,fixed?}]}, skip:{大問id:日付}, reports:[…], alt:{小問id:[保護者が○に直した答え]}} */
+const SUB_ORDER=["math","eng","jpn","sci","geo","his"];
+let DX=null; // 問題の索引(画面用・保存しない)。取り込み・削除のたびに作り直す
+function drillData(){
+ const d=D.drill;
+ if(!d.books)d.books={};if(!d.log)d.log={};if(!d.skip)d.skip={};if(!d.reports)d.reports=[];if(!d.alt)d.alt={};
+ return d;}
+function drillIndex(){
+ if(DX)return DX;
+ const d=drillData(),X={blocks:[],block:{},items:{},books:[]};
+ const books=Object.values(d.books).sort((a,b)=>(SUB_ORDER.indexOf(a.subject)-SUB_ORDER.indexOf(b.subject))||String(a.workbook).localeCompare(b.workbook));
+ books.forEach(bk=>{
+  X.books.push(bk);
+  (bk.pages||[]).slice().sort((a,b)=>a.page-b.page).forEach(pg=>{
+   (pg.blocks||[]).forEach(bl=>{
+    const B={bk:bk.key,book:bk,page:pg.page,pg,bl,bid:bl.bid,sub:bk.subject};
+    X.blocks.push(B);X.block[bl.bid]=B;
+    (bl.items||[]).forEach(it=>{X.items[it.id]={it,B};});});});});
+ return DX=X;}
+const drillHist=id=>drillData().log[id]||[];
+/** 小問の状態:new=まだ / ok=○だけ / x=×リストに入っている / grad=×のあと2回続けて○で卒業 */
+function drillState(id){
+ const h=drillHist(id);if(!h.length)return"new";
+ let lx=-1;h.forEach((r,i)=>{if(!r.ok)lx=i;});
+ if(lx<0)return"ok";
+ return h.length-1-lx>=2?"grad":"x";}
+const drillXCount=id=>drillHist(id).filter(r=>!r.ok).length;
+const drillNigate=id=>drillXCount(id)>=3;
+const drillLast=id=>{const h=drillHist(id);return h[h.length-1]||null;};
+/** ×の解き直しに出せるか:×リストにあり、最後に解いたのが今日より前(同じ日には出し直さない) */
+const drillRedoable=id=>drillState(id)==="x"&&drillLast(id).d<today();
+const drillOpenReports=()=>new Set(drillData().reports.filter(r=>!r.done).map(r=>r.bid));
+const drillSkipped=bid=>{const s=drillData().skip[bid];return !!s&&daysBetween(s,today())<7;};
+const subLabel=id=>subName(id)||id;
+
+/* --- 判定 --- */
+function drillNorm(s,type){
+ s=String(s??"").normalize("NFKC").replace(/[’‘]/g,"'").replace(/[“”]/g,'"');
+ if(type==="number")s=s.replace(/[−‐‑–—ー]/g,"-");
+ if(type==="sentence"||type==="order")s=s.replace(/\s+/g," ").trim().replace(/\s+([,.?!])/g,"$1");
+ else s=s.replace(/\s+/g,"");
+ return s;}
+function drillAccepts(it){return [it.answer,...(it.alt||[]),...(drillData().alt[it.id]||[])].filter(x=>x!=null&&x!=="");}
+function drillMatch(it,a){
+ const t=it.type==="choice"?"word":it.type,v=drillNorm(a,t);
+ if(!v)return false;
+ return drillAccepts(it).some(x=>drillNorm(x,t)===v);}
+/** 自分の答えと正解の、違う文字に色を付ける(共通部分=LCS以外に印) */
+function drillDiff(a,b){
+ a=[...String(a||"")];b=[...String(b||"")];
+ const n=a.length,m=b.length,L=Array.from({length:n+1},()=>new Array(m+1).fill(0));
+ for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)L[i][j]=a[i]===b[j]?L[i+1][j+1]+1:Math.max(L[i+1][j],L[i][j+1]);
+ const ka=new Array(n).fill(false),kb=new Array(m).fill(false);
+ let i=0,j=0;while(i<n&&j<m){if(a[i]===b[j]){ka[i]=kb[j]=true;i++;j++;}else if(L[i+1][j]>=L[i][j+1])i++;else j++;}
+ const paint=(arr,keep,cls)=>arr.map((c,k)=>keep[k]?esc(c):`<mark class="${cls}">${c===" "?"␣":esc(c)}</mark>`).join("");
+ return {mine:paint(a,ka,"dm"),right:paint(b,kb,"dr")};}
+function drillRecord(id,ok,a,extra){
+ const d=drillData();if(!d.log[id])d.log[id]=[];
+ d.log[id].push({d:today(),ok:!!ok,a:String(a??""),...(extra||{})});
+ return d.log[id].length-1;}
+
+/* --- 写真の表示(丸ごと出して、大問の位置にズーム。指でピンチ・ドラッグ) --- */
+const IMGC=new Map();
+async function drillImg(key){
+ if(IMGC.has(key))return IMGC.get(key);
+ let v=null;try{v=await dbGet("pages",key);}catch(e){}
+ IMGC.set(key,v||null);return v||null;}
+const VW={};
+const viewerHtml=(id,h)=>`<div class="viewer" id="${id}" style="height:${h}"><div class="vwrap"><img alt=""><div class="vframe"></div></div>
+ <div class="vbtns"><button onclick="vZoomBtn('${id}',1.3)">＋</button><button onclick="vZoomBtn('${id}',1/1.3)">－</button><button onclick="vFit('${id}')">ページ全体</button><button onclick="vFocus('${id}')">問題へ</button></div><div class="vload">写真を読み込み中…</div></div>`;
+async function viewerSet(id,key,region){
+ const el=qs("#"+id);if(!el)return;
+ const st=VW[id]={key,region:region||null,s:1,tx:0,ty:0,iw:0,ih:0};
+ viewerBind(el);
+ const src=await drillImg(key);
+ if(VW[id]!==st)return;
+ const ld=el.querySelector(".vload");
+ if(!src){if(ld)ld.textContent="写真がありません(取り込み直してください)";return;}
+ const img=el.querySelector("img");
+ img.onload=()=>{st.iw=img.naturalWidth||1000;st.ih=img.naturalHeight||1400;img.style.width=st.iw+"px";img.style.height=st.ih+"px";
+  const l=el.querySelector(".vload");if(l)l.remove();vFrame(id);vFocus(id);};
+ img.src=src;}
+function viewerRegion(id,region){const st=VW[id];if(!st)return;st.region=region||null;vFrame(id);vFocus(id);}
+function vFrame(id){
+ const el=qs("#"+id),st=VW[id];if(!el||!st)return;
+ const f=el.querySelector(".vframe"),r=st.region;
+ if(!r||!st.iw){f.style.display="none";return;}
+ Object.assign(f.style,{display:"block",left:r.x*st.iw+"px",top:r.y*st.ih+"px",width:r.w*st.iw+"px",height:r.h*st.ih+"px"});}
+function vApply(id){
+ const el=qs("#"+id),st=VW[id];if(!el||!st)return;
+ if(st.iw){ // 写真が画面の外へ全部出てしまわないように(端が少しは残る)
+  const W=el.clientWidth||600,H=el.clientHeight||400,m=60,pw=st.iw*st.s,ph=st.ih*st.s;
+  st.tx=Math.min(W-m,Math.max(m-pw,st.tx));st.ty=Math.min(H-m,Math.max(m-ph,st.ty));}
+ el.querySelector(".vwrap").style.transform=`translate(${st.tx}px,${st.ty}px) scale(${st.s})`;
+ el.querySelector(".vframe").style.borderWidth=Math.max(2,3/st.s)+"px";}
+function vFocus(id){
+ const el=qs("#"+id),st=VW[id];if(!el||!st||!st.iw)return;
+ const W=el.clientWidth||600,H=el.clientHeight||400,r=st.region||{x:0,y:0,w:1,h:1};
+ st.s=Math.min(W/(r.w*st.iw),H/(r.h*st.ih))*0.94;
+ st.tx=W/2-(r.x+r.w/2)*st.iw*st.s;st.ty=H/2-(r.y+r.h/2)*st.ih*st.s;vApply(id);}
+function vFit(id){
+ const el=qs("#"+id),st=VW[id];if(!el||!st||!st.iw)return;
+ const W=el.clientWidth||600,H=el.clientHeight||400;
+ st.s=Math.min(W/st.iw,H/st.ih);st.tx=(W-st.iw*st.s)/2;st.ty=(H-st.ih*st.s)/2;vApply(id);}
+function vZoomBtn(id){const el=qs("#"+id),st=VW[id];if(!el||!st||!st.iw)return;vZoomAt(st,(el.clientWidth||600)/2,(el.clientHeight||400)/2,arguments[1]);vApply(id);}
+function vZoomAt(st,mx,my,f){const ns=Math.max(.05,Math.min(8,st.s*f));f=ns/st.s;st.tx=mx-(mx-st.tx)*f;st.ty=my-(my-st.ty)*f;st.s=ns;}
+function viewerBind(el){
+ if(el._bound)return;el._bound=true;
+ const pts=new Map();
+ el.addEventListener("pointerdown",e=>{if(e.target.closest(".vbtns"))return;e.preventDefault(); // 文字の選択やドラッグが始まって、つかめなくなるのを防ぐ
+  try{el.setPointerCapture(e.pointerId);}catch(_){}pts.set(e.pointerId,{x:e.clientX,y:e.clientY});el.classList.add("grabbing");});
+ el.addEventListener("dragstart",e=>e.preventDefault());
+ el.addEventListener("pointermove",e=>{
+  if(!pts.has(e.pointerId))return;const st=VW[el.id];if(!st)return;
+  const prev=pts.get(e.pointerId),cur={x:e.clientX,y:e.clientY};
+  if(pts.size===1){st.tx+=cur.x-prev.x;st.ty+=cur.y-prev.y;}
+  else{const o=[...pts.entries()].find(([k])=>k!==e.pointerId)[1];
+   const d0=Math.hypot(prev.x-o.x,prev.y-o.y),d1=Math.hypot(cur.x-o.x,cur.y-o.y),rc=el.getBoundingClientRect();
+   if(d0>0)vZoomAt(st,(cur.x+o.x)/2-rc.left,(cur.y+o.y)/2-rc.top,d1/d0);}
+  pts.set(e.pointerId,cur);vApply(el.id);});
+ const up=e=>{pts.delete(e.pointerId);if(!pts.size)el.classList.remove("grabbing");};
+ el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
+ el.addEventListener("wheel",e=>{const st=VW[el.id];if(!st)return;e.preventDefault();const rc=el.getBoundingClientRect();vZoomAt(st,e.clientX-rc.left,e.clientY-rc.top,e.deltaY<0?1.15:1/1.15);vApply(el.id);},{passive:false});}
+
+/* --- 出す順番 --- */
+const DRILL_WORK_MAX=10; // 「つづきから」で1回に出す大問の数
+function drillBuildQueue(mode,opt){
+ const X=drillIndex(),rep=drillOpenReports(),q=[];
+ if(mode==="work"){ // その教科の、まだ解いていない小問をページ順に
+  for(const B of X.blocks){
+   if(B.sub!==opt.sub||rep.has(B.bid)||drillSkipped(B.bid))continue;
+   const ids=(B.bl.items||[]).filter(it=>!drillHist(it.id).length).map(it=>it.id);
+   if(ids.length)q.push({bid:B.bid,ids});
+   if(q.length>=DRILL_WORK_MAX)break;}}
+ else if(mode==="redo"){ // ×の解き直し:前日以前の×を、教科をまたいで古い順に。×だった小問だけ
+  const by={};
+  Object.keys(X.items).forEach(id=>{
+   const {B}=X.items[id];if(rep.has(B.bid)||!drillRedoable(id))return;
+   const h=drillHist(id),lastX=[...h].reverse().find(r=>!r.ok).d;
+   if(!by[B.bid])by[B.bid]={bid:B.bid,ids:[],d:lastX};
+   by[B.bid].ids.push(id);if(lastX<by[B.bid].d)by[B.bid].d=lastX;});
+  const order=X.blocks.map(B=>B.bid);
+  q.push(...Object.values(by).sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:order.indexOf(a.bid)-order.indexOf(b.bid)).map(({bid,ids})=>({bid,ids})));}
+ else if(mode==="page"){ // ページを選んで:そのページの全部(今日×だったものは、あしたまで出さない)
+  for(const B of X.blocks){
+   if(B.bk!==opt.bk||B.page!==opt.page||rep.has(B.bid))continue;
+   const ids=(B.bl.items||[]).filter(it=>{const l=drillLast(it.id);return !(l&&l.d===today()&&!l.ok);}).map(it=>it.id);
+   if(ids.length)q.push({bid:B.bid,ids});}}
+ return q;}
+const drillWorkLeft=sub=>{const X=drillIndex(),rep=drillOpenReports();let n=0;X.blocks.forEach(B=>{if(B.sub!==sub||rep.has(B.bid)||drillSkipped(B.bid))return;(B.bl.items||[]).forEach(it=>{if(!drillHist(it.id).length)n++;});});return n;};
+const drillRedoLeft=()=>{const X=drillIndex(),rep=drillOpenReports();return Object.keys(X.items).filter(id=>!rep.has(X.items[id].B.bid)&&drillRedoable(id)).length;};
+
+/* --- 解く画面 --- */
+let DS=null; // 今解いている状態(画面用・保存しない)
+function drillStart(mode,opt){
+ const q=drillBuildQueue(mode,opt||{});
+ if(!q.length){toast(mode==="redo"?"×の解き直しは、いまはありません":"出せる問題がありません");return;}
+ DS={mode,opt:opt||{},q,i:0,ok:0,ng:0,cur:null};drillPrep();goTo("solve");}
+function drillPrep(){DS.cur={ans:{},judged:{},ok:{},show:{},rub:{},order:{},rec:[],reported:false};}
+const drillEntry=()=>DS.q[DS.i];
+const drillItemsNow=()=>{const X=drillIndex();return drillEntry().ids.map(id=>X.items[id]?X.items[id].it:null).filter(Boolean);};
+RENDER.solve=function(){
+ const el=qs("#s-solve");
+ if(!DS){el.innerHTML=`<div class="card"><p class="note">問題がありません。</p></div>`;return;}
+ if(DS.i>=DS.q.length){
+  el.innerHTML=`<div class="cr-end"><div class="big">${DS.ng?"👏":"🎉"}</div><h2>おわり!</h2>
+   <div class="score"><span>○ ${DS.ok}</span><span>× ${DS.ng}</span></div>
+   <p class="note">${DS.ng?"×だった問題は、<b>あした以降</b>の「×の解き直し」に出ます。":"ぜんぶ○でした。"}</p>
+   <div class="btnrow"><button class="btn" onclick="drillExit()">✅ おわる</button></div></div>`;return;}
+ el.innerHTML=`<div class="sv-head" id="svHead"></div>${viewerHtml("svView","42vh")}<div class="sv-items" id="svItems"></div>`;
+ delete VW.svView;
+ solveDraw();};
+function drillExit(){DS=null;goBack();}
+function solveDraw(){
+ const X=drillIndex(),e=drillEntry(),B=X.block[e.bid];
+ if(!B){DS.i++;if(DS.i<DS.q.length){drillPrep();solveDraw();}else RENDER.solve();return;}
+ const key=B.bk+"|q|"+B.page;
+ qs("#svHead").innerHTML=`<b>${esc(subLabel(B.sub))}</b>${B.bl.unit?"｜"+esc(B.bl.unit):""}　${esc(B.book.workbook)} p${B.page} ${esc(B.bl.no||"")}<span class="grow"></span><span class="svpos">${DS.i+1}/${DS.q.length}</span>`;
+ if(VW.svView&&VW.svView.key===key)viewerRegion("svView",B.bl.region);else viewerSet("svView",key,B.bl.region);
+ drawItems();}
+function itemInputHtml(it,k){
+ const c=DS.cur,v=c.ans[k]??"";
+ if(c.judged[k])return "";
+ if(it.type==="choice")return `<div class="chs">${(it.choices||[]).map(ch=>`<button class="chb ${v===ch?"on":""}" onclick="drillChoose(${k},'${esc(ch).replace(/'/g,"")}')">${esc(ch)}</button>`).join("")}</div>`;
+ if(it.type==="self"){
+  if(!c.show[k])return `<div class="note">ノートに書いたら →</div><button class="btn sub" onclick="drillShowAns(${k})">答えを見る</button>`;
+  const rub=it.rubric||[],all=rub.every((_,j)=>c.rub[k+"_"+j]);
+  return `${viewerHtml("av_"+k,"30vh")}<div class="ansline">答え:${esc(it.answer||"")}</div>
+   ${rub.length?`<div class="rubs">${rub.map((r,j)=>`<label class="rub"><input type="checkbox" ${c.rub[k+"_"+j]?"checked":""} onchange="drillRub(${k},${j},this.checked)"> ${esc(r)}</label>`).join("")}</div>`:""}
+   <div class="btnrow"><button class="btn ok" ${all?"":"disabled"} onclick="drillSelf(${k},true)">○ できた</button><button class="btn sub" onclick="drillSelf(${k},false)">× まちがえた</button></div>
+   ${rub.length&&!all?`<p class="note">ぜんぶ☑すると ○ が押せます</p>`:""}`;}
+ const att=`autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"`;
+ const inp=`<div class="ainrow"><input class="ainp" id="inp_${k}" ${att} value="${esc(v)}" placeholder="${it.type==="order"?"できた文を書こう":"答え"}" oninput="DS.cur.ans[${k}]=this.value" onkeydown="if(event.key==='Enter')drillJudge()"><button class="atool" title="声で入れる" onclick="ansVoice(${k},this)">🎤</button><button class="atool" title="手書きで入れる" onclick="openPad('inp_${k}')">✍️</button></div>`;
+ if(it.type==="order"){
+  const o=c.order[k]||(c.order[k]={pool:shuffleArr((it.words||String(it.answer||"").replace(/[.?!,]/g,"").split(/\s+/)).filter(Boolean).map((w,i)=>({w,i}))),built:[]});
+  return `<div class="ord">${o.built.length?o.built.map((x,j)=>`<button class="wchip on" onclick="drillOrd(${k},${j},false)">${esc(x.w)}</button>`).join(""):`<span class="note">下の語をタップして並べよう</span>`}</div>
+   <div class="ord pool">${o.pool.map((x,j)=>`<button class="wchip" onclick="drillOrd(${k},${j},true)">${esc(x.w)}</button>`).join("")}</div>${inp}`;}
+ return inp;}
+function itemResultHtml(it,k){
+ const c=DS.cur;if(!c.judged[k])return "";
+ if(c.ok[k])return `<div class="res ok">○ せいかい${it.type!=="self"&&it.type!=="choice"?" "+esc(c.ans[k]||""):""}</div>${it.exp?`<div class="exp">${esc(it.exp)}</div>`:""}`;
+ if(it.type==="self")return `<div class="res ng">× あした、もう一度</div>${it.exp?`<div class="exp">${esc(it.exp)}</div>`:""}`;
+ const df=drillDiff(c.ans[k]||"",it.answer||"");
+ return `<div class="res ng">×</div><div class="cmp"><div><small>あなた</small><span>${c.ans[k]?df.mine:"(空らん)"}</span></div><div><small>正解</small><span>${c.ans[k]?df.right:esc(it.answer||"")}</span></div></div>
+  ${(it.alt||[]).length?`<div class="note">ほかの正解:${it.alt.map(esc).join(" / ")}</div>`:""}${it.exp?`<div class="exp">${esc(it.exp)}</div>`:""}`;}
+function drawItems(){
+ const X=drillIndex(),e=drillEntry(),B=X.block[e.bid],its=drillItemsNow(),c=DS.cur;
+ const autoLeft=its.some((it,k)=>it.type!=="self"&&!c.judged[k]),allDone=its.every((_,k)=>c.judged[k]);
+ qs("#svItems").innerHTML=its.map((it,k)=>`<div class="sv-item ${c.judged[k]?(c.ok[k]?"isok":"isng"):""}"><div class="sv-no">${esc(it.no||"("+(k+1)+")")}</div><div class="sv-body">${itemInputHtml(it,k)}${itemResultHtml(it,k)}</div></div>`).join("")+`
+  <div class="sv-acts">
+   ${allDone?`<button class="btn big" onclick="drillNext()">次へ ▶</button>`:autoLeft?`<button class="btn big" onclick="drillJudge()">こたえあわせ</button>`:""}
+   <div class="sv-small">
+    <button class="btn sub sm" onclick="drillReportAsk()">この問題おかしい</button>
+    ${DS.mode==="work"&&!Object.keys(c.judged).length?`<button class="btn sub sm" onclick="drillSkip()">まだ習ってない</button>`:""}
+    <button class="btn sub sm" onclick="drillQuit()">おわる</button>
+   </div></div>`;
+ its.forEach((it,k)=>{if(it.type==="self"&&c.show[k]&&!c.judged[k])viewerSet("av_"+k,B.bk+"|a|"+B.page,B.bl.answerRegion);});}
+/* 答えを声で入れる(1回話すと止まる。入った字は入力欄で直せる) */
+let ansRecog=null;
+function speechToMath(t){
+ return String(t).replace(/イコール/g,"=").replace(/マイナス/g,"-").replace(/プラス/g,"+").replace(/(かける|掛ける)/g,"×").replace(/(わる|割る)/g,"÷")
+  .replace(/エックス/g,"x").replace(/ワイ/g,"y").replace(/エー/g,"a").replace(/ビー/g,"b").replace(/\s+/g,"");}
+function ansVoice(k,btn){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!SR){toast("この端末・ブラウザでは音声入力が使えません(Chrome・Edge・Safariで使えます)");return;}
+ if(ansRecog){try{ansRecog.stop();}catch(e){}return;} // 聞き取り中にもう一度押したら止める
+ const it=drillItemsNow()[k],B=drillIndex().block[drillEntry().bid];if(!it||!B)return;
+ const r=new SR();r.lang=(B.sub==="eng"&&it.type!=="number")?"en-US":"ja-JP";r.continuous=false;r.interimResults=false;r.maxAlternatives=1;
+ ansRecog=r;btn.classList.add("listening");
+ r.onresult=e=>{let t=(e.results[0]&&e.results[0][0].transcript||"").trim();if(!t)return;
+  if(it.type==="number")t=speechToMath(t);
+  const el=qs("#inp_"+k);if(!el)return;
+  el.value=el.value?el.value+(it.type==="number"?"":" ")+t:t;el.dispatchEvent(new Event("input",{bubbles:true}));};
+ r.onerror=e=>{if(["not-allowed","service-not-allowed","audio-capture"].includes(e.error))toast("マイクが使えません。ブラウザのマイクの許可を確認してください");else if(e.error==="no-speech")toast("声が聞こえませんでした。もう一度🎤を押してください");};
+ r.onend=()=>{if(ansRecog===r)ansRecog=null;btn.classList.remove("listening");};
+ try{r.start();}catch(e){ansRecog=null;btn.classList.remove("listening");toast("音声入力を開始できませんでした");}}
+function drillChoose(k,ch){DS.cur.ans[k]=ch;drawItems();}
+function drillOrd(k,j,add){
+ const o=DS.cur.order[k];const inp=qs("#inp_"+k);if(inp)DS.cur.ans[k]=inp.value;
+ if(add)o.built.push(o.pool.splice(j,1)[0]);else o.pool.push(o.built.splice(j,1)[0]);
+ drawItems();}
+function drillShowAns(k){DS.cur.show[k]=true;drawItems();}
+function drillRub(k,j,on){DS.cur.rub[k+"_"+j]=on;drawItems();}
+function drillMark(it,k,ok,a){
+ const c=DS.cur;c.judged[k]=true;c.ok[k]=ok;
+ if(!c.reported)c.rec.push({id:it.id,i:drillRecord(it.id,ok,a)});
+ if(ok)DS.ok++;else DS.ng++;}
+function drillJudge(){
+ const c=DS.cur;
+ drillItemsNow().forEach((it,k)=>{
+  if(it.type==="self"||c.judged[k])return;
+  const inp=qs("#inp_"+k);if(inp)c.ans[k]=inp.value;
+  drillMark(it,k,drillMatch(it,c.ans[k]||""),c.ans[k]||"");});
+ save("drill");drawItems();}
+function drillSelf(k,ok){const it=drillItemsNow()[k];drillMark(it,k,ok,ok?"(自己判定○)":"(自己判定×)");save("drill");drawItems();}
+function drillNext(){DS.i++;if(DS.i>=DS.q.length){RENDER.solve();return;}drillPrep();solveDraw();qs("#svItems").scrollTop=0;}
+function drillSkip(){drillData().skip[drillEntry().bid]=today();save("drill");toast("1週間たったら、また出します");drillNext();}
+function drillQuit(){DS.q.length=DS.i;RENDER.solve();}
+function drillReportAsk(){
+ openOv(`<h3>この問題おかしい</h3><p class="note" style="margin-bottom:8px">おうちの人に知らせます。この問題は×にしません。</p>
+  <div class="btnrow" style="flex-direction:column">${["写真の位置がずれている","正解がちがう","答え方がおかしい","その他"].map(r=>`<button class="btn sub" onclick="drillReport('${r}')">${r}</button>`).join("")}</div>`);}
+function drillReport(reason){
+ const X=drillIndex(),e=drillEntry(),B=X.block[e.bid],c=DS.cur,d=drillData();
+ // この大問でいま付けた記録を取り消す(×にしない)
+ c.rec.slice().reverse().forEach(r=>{const h=d.log[r.id];if(h&&h.length-1===r.i){const x=h.pop();if(x.ok)DS.ok--;else DS.ng--;}if(h&&!h.length)delete d.log[r.id];});
+ c.rec=[];c.reported=true;
+ d.reports.push({id:"r"+Date.now(),bk:B.bk,page:B.page,bid:B.bid,no:B.bl.no||"",workbook:B.book.workbook,sub:B.sub,reason,date:today(),done:false,
+  answers:drillItemsNow().map((it,k)=>({no:it.no,mine:c.ans[k]||"",answer:it.answer}))});
+ save("drill");closeOv();toast("知らせました。この問題は×にしません");drillNext();}
+
+/* --- 子どもの画面:学校ドリル --- */
+function drillPageState(B_list){
+ let any=false,all=true,x=false;
+ B_list.forEach(B=>(B.bl.items||[]).forEach(it=>{const s=drillState(it.id);if(s!=="new")any=true;else all=false;if(s==="x")x=true;}));
+ return x?"x":all&&any?"done":any?"part":"none";}
+RENDER.drill=function(){
+ const X=drillIndex(),el=qs("#s-drill");
+ if(!X.books.length){el.innerHTML=`<div class="card"><h2>✏️ 学校ドリル</h2><p class="note">まだワークが入っていません。おうちの人が取り込むと、ここに出ます。</p></div>`;return;}
+ const nr=drillRedoLeft();
+ const subs=SUB_ORDER.filter(s=>X.books.some(b=>b.subject===s));
+ el.innerHTML=`<button class="btn big wide ${nr?"":"sub"}" ${nr?"":"disabled"} onclick="drillStart('redo')">🔁 ×の解き直し${nr?`(${nr}問)`:"はありません"}</button>
+  ${subs.map(s=>{const left=drillWorkLeft(s);
+   return `<div class="card"><div class="drhead"><h2>${esc(subLabel(s))}</h2><button class="btn ${left?"":"sub"}" ${left?"":"disabled"} onclick="drillStart('work',{sub:'${s}'})">▶ つづきから${left?`(のこり${left}問)`:""}</button></div>
+    ${X.books.filter(b=>b.subject===s).map(bk=>{
+     const pages=[...new Set(X.blocks.filter(B=>B.bk===bk.key).map(B=>B.page))];
+     return `<div class="unit"><h3>${esc(bk.workbook)}</h3><div class="pgchips">${pages.map(p=>{
+      const st=drillPageState(X.blocks.filter(B=>B.bk===bk.key&&B.page===p));
+      return `<button class="pgc ${st}" onclick="drillStart('page',{bk:'${esc(bk.key).replace(/'/g,"")}',page:${p}})">p${p}</button>`;}).join("")}</div></div>`;}).join("")}
+   </div>`;}).join("")}
+  <p class="note">ページの色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。「つづきから」は、まだ解いていない問題をページ順に出します。<br>○だった問題をもう一度やりたい時は、<b>ページの札(p52など)をタップ</b>すると、そのページを全部もう一度解けます。</p>`;};
+
+/* --- 取り込み(保護者モード→③) --- */
+function drillImportJson(j){
+ if(!j||!Array.isArray(j.pages))throw new Error("ワークのファイルではありません(pages がありません)");
+ if(!SUBJECTS.some(s=>s.id===j.subject))throw new Error("教科(subject)が読めません:"+j.subject);
+ const d=drillData(),key=j.subject+"|"+(j.workbook||"ワーク");
+ const bk=d.books[key]||(d.books[key]={key,workbook:j.workbook||"ワーク",subject:j.subject,pages:[]});
+ const rep={key,workbook:bk.workbook,subject:j.subject,pages:[],blocks:0,items:0,warn:[],imgs:[]};
+ j.pages.forEach(pg=>{
+  const page=Number(pg.page);if(!page){rep.warn.push("ページ番号が無いページがありました(飛ばしました)");return;}
+  const blocks=(pg.blocks||[]).map((bl,bi)=>{
+   const bid=bl.bid||`${j.subject}-w${page}-${bl.no||bi+1}`;
+   if(!bl.region)rep.warn.push(`p${page} ${bl.no||""}:位置(region)が無いので、ページ全体を出します`);
+   const items=(bl.items||[]).map((it,ii)=>{
+    const id=it.id||`${bid}-${ii+1}`;
+    if(!["choice","order","word","number","sentence","self"].includes(it.type))rep.warn.push(`p${page} ${bl.no||""}${it.no||""}:答え方(type)が読めないので、自分で判定する形にしました`);
+    if(it.type!=="self"&&!it.answer)rep.warn.push(`p${page} ${bl.no||""}${it.no||""}:正解がありません`);
+    return {...it,id,type:["choice","order","word","number","sentence","self"].includes(it.type)?it.type:"self"};});
+   rep.items+=items.length;
+   return {bid,unit:bl.unit||"",no:bl.no||"",region:bl.region||null,answerRegion:bl.answerRegion||null,items};});
+  rep.blocks+=blocks.length;
+  const i=bk.pages.findIndex(p=>p.page===page),obj={page,answerPage:pg.answerPage||null,blocks};
+  if(i>=0)bk.pages[i]=obj;else bk.pages.push(obj); // 同じページは上書き(○×は小問idで引き継がれる)
+  if(pg.image)rep.imgs.push([key+"|q|"+page,pg.image]);else rep.warn.push(`p${page}:ページの写真がありません`);
+  if(pg.answerImage)rep.imgs.push([key+"|a|"+page,pg.answerImage]);
+  rep.pages.push(page);});
+ bk.pages.sort((a,b)=>a.page-b.page);bk.importedAt=new Date().toISOString();
+ return rep;}
+async function drillImportFile(inp){
+ const files=[...inp.files];inp.value="";if(!files.length)return;
+ const out=[];
+ for(const f of files){
+  try{
+   const txt=await f.text(),j=JSON.parse(txt);
+   const rep=drillImportJson(j);
+   for(const [k,v] of rep.imgs){await dbPut("pages",k,v);IMGC.delete(k);}
+   out.push(rep);
+  }catch(e){out.push({error:f.name+":"+e.message});}}
+ DX=null;await save("drill");
+ drillLastImport=out;renderCurrent();
+ const ok=out.filter(r=>!r.error);
+ if(ok.length)toast("取り込みました("+ok.map(r=>subLabel(r.subject)+" "+r.pages.length+"ページ").join("、")+")");}
+let drillLastImport=null;
+const DRILL_RULES=`あなたは「まなびば変換」です。中学生の学校ワーク(問題集)の写真を、まなびば(家庭学習アプリ)に取り込む1つのJSONファイルに変換します。
+
+# 受け取るもの
+- 学校ワークの「問題ページ」と「解答ページ」の写真(スマホで撮影。順番・ファイル名はばらばら)。
+
+# やること
+1. 写真ごとにページ番号を読み、問題ページと解答ページを見分けて対応づける。
+2. 写真は「傾きを直して、長辺1400px程度・JPEG(品質0.7前後、1枚200KB前後)に縮小」するだけで、切り抜かない。コード実行を使い、data:image/jpeg;base64,… の形でファイルに埋め込む。
+3. 問題ページの大問ごとに、ページ写真の中の位置 region({x,y,w,h}。写真の幅・高さに対する0〜1の割合。少し余白を含める)と、解答ページの中の位置 answerRegion を決める。
+4. 大問の中の小問ごとに、正解と答え方を作る。問題文は書き写さない。
+5. 下の形式で、1つの .json ファイルを作ってダウンロードできるようにする(ファイル名の例:work_math_p52-58.json)。
+6. 読めないページ・解答ページが足りないページがあれば、ファイルとは別に「撮り直してほしいページ」をはっきり書く。
+
+# 形式
+{"workbook":"数学ワーク","subject":"math","pages":[
+ {"page":52,"image":"data:image/jpeg;base64,...","answerPage":12,"answerImage":"data:image/jpeg;base64,...",
+  "blocks":[{"bid":"math-w52-2","unit":"文字式の利用","no":"2",
+   "region":{"x":0.0,"y":0.42,"w":1.0,"h":0.33},"answerRegion":{"x":0.5,"y":0.1,"w":0.5,"h":0.15},
+   "items":[{"id":"math-w52-2-1","no":"(1)","type":"number","answer":"20-x","alt":["-x+20"],"exp":"縦＋横＝20だから 横＝20-x"},
+            {"id":"math-w52-2-2","no":"(2)","type":"self","answer":"x(20-x) cm²","rubric":["式を書いている","答えに単位 cm² がある"]}]}]}]}
+
+- subject:math=数学、eng=英語、jpn=国語、sci=理科、geo=地理、his=歴史 のどれか。
+- id は「教科-wページ-大問-小問の順番」で必ず付け、同じ問題なら毎回同じ id にする(取り込み直しても記録が引き継がれるため)。
+- type:choice(選択・記号。choices に記号の一覧を入れる)/order(英語の並べかえ。words に語の一覧、answer に完成した文)/word(語句・漢字)/number(数値・式の答え)/sentence(英文)/self(途中式・記述・作図など、ノートに書いて自分で判定するもの。rubric に採点の目安を2〜4個)。
+- answer は解答ページのとおりに。英語のコンマ・「?」・大文字、数学の符号と単位もそのまま書く。alt には、正解として認めてよい別の書き方を入れる。
+- exp は解答ページに解説があれば短く入れる。
+- 手書きの書き込み(丸つけ・答えの書き込み)は無視する。
+- べき乗は上付き文字(5²など)を使う。`;
+function copyText(t){
+ const done=()=>toast("コピーしました");
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done,()=>fallback());else fallback();
+ function fallback(){const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand("copy");done();}catch(e){toast("コピーできませんでした");}ta.remove();}}
+async function drillDeleteBook(key){
+ const bk=drillData().books[key];if(!bk)return;
+ if(!confirm("「"+bk.workbook+"」を消します。(解いた記録は残ります)\nよろしいですか?"))return;
+ for(const p of bk.pages){for(const t of ["q","a"]){try{await dbTx("pages","readwrite",st=>st.delete(key+"|"+t+"|"+p.page));}catch(e){}IMGC.delete(key+"|"+t+"|"+p.page);}}
+ delete drillData().books[key];DX=null;await save("drill");renderCurrent();toast("消しました");}
+RENDER.dimp=function(){
+ const X=drillIndex(),last=drillLastImport;
+ qs("#s-dimp").innerHTML=`
+  <div class="card flow"><h2>ワークを取り込む(3ステップ)</h2>
+   <ol class="flowl">
+    <li><b>📱 スマホで撮る</b><span>問題ページと答えのページを、上から真っすぐ1ページ1枚。順番は気にしなくてよい。</span></li>
+    <li><b>💬 Claudeに送る</b><span>プロジェクト「まなびば変換」で<b>新しいチャット</b>を開き、写真をまとめて送る → ファイルができる。</span></li>
+    <li><b>💻 ここでファイルを選ぶ</b><span>このパソコンで、できたファイルを下のボタンで選ぶだけ。</span></li>
+   </ol>
+   <button class="btn big wide" onclick="qs('#fileDrill').click()">📂 ファイルを選ぶ</button>
+   <p class="note" style="margin-top:6px">入れたワークは、下の「学校ドリル」に教科ごとに出ます。同じページを入れ直すと上書きし、解いた記録はそのまま残ります。</p>
+  </div>
+  ${last?`<div class="card"><h2>取り込みの結果</h2>${last.map(r=>r.error?`<p style="color:var(--red)">⚠️ ${esc(r.error)}</p>`:
+   `<p>✅ ${esc(subLabel(r.subject))}「${esc(r.workbook)}」 p${r.pages.join(", p")}(大問${r.blocks}・小問${r.items})</p>${r.warn.length?`<details class="more"><summary>気になる点 ${r.warn.length}件(この問題は「おかしい」の報告で直せます)</summary><ul class="warnl">${r.warn.map(w=>`<li>${esc(w)}</li>`).join("")}</ul></details>`:""}`).join("")}</div>`:""}
+  <div class="card"><h2>入っているワーク</h2>
+   ${X.books.length?X.books.map(bk=>`<div class="bkrow"><span><b>${esc(subLabel(bk.subject))}</b> ${esc(bk.workbook)} <small class="note">p${bk.pages.map(p=>p.page).join(",")}</small></span><button class="btn sub sm" onclick="drillDeleteBook('${esc(bk.key).replace(/'/g,"")}')">消す</button></div>`).join(""):`<p class="note">まだありません。</p>`}
+   <div class="btnrow">${X.books.some(b=>b.key.includes("お試し"))?"":`<button class="btn sub sm" onclick="drillLoadSample()">🧪 お試しのワークを入れる</button>`}</div>
+  </div>
+  <details class="more card"><summary>はじめての時だけ:Claudeのプロジェクトの準備</summary>
+   <p class="note" style="margin:6px 0">Claudeで「まなびば変換」というプロジェクトを作り、プロジェクトの指示(カスタム指示)に下の文を貼ります。コード実行(ファイル作成)をオンにしておきます。1回やれば、あとは毎回「新しいチャット」で写真を送るだけです。</p>
+   <button class="btn" onclick="copyText(DRILL_RULES)">📋 指示の文をコピー</button>
+   <div class="ctxbox" style="max-height:200px;overflow:auto">${esc(DRILL_RULES)}</div>
+  </details>`;};
+
+/* --- お試しのワーク(本物のワークが届くまで、画面を試す用) --- */
+function sampleSvg(page,title,blocks,isAns){
+ const W=1000,H=1400;let s=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fffef8"/>`;
+ s+=`<text x="40" y="70" font-size="34" font-family="sans-serif" fill="#333">${isAns?"解答 ":""}${title}</text><text x="${W-40}" y="70" font-size="30" text-anchor="end" font-family="sans-serif" fill="#666">p.${page}</text>`;
+ blocks.forEach(b=>{const r=b.r;s+=`<rect x="${r.x*W}" y="${r.y*H}" width="${r.w*W}" height="${r.h*H}" fill="none" stroke="#bbb" stroke-width="2" rx="10"/>`;
+  b.lines.forEach((l,i)=>{s+=`<text x="${r.x*W+24}" y="${r.y*H+50+i*48}" font-size="${i?28:32}" font-family="sans-serif" fill="${isAns?"#c33":"#222"}">${l.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</text>`;});});
+ return "data:image/svg+xml;charset=utf-8,"+encodeURIComponent(s+"</svg>");}
+function drillSampleJson(){
+ const m52=[{r:{x:.04,y:.08,w:.92,h:.22},no:"1",lines:["1  次の計算をしなさい。","(1)  3x + 5x","(2)  7a − 2a − a"]},
+  {r:{x:.04,y:.33,w:.92,h:.26},no:"2",lines:["2  まわりの長さが40cmの長方形で、縦を x cm とする。","(1)  横の長さを x を使って表しなさい。","(2)  面積を表す式を書きなさい。(ノートに式も)"]},
+  {r:{x:.04,y:.62,w:.92,h:.30},no:"3",lines:["3  正しいものを1つ選びなさい。","ア  2x×3 = 5x","イ  4a−a = 4","ウ  6x÷2 = 3x","エ  x+x = x²"]}];
+ const a52=[{r:m52[0].r,lines:["1","(1) 8x","(2) 4a"]},{r:m52[1].r,lines:["2","(1) 20−x","(2) x(20−x) cm²"]},{r:m52[2].r,lines:["3","ウ"]}];
+ const m53=[{r:{x:.04,y:.08,w:.92,h:.24},no:"4",lines:["4  方程式を解きなさい。","(1)  x + 3 = 8","(2)  2x = −6"]}];
+ const a53=[{r:m53[0].r,lines:["4","(1) x=5","(2) x=−3"]}];
+ const e20=[{r:{x:.04,y:.08,w:.92,h:.17},no:"1",lines:["1  (   )に入る語を書きなさい。","I (   ) a student."]},
+  {r:{x:.04,y:.28,w:.92,h:.17},no:"2",lines:["2  英語にしなさい。","窓を開けてください。"]},
+  {r:{x:.04,y:.48,w:.92,h:.19},no:"3",lines:["3  並べかえて、文を書きなさい。","( are / you / how ) ?"]},
+  {r:{x:.04,y:.70,w:.92,h:.22},no:"4",lines:["4  正しいほうを選びなさい。","This is (ア a  イ an) apple."]}];
+ const ae20=[{r:e20[0].r,lines:["1","am"]},{r:e20[1].r,lines:["2","Please open the window."]},{r:e20[2].r,lines:["3","How are you?"]},{r:e20[3].r,lines:["4","イ"]}];
+ return [
+  {workbook:"お試しワーク(数学)",subject:"math",pages:[
+   {page:52,image:sampleSvg(52,"文字式",m52),answerPage:12,answerImage:sampleSvg(12,"文字式",a52,true),blocks:[
+    {bid:"math-w52-1",unit:"文字式",no:"1",region:m52[0].r,answerRegion:a52[0].r,items:[{id:"math-w52-1-1",no:"(1)",type:"number",answer:"8x"},{id:"math-w52-1-2",no:"(2)",type:"number",answer:"4a"}]},
+    {bid:"math-w52-2",unit:"文字式の利用",no:"2",region:m52[1].r,answerRegion:a52[1].r,items:[{id:"math-w52-2-1",no:"(1)",type:"number",answer:"20-x",alt:["-x+20"],exp:"縦＋横＝20だから 横＝20-x"},{id:"math-w52-2-2",no:"(2)",type:"self",answer:"x(20-x) cm²",rubric:["式を書いている","答えに単位 cm² がある"]}]},
+    {bid:"math-w52-3",unit:"文字式",no:"3",region:m52[2].r,answerRegion:a52[2].r,items:[{id:"math-w52-3-1",no:"",type:"choice",choices:["ア","イ","ウ","エ"],answer:"ウ"}]}]},
+   {page:53,image:sampleSvg(53,"方程式",m53),answerPage:12,answerImage:sampleSvg(12,"方程式",a53,true),blocks:[
+    {bid:"math-w53-4",unit:"方程式",no:"4",region:m53[0].r,answerRegion:a53[0].r,items:[{id:"math-w53-4-1",no:"(1)",type:"number",answer:"x=5",alt:["5"]},{id:"math-w53-4-2",no:"(2)",type:"number",answer:"x=-3",alt:["-3"]}]}]}]},
+  {workbook:"お試しワーク(英語)",subject:"eng",pages:[
+   {page:20,image:sampleSvg(20,"Unit 1",e20),answerPage:5,answerImage:sampleSvg(5,"Unit 1",ae20,true),blocks:[
+    {bid:"eng-w20-1",unit:"Unit 1",no:"1",region:e20[0].r,answerRegion:ae20[0].r,items:[{id:"eng-w20-1-1",no:"",type:"word",answer:"am"}]},
+    {bid:"eng-w20-2",unit:"Unit 1",no:"2",region:e20[1].r,answerRegion:ae20[1].r,items:[{id:"eng-w20-2-1",no:"",type:"sentence",answer:"Please open the window.",alt:["Open the window, please."]}]},
+    {bid:"eng-w20-3",unit:"Unit 1",no:"3",region:e20[2].r,answerRegion:ae20[2].r,items:[{id:"eng-w20-3-1",no:"",type:"order",words:["are","you","how"],answer:"How are you?"}]},
+    {bid:"eng-w20-4",unit:"Unit 1",no:"4",region:e20[3].r,answerRegion:ae20[3].r,items:[{id:"eng-w20-4-1",no:"",type:"choice",choices:["ア","イ"],answer:"イ"}]}]}]}];}
+async function drillLoadSample(){
+ const out=[];
+ for(const j of drillSampleJson()){const rep=drillImportJson(j);for(const [k,v] of rep.imgs){await dbPut("pages",k,v);IMGC.delete(k);}out.push(rep);}
+ DX=null;await save("drill");drillLastImport=out;renderCurrent();toast("お試しのワークを入れました(学校ドリルで試せます)");}
+
+/* --- 問題の報告(保護者モード→④) --- */
+function drillReportDone(id){const r=drillData().reports.find(x=>x.id===id);if(r){r.done=true;save("drill");renderCurrent();}}
+function drillReportsText(){
+ const rs=drillData().reports.filter(r=>!r.done);
+ return "まなびばの「この問題おかしい」の報告です。直したページのファイルを作り直してください(id はそのまま)。\n"+rs.map(r=>`- ${r.workbook}(${r.sub}) p${r.page} 大問${r.no}(bid:${r.bid}):${r.reason}。${(r.answers||[]).map(a=>`${a.no||""} 本人の答え「${a.mine}」/今の正解「${a.answer}」`).join("、")}`).join("\n");}
+RENDER.drep=function(){
+ const rs=drillData().reports.filter(r=>!r.done);
+ qs("#s-drep").innerHTML=`<div class="card"><h2>「この問題おかしい」の報告</h2>
+  ${rs.length?`<p class="note" style="margin-bottom:8px">報告された問題は、直すまで出しません(×にもしていません)。下のボタンでまとめてコピーし、Claudeの「まなびば変換」の新しいチャットに、そのページの写真といっしょに送ると直したファイルができます。取り込み直したら「直した」を押します。</p>
+   <button class="btn" onclick="copyText(drillReportsText())">📋 報告をまとめてコピー</button>
+   ${rs.map(r=>`<div class="bkrow"><span><b>${esc(subLabel(r.sub))}</b> ${esc(r.workbook)} p${r.page} 大問${esc(r.no)}<br><small class="note">${esc(r.reason)}・${esc(mdOf(r.date))}</small></span><button class="btn sub sm" onclick="drillReportDone('${r.id}')">直した</button></div>`).join("")}`
+  :`<p class="note">報告はありません。</p>`}</div>`;};
+
+/* --- 紙の×を入れる(保護者モード) --- */
+let paperBk=null,paperPage=null;
+function paperToggle(id){
+ const d=drillData(),h=d.log[id]||(d.log[id]=[]);
+ const i=h.findIndex(r=>r.paper&&r.d===today());
+ if(i>=0){h.splice(i,1);if(!h.length)delete d.log[id];}else h.push({d:today(),ok:false,a:"(紙で×)",paper:true});
+ save("drill");renderCurrent();}
+RENDER.dpaper=function(){
+ const X=drillIndex(),el=qs("#s-dpaper");
+ if(!X.books.length){el.innerHTML=`<div class="card"><p class="note">まだワークが入っていません。</p></div>`;return;}
+ if(!X.books.some(b=>b.key===paperBk))paperBk=X.books[0].key;
+ const bl=X.blocks.filter(B=>B.bk===paperBk),pages=[...new Set(bl.map(B=>B.page))];
+ if(!pages.includes(paperPage))paperPage=pages[0];
+ el.innerHTML=`<p class="note" style="margin-bottom:8px">紙のワークで×だった問題をタップすると、ドリルの×に入ります。入れた×は、<b>あしたからの「×の解き直し」</b>に出ます(もう一度タップで取り消し)。</p>
+  <div class="segs">${X.books.map(b=>`<button class="${b.key===paperBk?"on":""}" onclick="paperBk='${esc(b.key).replace(/'/g,"")}';paperPage=null;renderCurrent()">${esc(subLabel(b.subject))} ${esc(b.workbook)}</button>`).join("")}</div>
+  <div class="pgchips" style="margin-bottom:10px">${pages.map(p=>`<button class="pgc ${p===paperPage?"cur":""}" onclick="paperPage=${p};renderCurrent()">p${p}</button>`).join("")}</div>
+  <div class="card">${bl.filter(B=>B.page===paperPage).map(B=>`<div class="unit"><h3>大問 ${esc(B.bl.no)}</h3><div class="chs">${(B.bl.items||[]).map(it=>{
+    const on=(drillHist(it.id)).some(r=>r.paper&&r.d===today());
+    return `<button class="chb ${on?"ng":""}" onclick="paperToggle('${esc(it.id).replace(/'/g,"")}')">${esc(B.bl.no)}${esc(it.no||"")}${on?" ×":""}</button>`;}).join("")}</div></div>`).join("")}</div>`;};
+
+/* --- 今日と今週(保護者)に、ドリルの×と教科ごとの数を足す --- */
+function drillFix(id,i){
+ const d=drillData(),r=(d.log[id]||[])[i];if(!r)return;
+ r.ok=true;r.fixed=true;
+ const a=(r.a||"").trim();if(a&&!a.startsWith("(")){if(!d.alt[id])d.alt[id]=[];if(!d.alt[id].includes(a))d.alt[id].push(a);}
+ save("drill");renderCurrent();toast("○に直しました(この答えは次から正解になります)");}
+const _weekBase=RENDER.week;
+RENDER.week=function(){
+ _weekBase();
+ const X=drillIndex(),d=drillData(),td=today(),mon=mondayOf(td);
+ if(!X.books.length)return;
+ const xs=[];Object.entries(d.log).forEach(([id,h])=>h.forEach((r,i)=>{if(!r.ok&&r.d===td&&X.items[id])xs.push({id,i,r,...X.items[id]});}));
+ const wk=Array.from({length:7},(_,k)=>addDaysIso(mon,k)).map(day=>({day,n:Object.values(d.log).reduce((a,h)=>a+h.filter(r=>!r.ok&&r.d===day).length,0)}));
+ const subs=SUB_ORDER.filter(s=>X.books.some(b=>b.subject===s));
+ const nig=Object.keys(X.items).filter(id=>drillNigate(id)&&drillState(id)==="x");
+ qs("#s-week").insertAdjacentHTML("beforeend",`
+  <div class="card"><h2>✏️ ドリル 今日の×(${xs.length})</h2>
+   ${xs.length?xs.map(x=>`<div class="xrow"><div><b>${esc(subLabel(x.B.sub))}</b> p${x.B.page} ${esc(x.B.bl.no)}${esc(x.it.no||"")}${x.r.paper?" <small>(紙)</small>":""}
+     <div class="note">答え「${esc(x.r.a)}」/正解「${esc(x.it.answer||"")}」</div></div>
+     ${x.r.paper||x.it.type==="self"?"":`<button class="btn sub sm" onclick="drillFix('${esc(x.id).replace(/'/g,"")}',${x.i})">○に直す</button>`}</div>`).join(""):`<p class="note">今日の×はありません。</p>`}
+   <p class="note" style="margin-top:6px">今週の×:${wk.map(w=>`${WDAY[dowOf(w.day)]}${w.n}`).join(" ")}。「○に直す」は、別の書き方で正しかった時に使います(その答えは次から正解になります)。</p></div>
+  <div class="card"><h2>✏️ ドリル 教科ごと</h2>
+   <div class="dtab"><span></span><b>全問題</b><b>解いた</b><b>×のこり</b>${subs.map(s=>{
+     const ids=Object.keys(X.items).filter(id=>X.items[id].B.sub===s);
+     return `<span>${esc(subLabel(s))}</span><span>${ids.length}</span><span>${ids.filter(id=>drillState(id)!=="new").length}</span><span>${ids.filter(id=>drillState(id)==="x").length}</span>`;}).join("")}</div>
+   ${nig.length?`<h3 style="margin-top:10px;font-size:14px">⚠️ 苦手(3回以上×)</h3>${nig.map(id=>{const x=X.items[id];return `<div class="note">${esc(subLabel(x.B.sub))} ${esc(x.B.book.workbook)} p${x.B.page} ${esc(x.B.bl.no)}${esc(x.it.no||"")}(×${drillXCount(id)}回)</div>`;}).join("")}`:""}
+  </div>`);};
+Object.assign(TITLES,{solve:"✏️ 学校ドリル",dimp:"③ ドリルの取り込み",drep:"④ 問題の報告",dpaper:"📝 紙の×を入れる"});
 
 /* ---------- 起動 ---------- */
 (async function boot(){
