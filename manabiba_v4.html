@@ -1161,7 +1161,7 @@ const MANUAL=`## 全体
 - 日の種類ごとのやること: 通常=①前日の×15分 ②暗記15分 ③スタサプ「今週のミッション」30分 ④休憩15分 ⑤学校ワーク40分 ⑥直し20分。暗記＋直し(夜練・試合など時間が少ない日)=①前日の×15分 ②暗記(英単語か漢字)。暗記のみ=暗記15分。休み=何もなし。
 - ②〜⑤はその日のメイン教科でそろえる。暗記の中身は、国語=漢字、英語=英単語、社会=社会、理科=理科、数学=英単語。
 - メイン教科は、「通常」の日ごとに 国語→数学→社会→理科→英語→数学 の順で回る(暗記＋直し・暗記のみ・休みの日は順番が進まない)。
-- テスト日の前は、テストの前日に終わるよう1期→2期→3期と自動で切り替わる(初期値は5日・5日・3日)。③スタサプはテスト対策の講座、④⑤は期ごとの中身(1期=検査とワーク1回目、2期=解き直し1回目、3期=解き直し2回目と模擬テスト)に変わる。
+- テスト日の前は、テストの前日に終わるよう1期→2期→3期と自動で切り替わる(初期値は5日・5日・3日)。日数は「通常」の日だけで数える(暗記のみ・暗記＋直し・休み・テストの日は数えず、その分だけ前の日へ繰り上がる)。2日続くテストは、両方の日をテスト日として登録する。③スタサプはテスト対策の講座、④⑤は期ごとの中身(1期=検査とワーク1回目、2期=解き直し1回目、3期=解き直し2回目と模擬テスト)に変わる。
 
 ## 日課表の設定(カレンダー)
 - 上のボタンで「ぬる種類」を選び、日をタップすると、その日がその種類になる。通常・暗記＋直し(夜練・試合など時間が少ない日)・暗記のみ・休み。初期値はすべて通常。
@@ -1319,14 +1319,18 @@ function planMainMap(until){
   if(ov){map[d]=ov;if(ov===ROT[k]){k=(k+1)%ROT.length;}}
   else{map[d]=ROT[k];k=(k+1)%ROT.length;}}
  return map;}
-/** テスト前の期(1〜3、0=なし)。いちばん近い、これからのテスト日から逆算する */
+/** テスト前の期(1〜3、0=なし)。いちばん近い、これからのテスト日から逆算する。
+ * 数えるのは「通常」の日だけ(暗記のみ・暗記＋直し・休み・テストの日は期の中身が無いので数えず、その分だけ前へ繰り上がる) */
 function planPhaseOf(iso){
- const p=planInit();
- const t=p.tests.map(x=>x.date).filter(d=>d>iso).sort()[0];
+ const p=planInit(),td=new Set(p.tests.map(x=>x.date));
+ if(td.has(iso))return {phase:0,left:0};
+ const t=[...td].filter(d=>d>iso).sort()[0];
  if(!t)return {phase:0,left:null};
- const n=daysBetween(iso,t),[a,b,c]=p.phase;
+ const [a,b,c]=p.phase,all=a+b+c;
+ let n=0;for(let d=iso;d<t&&n<=all;d=addDaysIso(d,1))if(planTypeOf(d)==="B"&&!td.has(d))n++;
+ if(planTypeOf(iso)!=="B")return {phase:0,left:daysBetween(iso,t),test:t};
  let ph=0;if(n<=c)ph=3;else if(n<=c+b)ph=2;else if(n<=c+b+a)ph=1;
- return {phase:ph,left:n,test:t};}
+ return {phase:ph,left:daysBetween(iso,t),test:t};}
 const PH_TEXT={
  1:{t:"検査→ワーク1回目",h:"各教科のまとめ問題を『検査』として解く → ×の出た単元から順に、紙のワークを見ずに解く(1回目)。必ず入れる:理科の仕上げページ(キホンの入試〜単元の完成)、数学の1学期範囲"},
  2:{t:"解き直し(1回目)",h:"間違えたところを、紙のワークで解き直す(1回目)"},
@@ -1446,7 +1450,7 @@ RENDER.home=function(){
  const iso=today(),info=planDayInfo(iso),dn=planDone(iso),cnt=planCount(info);
  const next=info.rows.find(r=>!dn[r.key]);
  const total=planInit().phase.reduce((a,b)=>a+b,0);
- const phTxt=info.left!==null&&info.left>0&&info.left<=total?`<span class="chip warn">テストまで あと${info.left}日${info.phase?"・"+info.phase+"期":""}</span>`:"";
+ const phTxt=info.left!==null&&info.left>0&&(info.phase||info.left<=total)?`<span class="chip warn">テストまで あと${info.left}日${info.phase?"・"+info.phase+"期":""}</span>`:"";
  const head=`<div class="dayhead"><div><b>${mdOf(iso)}(${WDAY[dowOf(iso)]})</b>
    <span class="chip t-${info.type}">${DAY_TYPES[info.type]}</span>
    ${info.main?`<span class="chip main">メイン:${esc(info.mn)}</span>`:""}${phTxt}</div>
