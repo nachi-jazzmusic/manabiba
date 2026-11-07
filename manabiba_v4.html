@@ -207,6 +207,19 @@ body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
 .prow.done{opacity:.55}
 .pchk{flex:none;width:56px;min-height:56px;border-radius:14px;border:2px solid var(--line);background:#fff;font-size:28px;font-weight:900;color:var(--mint);align-self:center}
 .prow.done .pchk{background:var(--mint);border-color:var(--mint);color:#fff}
+.exbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:#FDF6E3;border:1.5px solid #E8B84B;border-radius:14px;padding:10px 14px;margin-bottom:10px;font-family:var(--disp);font-weight:900;font-size:15px;text-align:left}
+.exbtn span{font-size:13px;font-weight:700;color:var(--ink-soft)}
+.exbtn.hot span{color:var(--red)}
+.exsubs{display:flex;flex-direction:column;gap:8px}
+.exsub{display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:6px 10px 6px 6px}
+.exsub .pchk{width:48px;min-height:48px;font-size:24px}
+.exsub.done{opacity:.55}.exsub.done .pchk{background:var(--mint);border-color:var(--mint);color:#fff}
+.exsb{display:flex;flex-direction:column;gap:2px;min-width:0}
+.exsb b{font-size:15px}
+.exlab{display:inline-block;min-width:3.2em;font-size:12px;font-weight:700;padding:0 6px;margin-right:6px;border-radius:6px;background:var(--mint-soft);text-align:center}
+.exrng{display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:start}
+.exr{display:contents}
+.exta{width:100%;min-height:110px;margin:8px 0;padding:8px 10px;border:1.5px solid var(--line);border-radius:12px;font-size:13px;font-family:inherit}
 .pmain{flex:1;min-width:0;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:1px;padding:4px 0}
 .pmain b{font-family:var(--disp);font-size:18px;font-weight:900}
 .pmain small{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
@@ -292,6 +305,10 @@ mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:
 .pgc.none{border-style:dashed;color:var(--ink-soft)}
 .pgc.done{background:var(--mint-soft);border-color:var(--mint)}
 .pgc.x{background:var(--red-soft);border-color:var(--red)}
+.bkname{font-size:12px;font-weight:700;color:var(--ink-soft);margin:8px 0 0}
+.dfilter{display:flex;gap:6px;margin:10px 0}
+.dfilter button{flex:1;padding:10px 6px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:14px;color:var(--ink-soft)}
+.dfilter button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .pgc.cur{background:var(--ink);color:#fff;border-color:var(--ink)}
 .flowl{list-style:none;counter-reset:f;display:flex;flex-direction:column;gap:8px;margin:6px 0 12px}
 .flowl li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 12px;border-radius:12px;background:var(--paper);border:1.5px solid var(--line)}
@@ -330,6 +347,7 @@ mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:
   <section class="screen" id="s-dimp"></section>
   <section class="screen" id="s-drep"></section>
   <section class="screen" id="s-dpaper"></section>
+  <section class="screen" id="s-exam"></section>
 </main>
 
 <nav class="tabbar" id="tabbar">
@@ -611,6 +629,7 @@ const RENDER={
     <button class="ptile go" onclick="goTo('cal')"><b>② カレンダー</b><span>日の種類・メイン教科・テスト日</span></button>
     <button class="ptile go" onclick="goTo('dimp')"><b>③ ドリルの取り込み</b><span>ファイルを選ぶだけ</span></button>
     <button class="ptile go" onclick="goTo('drep')"><b>④ 問題の報告</b><span>「この問題おかしい」${((D.drill||{}).reports||[]).filter(r=>!r.done).length}件</span></button>
+    <button class="ptile go" onclick="goTo('exam')"><b>⑤ テスト範囲・提出物</b><span>範囲表の写真→Claude→貼るだけ</span></button>
     <button class="ptile go" onclick="goTo('dpaper')"><b>📝 紙の×を入れる</b><span>紙のワークの×をタップで</span></button>
     <button class="ptile go" onclick="chatFresh('ppome');goTo('ppome')"><b>🐕 親ポメ</b><span>相談・使い方の質問(${(p.pchats||[]).length}件)</span></button>
     <button class="ptile go" onclick="goTo('cman')"><b>🃏 カード管理</b><span>今日のカンペ・済みの管理</span></button>
@@ -1103,6 +1122,9 @@ function ctxPlanDrill(){
   s+="\n今日の日課:"+DAY_TYPES[info.type]+(info.main?"・メイン教科 "+info.mn:"")+(info.rows.length?"。"+info.rows.map(r=>r.no+r.title+(dn[r.key]?"(済)":"")).join(" "):"");}catch(e){}
  try{const X=drillIndex(),xs=Object.keys(X.items).filter(id=>drillState(id)==="x").slice(0,8);
   s+="\n学校ドリルで×が残っている問題:"+(xs.length?xs.map(id=>{const x=X.items[id],l=drillLast(id);return subLabel(x.B.sub)+" "+x.B.book.workbook+" p"+x.B.page+" "+(x.B.bl.no||"")+(x.it.no||"")+"(本人の答え「"+l.a+"」/正解「"+(x.it.answer||"")+"」)";}).join(" / "):"なし");}catch(e){}
+ try{const e=examActive();if(e){
+  s+="\nテスト:"+e.name+"("+e.dates.join("、")+")。範囲:"+e.subjects.map(x=>examLabel(x)+" "+x.range).join(" / ");
+  const lf=examSubsLeft(e);s+="\nまだ終わっていない提出物:"+(lf.length?lf.map(x=>examLabel(x)+" "+x.name+"(締切 "+(examDue(e,x)||"不明")+")").join(" / "):"なし");}}catch(e){}
  return s;}
 const PPOME_SYS=`あなたは「親ポメ」。中学1年生・香凜さんの保護者(お母さん)向けの学習コーチAI。
 
@@ -1136,12 +1158,15 @@ const MANUAL=`## 全体
 - 「まだ習ってない」:授業でまだやっていない大問を飛ばす。1週間たったら、また出る。
 - 「この問題おかしい」:写真の位置ずれ・正解のまちがいなどを、お母さんに知らせる。その問題は×にならず、直すまで出ない。
 - 画面:上の「🔁 ×の解き直し」=前の日までの×を、教科をまたいで古い順に出す(×だった小問だけ)。教科ごとの「▶ つづきから」=まだ解いていない問題をページ順に10大問まで。ページの札(p52など)をタップすると、○だった問題も含めてそのページを最初から全部解ける(○だった問題をもう一度やりたい時はこれ。今日×だった問題だけは、あしたまで出さない)。札の色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。
+- ページの札は、ワークの目次(保護者が入れたもの)の単元ごとに1行ずつ並ぶ。左に単元名、右にそのページ。目次が入っていないワークは、問題に書いてある単元名でまとめる。
+- テスト期間(テスト範囲を入れてから、テストが終わるまで)は、学校ドリルの画面がはじめから「📝 ◯◯の範囲」になり、テスト範囲のワークのページだけが出る(範囲表にない教科は出ない)。「▶ つづきから」も範囲の中の問題だけを出す。上の「ぜんぶ」を押すと全部の表示になる(アプリを開き直すと範囲の表示にもどる)。範囲のワークのページが分からない教科は、全部を出す。「×の解き直し」は範囲に関係なく全部出す。
 - ×のルール:×は自動で×リストに入る。同じ日には出し直さない(答えを見た直後に解いても意味がないため)。2回続けて○で卒業。3回以上×の問題は「苦手」として保護者画面に出る。
 
 ## ドリルの取り込み(保護者モード→③ドリルの取り込み)
 - 3ステップ:①スマホでワークの問題ページと答えのページを撮る ②Claudeのプロジェクト「まなびば変換」で新しいチャットを開いて写真を送る→ファイルができる ③このパソコンで「ファイルを選ぶ」。
 - はじめての時だけ、同じ画面の「Claudeのプロジェクトの準備」にある指示の文をコピーして、Claudeのプロジェクトの指示に貼る(コード実行・ファイル作成をオンにする)。
 - 同じページを入れ直すと上書きし、解いた記録はそのまま残る。入っているワークは「消す」で消せる(解いた記録は残る)。
+- 目次:「入っているワーク」の各ワークの「📑 目次を入れる」→ワークの目次のページを撮る→「まなびば変換」の新しいチャットに写真とコピーした文を送る→返事を貼って「取り込む」。1冊につき1回。入れ直すと置きかわる。目次にないページは「目次にないページ」の行にまとまる。
 - 本物のワークが届くまで試せるように「🧪 お試しのワークを入れる」がある(数学2ページ・英語1ページ)。いらなくなったら「消す」。
 
 ## 問題の報告(保護者モード→④問題の報告)
@@ -1149,6 +1174,13 @@ const MANUAL=`## 全体
 
 ## 紙の×を入れる(保護者モード→📝紙の×を入れる)
 - 紙のワークで×だった問題を、ワーク→ページ→問題番号の順にタップするとドリルの×に入る。あしたからの「×の解き直し」に出る。もう一度タップで取り消し。
+
+## テスト範囲・提出物
+- 保護者モード→⑤テスト範囲・提出物 で入れる。手順:①学校のテスト範囲表を撮る ②Claudeのプロジェクト「まなびば変換」で新しいチャットを開き、写真と「📋 Claudeに送る文をコピー」でコピーした文を送る ③Claudeの返事をコピーして貼り、「取り込む」。
+- 取り込むと、テストの日はカレンダーにも入る(すでにある日はそのまま)。新しく入れると前のテストと入れ替わる(同じ教科・同じ名前の提出物のチェックは引き継ぐ)。「いまのテスト範囲を消す」で消せる(カレンダーのテスト日は残る)。
+- 香凜さんは、ホームの上の「📝 テスト範囲・提出物」(テストが終わるまで出る)から開く。教科ごとの範囲と、提出物の一覧が出る。提出物は終わったら □ をタップしてチェック(もう一度で外れる)。締切まで2日以内で終わっていないものは赤字。提出日が書いていない提出物は「テストの日に提出」として扱う。
+- 範囲表に書いてあるワークのページは、学校ドリルで使う(テストが終わるまで、範囲のページだけを出す)。社会(地理・歴史が分かれていない)は、地理と歴史の両方のワークに当てはめる。ワークのページが書いていない教科は、絞らずに全部出す。
+- 範囲を入れ直したい・直したい時は、Claudeに直してもらって取り込み直す(画面で1件ずつ直す機能は無い)。
 
 ## ホーム(今日の日課・香凜さん)
 - 開くと今日の日の種類(通常/暗記＋直し/暗記のみ/休み)とメイン教科、その日のやることが上から順に並ぶ。次にやる行は緑の枠で目立つ。
@@ -1466,7 +1498,10 @@ RENDER.home=function(){
    <p class="note" style="text-align:center;margin-top:10px">□ はチェック。行をタップすると始まります。時間は目安で、守るのは順番です。</p>`;
  else body=`<div class="prows">${info.rows.map(r=>`<div class="prow done"><span class="pchk">✓</span><div class="pmain"><b>${r.no} ${esc(r.title)}</b></div></div>`).join("")}</div>
    <div class="card" style="text-align:center;background:var(--mint-soft);border-color:var(--mint)"><div style="font-size:42px">🎉</div><h2>今日はおわり!</h2><p class="note">よくがんばりました。</p></div>`;
- qs("#s-home").innerHTML=head+body;};
+ const ex=examActive();let exb="";
+ if(ex){const lf=examSubsLeft(ex),hot=lf.some(s=>{const d=examDue(ex,s);return d&&daysBetween(today(),d)<=2;});
+  exb=`<button class="exbtn ${hot?"hot":""}" onclick="goTo('exam')">📝 テスト範囲・提出物<span>${ex.subs.length?(lf.length?"提出物 のこり"+lf.length+"件"+(hot?"(もうすぐ締切)":""):"提出物 ぜんぶ終わり✓"):"範囲を見る"} ▶</span></button>`;}
+ qs("#s-home").innerHTML=head+exb+body;};
 
 /* --- 保護者:カレンダー --- */
 let calMonth=null,calMode="A";
@@ -1680,9 +1715,10 @@ function viewerBind(el){
 const DRILL_WORK_MAX=10; // 「つづきから」で1回に出す大問の数
 function drillBuildQueue(mode,opt){
  const X=drillIndex(),rep=drillOpenReports(),q=[];
- if(mode==="work"){ // その教科の、まだ解いていない小問をページ順に
+ if(mode==="work"){ // その教科の、まだ解いていない小問をページ順に(range:テスト範囲のページだけ)
+  const R=opt.range?examWork(opt.sub).pages:null;
   for(const B of X.blocks){
-   if(B.sub!==opt.sub||rep.has(B.bid)||drillSkipped(B.bid))continue;
+   if(B.sub!==opt.sub||rep.has(B.bid)||drillSkipped(B.bid)||(R&&!R.has(B.page)))continue;
    const ids=(B.bl.items||[]).filter(it=>!drillHist(it.id).length).map(it=>it.id);
    if(ids.length)q.push({bid:B.bid,ids});
    if(q.length>=DRILL_WORK_MAX)break;}}
@@ -1701,7 +1737,7 @@ function drillBuildQueue(mode,opt){
    const ids=(B.bl.items||[]).filter(it=>{const l=drillLast(it.id);return !(l&&l.d===today()&&!l.ok);}).map(it=>it.id);
    if(ids.length)q.push({bid:B.bid,ids});}}
  return q;}
-const drillWorkLeft=sub=>{const X=drillIndex(),rep=drillOpenReports();let n=0;X.blocks.forEach(B=>{if(B.sub!==sub||rep.has(B.bid)||drillSkipped(B.bid))return;(B.bl.items||[]).forEach(it=>{if(!drillHist(it.id).length)n++;});});return n;};
+const drillWorkLeft=(sub,R)=>{const X=drillIndex(),rep=drillOpenReports();let n=0;X.blocks.forEach(B=>{if(B.sub!==sub||rep.has(B.bid)||drillSkipped(B.bid)||(R&&!R.has(B.page)))return;(B.bl.items||[]).forEach(it=>{if(!drillHist(it.id).length)n++;});});return n;};
 const drillRedoLeft=()=>{const X=drillIndex(),rep=drillOpenReports();return Object.keys(X.items).filter(id=>!rep.has(X.items[id].B.bid)&&drillRedoable(id)).length;};
 
 /* --- 解く画面 --- */
@@ -1827,21 +1863,87 @@ function drillPageState(B_list){
  let any=false,all=true,x=false;
  B_list.forEach(B=>(B.bl.items||[]).forEach(it=>{const s=drillState(it.id);if(s!=="new")any=true;else all=false;if(s==="x")x=true;}));
  return x?"x":all&&any?"done":any?"part":"none";}
+/** 一覧の行:目次があれば目次の項目ごと、無ければ問題に書いてある単元名ごと(続くページをまとめる) */
+function drillRows(bk,pages){
+ const rows=[];
+ if(bk.toc&&bk.toc.length){
+  const used=new Set();
+  bk.toc.forEach(t=>{const ps=pages.filter(p=>p>=t.from&&p<=t.to&&!used.has(p));ps.forEach(p=>used.add(p));if(ps.length)rows.push({label:(t.no?t.no+" ":"")+t.title,pages:ps});});
+  const rest=pages.filter(p=>!used.has(p));if(rest.length)rows.push({label:"目次にないページ",pages:rest});
+  return rows;}
+ const X=drillIndex();
+ pages.forEach(p=>{const B=X.blocks.find(B=>B.bk===bk.key&&B.page===p&&B.bl.unit),u=B?B.bl.unit:"",last=rows[rows.length-1];
+  if(last&&last.label===u)last.pages.push(p);else rows.push({label:u,pages:[p]});});
+ return rows;}
+function drillBookHtml(bk,R){
+ const X=drillIndex(),k=esc(bk.key).replace(/'/g,"");
+ let pages=[...new Set(X.blocks.filter(B=>B.bk===bk.key).map(B=>B.page))];
+ if(R)pages=pages.filter(p=>R.has(p));
+ if(!pages.length)return R?`<div class="unit"><h3>${esc(bk.workbook)}</h3><p class="note">テスト範囲のページは、まだ入っていません。</p></div>`:"";
+ let rows=drillRows(bk,pages);const named=rows.some(r=>r.label);
+ if(!named)rows=[{label:bk.workbook,pages}];
+ return `${named?`<div class="bkname">${esc(bk.workbook)}</div>`:""}${rows.map(r=>`<div class="unit"><h3>${esc(r.label||"単元なし")}</h3><div class="pgchips">${r.pages.map(p=>{
+  const st=drillPageState(X.blocks.filter(B=>B.bk===bk.key&&B.page===p));
+  return `<button class="pgc ${st}" onclick="drillStart('page',{bk:'${k}',page:${p}})">p${p}</button>`;}).join("")}</div></div>`).join("")}`;}
+let drillShowAll=false; // テスト期間中に「ぜんぶ」を押した時だけtrue(保存しない)
 RENDER.drill=function(){
  const X=drillIndex(),el=qs("#s-drill");
  if(!X.books.length){el.innerHTML=`<div class="card"><h2>✏️ 学校ドリル</h2><p class="note">まだワークが入っていません。おうちの人が取り込むと、ここに出ます。</p></div>`;return;}
- const nr=drillRedoLeft();
- const subs=SUB_ORDER.filter(s=>X.books.some(b=>b.subject===s));
+ const nr=drillRedoLeft(),e=examActive();
+ const all=SUB_ORDER.filter(s=>X.books.some(b=>b.subject===s)),rg={};all.forEach(s=>rg[s]=examWork(s));
+ const canF=!!e&&all.some(s=>rg[s].pages),f=canF&&!drillShowAll;
+ const subs=f?all.filter(s=>rg[s].inExam):all;
  el.innerHTML=`<button class="btn big wide ${nr?"":"sub"}" ${nr?"":"disabled"} onclick="drillStart('redo')">🔁 ×の解き直し${nr?`(${nr}問)`:"はありません"}</button>
-  ${subs.map(s=>{const left=drillWorkLeft(s);
-   return `<div class="card"><div class="drhead"><h2>${esc(subLabel(s))}</h2><button class="btn ${left?"":"sub"}" ${left?"":"disabled"} onclick="drillStart('work',{sub:'${s}'})">▶ つづきから${left?`(のこり${left}問)`:""}</button></div>
-    ${X.books.filter(b=>b.subject===s).map(bk=>{
-     const pages=[...new Set(X.blocks.filter(B=>B.bk===bk.key).map(B=>B.page))];
-     return `<div class="unit"><h3>${esc(bk.workbook)}</h3><div class="pgchips">${pages.map(p=>{
-      const st=drillPageState(X.blocks.filter(B=>B.bk===bk.key&&B.page===p));
-      return `<button class="pgc ${st}" onclick="drillStart('page',{bk:'${esc(bk.key).replace(/'/g,"")}',page:${p}})">p${p}</button>`;}).join("")}</div></div>`;}).join("")}
+  ${canF?`<div class="dfilter"><button class="${f?"on":""}" onclick="drillShowAll=false;renderCurrent()">📝 ${esc(e.name)}の範囲</button><button class="${f?"":"on"}" onclick="drillShowAll=true;renderCurrent()">ぜんぶ</button></div>`:""}
+  ${subs.map(s=>{const R=f?rg[s].pages:null,left=drillWorkLeft(s,R);
+   return `<div class="card"><div class="drhead"><h2>${esc(subLabel(s))}</h2><button class="btn ${left?"":"sub"}" ${left?"":"disabled"} onclick="drillStart('work',{sub:'${s}'${R?",range:1":""}})">▶ つづきから${left?`(${R?"範囲の":""}のこり${left}問)`:""}</button></div>
+    ${f&&!R?`<p class="note">この教科は、テスト範囲のワークのページが分からないので、全部出しています。</p>`:""}
+    ${X.books.filter(b=>b.subject===s).map(bk=>drillBookHtml(bk,R)).join("")}
    </div>`;}).join("")}
-  <p class="note">ページの色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。「つづきから」は、まだ解いていない問題をページ順に出します。<br>○だった問題をもう一度やりたい時は、<b>ページの札(p52など)をタップ</b>すると、そのページを全部もう一度解けます。</p>`;};
+  <p class="note">ページの色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。「つづきから」は、まだ解いていない問題をページ順に出します。${f?"<br>テストが終わるまでは、テスト範囲のページだけが出ます。ほかのページは「ぜんぶ」で見られます。":""}<br>○だった問題をもう一度やりたい時は、<b>ページの札(p52など)をタップ</b>すると、そのページを全部もう一度解けます。</p>`;};
+
+/* --- 目次(ワークの目次の写真→Claude→返事を貼る)
+ * bk.toc = [{no,title,from,to}](ワークのページ)。学校ドリルの一覧を単元ごとに並べるのに使う --- */
+function tocRules(bk){
+ return `この写真は、中学校の学校ワーク「${bk.workbook}」(${subLabel(bk.subject)})の目次です。家庭学習アプリ「まなびば」に取り込むため、次の形式のJSONだけを、コードブロック1つで返してください。ファイルは作らなくてよいです。
+
+{"toc":[{"no":"1-1","title":"始まりの風","from":12,"to":16},{"no":"1-2","title":"言葉1 音声の仕組みや働き","from":17,"to":18}]}
+
+- 目次の上から順に、ページが書いてある項目を1つずつ入れる。
+- no:目次の番号を書いてあるとおりに(1-1、Unit 3、1章2節 など。無ければ "")。title:単元名を目次の書き方のまま。
+- from/to:その項目の「ワーク」のページの最初と最後。最後が書いていなければ、次の項目の最初のページの1つ前。教科書のページの列があっても、ワークのページを使う。
+- 章の見出しだけでページが無い行は入れなくてよい。
+- 手書きの書き込みは無視する。読めない所があれば、JSONの外に1行で書く。`;}
+function replyJson(txt){
+ const s=String(txt||""),i=s.indexOf("{"),j=s.lastIndexOf("}");
+ if(i<0||j<i)throw new Error("Claudeの返事の中に、取り込む部分({ … })が見つかりません。返事を全部コピーして貼ってください");
+ try{return JSON.parse(s.slice(i,j+1));}catch(e){throw new Error("返事の形がこわれています。Claudeに「JSONだけをもう一度」と頼んでください");}}
+function tocParse(txt){
+ const j=replyJson(txt),n=v=>parseInt(String(v??"").normalize("NFKC").replace(/[^\d]/g,""),10)||0;
+ const raw=(Array.isArray(j.toc)?j.toc:[]).map(x=>({no:String(x.no||"").trim(),title:String(x.title||"").trim(),from:n(x.from),to:n(x.to)})).filter(x=>x.from&&(x.title||x.no));
+ if(!raw.length)throw new Error("目次の項目が読めませんでした");
+ raw.sort((a,b)=>a.from-b.from);
+ raw.forEach((x,i)=>{if(!x.to||x.to<x.from)x.to=raw[i+1]?Math.max(x.from,raw[i+1].from-1):x.from;});
+ return raw;}
+function tocOpen(key){
+ const bk=drillData().books[key];if(!bk)return;
+ const k=esc(key).replace(/'/g,"");
+ openOv(`<h3>📑 目次を入れる:${esc(bk.workbook)}</h3>
+  <ol class="flowl">
+   <li><b>📱 目次を撮る</b><span>ワークの目次のページを、上から真っすぐ撮る(2ページあれば2枚)。</span></li>
+   <li><b>💬 Claudeに送る</b><span>「まなびば変換」で<b>新しいチャット</b>を開き、写真と、下でコピーした文を送る。</span></li>
+   <li><b>📋 返事を貼る</b><span>Claudeの返事をコピーして下に貼り、「取り込む」。</span></li>
+  </ol>
+  <button class="btn sub wide" onclick="copyText(tocRules(drillData().books['${k}']))">📋 Claudeに送る文をコピー</button>
+  <textarea id="tocPaste" class="exta" placeholder="ここにClaudeの返事を貼る"></textarea>
+  <div id="tocMsg"></div>
+  <div class="btnrow"><button class="btn big" onclick="tocImport('${k}')">取り込む</button><button class="btn sub" onclick="closeOv()">とじる</button></div>
+  <p class="note" style="margin-top:6px">入れた目次は、学校ドリルの一覧で、ページを単元ごとに並べるのに使います。入れ直すと置きかわります(解いた記録はそのまま)。</p>`);}
+function tocImport(key){
+ const bk=drillData().books[key],ta=qs("#tocPaste");if(!bk||!ta)return;
+ let t;try{t=tocParse(ta.value);}catch(e){qs("#tocMsg").innerHTML=`<p style="color:var(--red);margin-top:6px">⚠️ ${esc(e.message)}</p>`;return;}
+ bk.toc=t;save("drill");closeOv();renderCurrent();
+ toast(`目次を入れました(${t.length}項目)。学校ドリルの一覧に、単元ごとに出ます`);}
 
 /* --- 取り込み(保護者モード→③) --- */
 function drillImportJson(j){
@@ -1932,12 +2034,12 @@ RENDER.dimp=function(){
     <li><b>💻 ここでファイルを選ぶ</b><span>このパソコンで、できたファイルを下のボタンで選ぶだけ。</span></li>
    </ol>
    <button class="btn big wide" onclick="qs('#fileDrill').click()">📂 ファイルを選ぶ</button>
-   <p class="note" style="margin-top:6px">入れたワークは、下の「学校ドリル」に教科ごとに出ます。同じページを入れ直すと上書きし、解いた記録はそのまま残ります。</p>
+   <p class="note" style="margin-top:6px">入れたワークは、学校ドリルに教科ごとに出ます。下の「入っているワーク」で「📑 目次を入れる」をすると、ページが単元ごとに並びます(1冊1回)。同じページを入れ直すと上書きし、解いた記録はそのまま残ります。</p>
   </div>
   ${last?`<div class="card"><h2>取り込みの結果</h2>${last.map(r=>r.error?`<p style="color:var(--red)">⚠️ ${esc(r.error)}</p>`:
    `<p>✅ ${esc(subLabel(r.subject))}「${esc(r.workbook)}」 p${r.pages.join(", p")}(大問${r.blocks}・小問${r.items})</p>${r.warn.length?`<details class="more"><summary>気になる点 ${r.warn.length}件(この問題は「おかしい」の報告で直せます)</summary><ul class="warnl">${r.warn.map(w=>`<li>${esc(w)}</li>`).join("")}</ul></details>`:""}`).join("")}</div>`:""}
   <div class="card"><h2>入っているワーク</h2>
-   ${X.books.length?X.books.map(bk=>`<div class="bkrow"><span><b>${esc(subLabel(bk.subject))}</b> ${esc(bk.workbook)} <small class="note">p${bk.pages.map(p=>p.page).join(",")}</small></span><button class="btn sub sm" onclick="drillDeleteBook('${esc(bk.key).replace(/'/g,"")}')">消す</button></div>`).join(""):`<p class="note">まだありません。</p>`}
+   ${X.books.length?X.books.map(bk=>`<div class="bkrow"><span><b>${esc(subLabel(bk.subject))}</b> ${esc(bk.workbook)} <small class="note">p${bk.pages.map(p=>p.page).join(",")}</small></span><button class="btn ${bk.toc?"sub ":""}sm" onclick="tocOpen('${esc(bk.key).replace(/'/g,"")}')">📑 目次${bk.toc?"✓":"を入れる"}</button><button class="btn sub sm" onclick="drillDeleteBook('${esc(bk.key).replace(/'/g,"")}')">消す</button></div>`).join(""):`<p class="note">まだありません。</p>`}
    <div class="btnrow">${X.books.some(b=>b.key.includes("お試し"))?"":`<button class="btn sub sm" onclick="drillLoadSample()">🧪 お試しのワークを入れる</button>`}</div>
   </div>
   <details class="more card"><summary>はじめての時だけ:Claudeのプロジェクトの準備</summary>
@@ -2045,6 +2147,120 @@ RENDER.week=function(){
    ${nig.length?`<h3 style="margin-top:10px;font-size:14px">⚠️ 苦手(3回以上×)</h3>${nig.map(id=>{const x=X.items[id];return `<div class="note">${esc(subLabel(x.B.sub))} ${esc(x.B.book.workbook)} p${x.B.page} ${esc(x.B.bl.no)}${esc(x.it.no||"")}(×${drillXCount(id)}回)</div>`;}).join("")}`:""}
   </div>`);};
 Object.assign(TITLES,{solve:"✏️ 学校ドリル",dimp:"③ ドリルの取り込み",drep:"④ 問題の報告",dpaper:"📝 紙の×を入れる"});
+
+/** 範囲のワークのページ [[最初,最後],…]。Claudeの返事の pages、無ければ範囲の文の「ワーク p52〜70」から拾う */
+function examPageList(v){
+ const out=[];(Array.isArray(v)?v:[]).forEach(r=>{
+  let a,b;
+  if(Array.isArray(r)){a=+r[0];b=+(r[1]??r[0]);}
+  else if(typeof r==="number"){a=b=r;}
+  else{const m=String(r).normalize("NFKC").match(/(\d+)\D*(\d+)?/);if(m){a=+m[1];b=+(m[2]||m[1]);}}
+  if(a>0&&b>0)out.push([Math.min(a,b),Math.max(a,b)]);});
+ return out;}
+function examRangeNums(x){
+ if(x.pages&&x.pages.length)return x.pages;
+ const s=String(x.range||"").normalize("NFKC"),i=s.indexOf("ワーク");if(i<0)return[];
+ const t=s.slice(i+3).split(/教科書|プリント|ノート|資料/)[0],out=[];
+ t.replace(/(\d+)\s*(?:[〜~\-−ー–]\s*p?\.?\s*(\d+))?/g,(m,a,b)=>{out.push([+a,+(b||a)]);return m;});
+ return out.filter(([a,b])=>a>0&&b>=a);}
+const EXAM_SUBMAP={soc:["geo","his"]};
+/** 学校ドリルの教科ごとの、テスト範囲。inExam=範囲表にその教科がある、pages=ワークのページ(分からなければnull) */
+function examWork(sub){
+ const e=examActive();if(!e)return {inExam:false,pages:null};
+ const xs=e.subjects.filter(x=>x.subject===sub||(EXAM_SUBMAP[x.subject]||[]).includes(sub));
+ if(!xs.length)return {inExam:false,pages:null};
+ const s=new Set();xs.forEach(x=>examRangeNums(x).forEach(([a,b])=>{for(let p=a;p<=b&&p-a<400;p++)s.add(p);}));
+ return {inExam:true,pages:s.size?s:null};}
+
+/* ---------- テスト範囲・提出物 ----------
+ * D.plan.exam = {name, dates:[日付], subjects:[{subject,label,range}], subs:[{id,subject,label,name,due,done}], at}
+ * 範囲表の写真をClaudeに送り、返ってきた文をそのまま貼って取り込む。提出物のチェックは香凜さんが付ける */
+const examData=()=>planInit().exam||null;
+const examLabel=x=>x.label||subLabel(x.subject)||"その他";
+const examLast=e=>(e&&e.dates&&e.dates.length)?[...e.dates].sort().slice(-1)[0]:null;
+const examActive=()=>{const e=examData();if(!e)return null;const l=examLast(e);return(!l||l>=today())?e:null;};
+const examSubsLeft=e=>(e&&e.subs||[]).filter(s=>!s.done);
+const examDue=(e,s)=>s.due||(e.dates&&e.dates.length?[...e.dates].sort()[0]:null);
+const EXAM_ORDER=["jpn","math","eng","sci","soc","geo","his"];
+const examSort=(a,b)=>{const ia=EXAM_ORDER.indexOf(a.subject),ib=EXAM_ORDER.indexOf(b.subject);return (ia<0?99:ia)-(ib<0?99:ib);};
+function examRules(){
+ const y=new Date().getFullYear();
+ return `この写真は、中学校の「テスト範囲表」(提出物の一覧つき)です。家庭学習アプリ「まなびば」に取り込むため、次の形式のJSONだけを、コードブロック1つで返してください。ファイルは作らなくてよいです。
+
+{"name":"2学期期末テスト","dates":["${y}-11-24","${y}-11-25"],
+ "subjects":[{"subject":"math","label":"数学","range":"教科書p40〜58、ワークp52〜70、74〜75","pages":[[52,70],[74,75]]}],
+ "submissions":[{"subject":"math","label":"数学","name":"数学ワーク p52〜70(丸つけ・直しまで)","due":"${y}-11-24"}]}
+
+- name:テストの名前。dates:テストの日すべて(YYYY-MM-DD)。年が書いていなければ${y}年。
+- subject:math=数学、eng=英語、jpn=国語、sci=理科、geo=地理、his=歴史。社会で地理・歴史が分かれていなければ soc。それ以外の教科(音楽・美術・保健体育・技術家庭など)は other にして、label に教科名を入れる。
+- range:範囲を、表の書き方のまま短く(教科書・ワーク・プリントのページなど)。
+- pages:範囲のうち「ワーク(問題集)」のページだけを、[最初,最後] の組で。ワークのページが書いていなければ []。
+- submissions:提出物を1つずつ。name は何をどこまでやるかが分かるように短く。提出日が書いてあれば due に日付、書いていなければ null(テストの日に出す扱い)。
+- 手書きの書き込みは無視する。読めない所があれば、JSONの外に1行で書く。`;}
+function examParse(txt){
+ const s=String(txt||""),i=s.indexOf("{"),j=s.lastIndexOf("}");
+ if(i<0||j<i)throw new Error("Claudeの返事の中に、取り込む部分({ … })が見つかりません。返事を全部コピーして貼ってください");
+ let j0;try{j0=JSON.parse(s.slice(i,j+1));}catch(e){throw new Error("返事の形がこわれています。Claudeに「JSONだけをもう一度」と頼んでください");}
+ const isoOk=d=>typeof d==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(d);
+ const dates=(j0.dates||[]).filter(isoOk).sort();
+ const subjects=(j0.subjects||[]).filter(x=>x&&(x.range||x.pages)).map(x=>({subject:String(x.subject||"other"),label:String(x.label||""),range:String(x.range||""),pages:examPageList(x.pages)}));
+ const subs=(j0.submissions||[]).filter(x=>x&&x.name).map(x=>({subject:String(x.subject||"other"),label:String(x.label||""),name:String(x.name),due:isoOk(x.due)?x.due:null}));
+ if(!dates.length&&!subjects.length&&!subs.length)throw new Error("テストの日・範囲・提出物のどれも読めませんでした");
+ return {name:String(j0.name||"テスト"),dates,subjects,subs};}
+let examMsg=null;
+function examImport(){
+ const ta=qs("#examPaste");if(!ta)return;
+ let r;try{r=examParse(ta.value);}catch(e){examMsg={err:e.message};renderCurrent();return;}
+ const p=planInit(),old=p.exam,key=s=>s.subject+"|"+s.name.replace(/\s+/g,"");
+ const keep={};((old&&old.subs)||[]).forEach(s=>{if(s.done)keep[key(s)]=s.done;});
+ p.exam={name:r.name,dates:r.dates,subjects:r.subjects.sort(examSort),
+  subs:r.subs.sort(examSort).map((s,i)=>({id:"s"+Date.now().toString(36)+i,...s,done:keep[key(s)]||false})),at:today()};
+ // テストの日はカレンダーにも入れる(すでにある日はそのまま)
+ let added=0;r.dates.forEach(d=>{if(!p.tests.some(t=>t.date===d)){p.tests.push({date:d});added++;}});
+ p.tests.sort((a,b)=>a.date<b.date?-1:1);
+ save("plan");examMsg={ok:`「${r.name}」を取り込みました(範囲${r.subjects.length}教科・提出物${r.subs.length}件${added?"・カレンダーにテスト日"+added+"日":""})`};
+ ta.value="";renderCurrent();}
+function examToggle(id){
+ const e=examData();if(!e)return;const s=e.subs.find(x=>x.id===id);if(!s)return;
+ s.done=s.done?false:today();save("plan");renderCurrent();
+ if(s.done&&!examSubsLeft(e).length)toast("🎉 提出物ぜんぶ終わり!");}
+function examClear(){
+ if(!examData())return;
+ if(!confirm("テスト範囲と提出物を消します(カレンダーのテスト日はそのまま)。よろしいですか?"))return;
+ delete planInit().exam;save("plan");examMsg=null;renderCurrent();}
+function examDueTxt(e,s){
+ const d=examDue(e,s);if(!d)return "";
+ const n=daysBetween(today(),d);
+ const cls=!s.done&&n<=2?"style=\"color:var(--red);font-weight:700\"":"";
+ return `<small ${cls}>${s.due?"提出 ":"テストの日に提出 "}${mdOf(d)}(${WDAY[dowOf(d)]})${s.done?"":n<0?"・すぎています":n===0?"・今日":"・あと"+n+"日"}</small>`;}
+RENDER.exam=function(){
+ const e=examData(),par=document.body.classList.contains("parent"),el=qs("#s-exam");
+ let h="";
+ if(e){
+  const left=examSubsLeft(e).length,over=!examActive();
+  h+=`<div class="card"><h2>📝 ${esc(e.name)}${over?" <small class=\"note\">(終わったテスト)</small>":""}</h2>
+   <p class="note">${e.dates.length?"テストの日:"+e.dates.map(d=>mdOf(d)+"("+WDAY[dowOf(d)]+")").join("、"):"テストの日は読めませんでした"}${e.dates.length&&!over?"　あと"+Math.max(0,daysBetween(today(),[...e.dates].sort()[0]))+"日":""}</p></div>`;
+  h+=`<div class="card"><h2>✅ 提出物 <small class="note">${e.subs.length?(left?"のこり"+left+"件":"ぜんぶ終わり!"):""}</small></h2>
+   ${e.subs.length?`<div class="exsubs">${e.subs.map(s=>`<div class="exsub ${s.done?"done":""}"><button class="pchk" onclick="examToggle('${s.id}')" aria-label="チェック">${s.done?"✓":""}</button>
+    <div class="exsb"><b><span class="exlab">${esc(examLabel(s))}</span>${esc(s.name)}</b>${examDueTxt(e,s)}</div></div>`).join("")}</div>
+    <p class="note" style="margin-top:6px">終わったら □ をタップしてチェック。もう一度タップで外せます。</p>`:`<p class="note">提出物は読めませんでした。</p>`}</div>`;
+  h+=`<div class="card"><h2>📚 テスト範囲</h2>${e.subjects.length?`<div class="exrng">${e.subjects.map(x=>`<div class="exr"><span class="exlab">${esc(examLabel(x))}</span><span>${esc(x.range)}</span></div>`).join("")}</div>`:`<p class="note">範囲は読めませんでした。</p>`}</div>`;}
+ else if(!par)h+=`<div class="card"><p class="note">テスト範囲はまだ入っていません。おうちの人が入れると、ここに出ます。</p></div>`;
+ if(par){
+  h+=`<div class="card flow"><h2>${e?"新しいテスト範囲を入れる":"テスト範囲・提出物を入れる(3ステップ)"}</h2>
+   <ol class="flowl">
+    <li><b>📱 範囲表を撮る</b><span>学校でもらったテスト範囲表(提出物の一覧)を、上から真っすぐ撮る。</span></li>
+    <li><b>💬 Claudeに送る</b><span>プロジェクト「まなびば変換」で<b>新しいチャット</b>を開き、写真と、下のボタンでコピーした文を送る。</span></li>
+    <li><b>📋 返事を貼る</b><span>Claudeの返事をコピーして下に貼り、「取り込む」を押す。</span></li>
+   </ol>
+   <button class="btn sub wide" onclick="copyText(examRules())">📋 Claudeに送る文をコピー</button>
+   <textarea id="examPaste" class="exta" placeholder="ここにClaudeの返事を貼る"></textarea>
+   <button class="btn big wide" onclick="examImport()">取り込む</button>
+   ${examMsg?(examMsg.err?`<p style="color:var(--red);margin-top:6px">⚠️ ${esc(examMsg.err)}</p>`:`<p style="margin-top:6px">✅ ${esc(examMsg.ok)}</p>`):""}
+   <p class="note" style="margin-top:6px">入れたものは、ホームの「📝 テスト範囲・提出物」と、カレンダーのテスト日に出ます。学校ドリルは、テストが終わるまで範囲のワークのページだけが出ます。新しく入れると前のテストと入れ替わります(同じ名前の提出物のチェックは残ります)。</p>
+   ${e?`<button class="btn sub sm" style="margin-top:6px" onclick="examClear()">いまのテスト範囲を消す</button>`:""}</div>`;}
+ el.innerHTML=h;};
+TITLES.exam="📝 テスト範囲・提出物";
 
 /* ---------- 起動 ---------- */
 (async function boot(){
