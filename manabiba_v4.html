@@ -336,6 +336,23 @@ mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:
 .dfilter button{flex:1;padding:10px 6px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:14px;color:var(--ink-soft)}
 .dfilter button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .pgc.cur{background:var(--ink);color:#fff;border-color:var(--ink)}
+/* 学校ドリル:教科タブと、章ごとのまとまり */
+.dsubs{margin:8px 0}
+.dsubs button{flex:1;text-align:center;padding:9px 6px}
+.unit.dr{grid-template-columns:190px 1fr;align-items:center;padding:4px 0}
+.unit.dr h3{padding-top:0}
+.pgc{padding:6px 0}
+.chap{border:1.5px solid var(--line);border-radius:12px;background:#fff;margin:8px 0;padding:0 12px}
+.chap summary{display:flex;align-items:center;gap:8px;padding:10px 0;cursor:pointer;list-style:none;font-weight:700;font-size:14.5px}
+.chap summary::-webkit-details-marker{display:none}
+.chap summary::before{content:"▸";color:var(--ink-soft);font-size:12px;transition:transform .15s}
+.chap[open] summary::before{transform:rotate(90deg)}
+.chap .cn{flex:1;min-width:0}
+.chap .cp{font-size:12px;padding:1px 9px;border-radius:99px;border:1.5px solid var(--line);color:var(--ink-soft)}
+.chap .cp.all{background:var(--mint-soft);border-color:var(--mint);color:var(--ink)}
+.chap .cx{font-size:12px;padding:1px 9px;border-radius:99px;background:var(--red-soft);border:1.5px solid var(--red)}
+.chap[open] summary{border-bottom:1px solid var(--line);margin-bottom:2px}
+@media(max-width:560px){.unit.dr{grid-template-columns:1fr}}
 .flowl{list-style:none;counter-reset:f;display:flex;flex-direction:column;gap:8px;margin:6px 0 12px}
 .flowl li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 12px;border-radius:12px;background:var(--paper);border:1.5px solid var(--line)}
 .flowl li span{grid-column:1/-1;font-size:13px;color:var(--ink-soft)}
@@ -1245,6 +1262,7 @@ const MANUAL=`## 全体
 - 「この問題おかしい」:写真の位置ずれ・正解のまちがいなどを、お母さんに知らせる。その問題は×にならず、直すまで出ない。
 - 画面:上の「🔁 ×の解き直し」=前の日までの×を、教科をまたいで古い順に出す(×だった小問だけ)。教科ごとの「▶ つづきから」=まだ解いていない問題をページ順に10大問まで。ページの札(p52など)をタップすると、○だった問題も含めてそのページを最初から全部解ける(○だった問題をもう一度やりたい時はこれ。今日×だった問題だけは、あしたまで出さない)。札の色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。
 - ページの札は、ワークの目次(保護者が入れたもの)の単元ごとに1行ずつ並ぶ。左に単元名、右にそのページ。目次が入っていないワークは、問題に書いてある単元名でまとめる。
+- 画面の上の教科タブ(数学・英語…)で、教科を1つずつ切り替えて見る。目次に「確認テスト ◯◯」の項目があるワークは、その項目を章の終わりとみなして、単元を「章」ごとにまとめる(章の見出しは確認テストの名前、右に「解いたページ/全ページ」と×の数)。章はタップで開閉でき、はじめは「まだ終わっていない最初の章」と「×がある章」だけ開いている(手で開閉したらそれを優先。画面を開き直すと元にもどる)。確認テストの項目が無いワークは、章に分けず今まで通り一列。
 - テスト期間(テスト範囲を入れてから、テストが終わるまで)は、学校ドリルの画面がはじめから「📝 ◯◯の範囲」になり、テスト範囲のワークのページだけが出る(範囲表にない教科は出ない)。「▶ つづきから」も範囲の中の問題だけを出す。上の「ぜんぶ」を押すと全部の表示になる(アプリを開き直すと範囲の表示にもどる)。範囲のワークのページが分からない教科は、全部を出す。「×の解き直し」は範囲に関係なく全部出す。
 - ×のルール:×は自動で×リストに入る。同じ日には出し直さない(答えを見た直後に解いても意味がないため)。2回続けて○で卒業。3回以上×の問題は「苦手」として保護者画面に出る。
 
@@ -1977,9 +1995,26 @@ function drillBookHtml(bk,R){
  if(!pages.length)return R?`<div class="unit"><h3>${esc(bk.workbook)}</h3><p class="note">テスト範囲のページは、まだ入っていません。</p></div>`:"";
  let rows=drillRows(bk,pages);const named=rows.some(r=>r.label);
  if(!named)rows=[{label:bk.workbook,pages}];
- return `${named?`<div class="bkname">${esc(bk.workbook)}</div>`:""}${rows.map(r=>`<div class="unit"><h3>${esc(r.label||"単元なし")}</h3><div class="pgchips">${r.pages.map(p=>{
-  const st=drillPageState(X.blocks.filter(B=>B.bk===bk.key&&B.page===p));
-  return `<button class="pgc ${st}" onclick="drillStart('page',{bk:'${k}',page:${p}})">p${p}</button>`;}).join("")}</div></div>`).join("")}`;}
+ const stOf={};pages.forEach(p=>stOf[p]=drillPageState(X.blocks.filter(B=>B.bk===bk.key&&B.page===p)));
+ const rowHtml=r=>`<div class="unit dr"><h3>${esc(r.label||"単元なし")}</h3><div class="pgchips">${r.pages.map(p=>`<button class="pgc ${stOf[p]}" onclick="drillStart('page',{bk:'${k}',page:${p}})">p${p}</button>`).join("")}</div></div>`;
+ const chs=named?drillChapters(rows):null;
+ if(!chs)return `${named?`<div class="bkname">${esc(bk.workbook)}</div>`:""}${rows.map(rowHtml).join("")}`;
+ // いまやっている章(まだ終わっていないページがある最初の章)と、×がある章は開いておく。テスト範囲の表示中は全部開く。手で開閉したらそれを優先
+ const firstOpen=chs.findIndex(c=>c.rows.some(r=>r.pages.some(p=>stOf[p]!=="done")));
+ return `<div class="bkname">${esc(bk.workbook)}</div>${chs.map((c,ci)=>{
+  const ps=c.rows.flatMap(r=>r.pages),nd=ps.filter(p=>stOf[p]==="done").length,nx=ps.filter(p=>stOf[p]==="x").length;
+  const key=bk.key+"|"+c.name,open=key in drillOpen?drillOpen[key]:(R?true:(ci===firstOpen||nx>0));
+  return `<details class="chap" ${open?"open":""}><summary onclick="drillOpen[${esc(JSON.stringify(key)).replace(/'/g,"&#39;")}]=!this.parentNode.open"><span class="cn">${esc(c.name)}</span>${nx?`<span class="cx">×${nx}</span>`:""}<span class="cp ${nd===ps.length?"all":""}">${nd}/${ps.length}</span></summary>${c.rows.map(rowHtml).join("")}</details>`;}).join("")}`;}
+/** 目次の行を「章」にまとめる。「確認テスト ◯◯」の行を章の終わりとみなす(目次に章の段が無いため)。確認テストの行が1つも無ければnull(章に分けない) */
+function drillChapters(rows){
+ if(!rows.some(r=>/確認テスト/.test(r.label||"")))return null;
+ const out=[];let cur=[];
+ rows.forEach(r=>{cur.push(r);if(/確認テスト/.test(r.label||"")){
+  const nm=(r.label.split("確認テスト")[1]||"").replace(/^[\s　:：]+/,"").trim();
+  out.push({name:nm||cur[0].label,rows:cur});cur=[];}});
+ if(cur.length)out.push({name:cur[0].label+(cur.length>1?" ほか":""),rows:cur});
+ return out;}
+let drillOpen={},drillSub=null; // 章の開閉・選んでいる教科(画面用。保存しない)
 let drillShowAll=false; // テスト期間中に「ぜんぶ」を押した時だけtrue(保存しない)
 RENDER.drill=function(){
  const X=drillIndex(),el=qs("#s-drill");
@@ -1988,9 +2023,12 @@ RENDER.drill=function(){
  const all=SUB_ORDER.filter(s=>X.books.some(b=>b.subject===s)),rg={};all.forEach(s=>rg[s]=examWork(s));
  const canF=!!e&&all.some(s=>rg[s].pages),f=canF&&!drillShowAll;
  const subs=f?all.filter(s=>rg[s].inExam):all;
- el.innerHTML=`<button class="btn big wide ${nr?"":"sub"}" ${nr?"":"disabled"} onclick="drillStart('redo')">🔁 ×の解き直し${nr?`(${nr}問)`:"はありません"}</button>
+ // 教科はタブで1つずつ表示(はじめは、まだ解く問題が残っている最初の教科)
+ if(!subs.includes(drillSub))drillSub=subs.find(s=>drillWorkLeft(s,f?rg[s].pages:null))||subs[0];
+ el.innerHTML=`<button class="btn wide ${nr?"big":"sub"}" ${nr?"":"disabled"} onclick="drillStart('redo')">🔁 ×の解き直し${nr?`(${nr}問)`:"はありません"}</button>
   ${canF?`<div class="dfilter"><button class="${f?"on":""}" onclick="drillShowAll=false;renderCurrent()">📝 ${esc(e.name)}の範囲</button><button class="${f?"":"on"}" onclick="drillShowAll=true;renderCurrent()">ぜんぶ</button></div>`:""}
-  ${subs.map(s=>{const R=f?rg[s].pages:null,left=drillWorkLeft(s,R);
+  <div class="segs dsubs">${subs.map(s=>`<button class="${s===drillSub?"on":""}" onclick="drillSub='${s}';renderCurrent()">${esc(subLabel(s))}</button>`).join("")}</div>
+  ${subs.filter(s=>s===drillSub).map(s=>{const R=f?rg[s].pages:null,left=drillWorkLeft(s,R);
    return `<div class="card"><div class="drhead"><h2>${esc(subLabel(s))}</h2><button class="btn ${left?"":"sub"}" ${left?"":"disabled"} onclick="drillStart('work',{sub:'${s}'${R?",range:1":""}})">▶ つづきから${left?`(${R?"範囲の":""}のこり${left}問)`:""}</button></div>
     ${f&&!R?`<p class="note">この教科は、テスト範囲のワークのページが分からないので、全部出しています。</p>`:""}
     ${X.books.filter(b=>b.subject===s).map(bk=>drillBookHtml(bk,R)).join("")}
