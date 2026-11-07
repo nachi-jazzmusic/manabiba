@@ -210,12 +210,34 @@ body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
 .exbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:#FDF6E3;border:1.5px solid #E8B84B;border-radius:14px;padding:10px 14px;margin-bottom:10px;font-family:var(--disp);font-weight:900;font-size:15px;text-align:left}
 .exbtn span{font-size:13px;font-weight:700;color:var(--ink-soft)}
 .exbtn.hot span{color:var(--red)}
-.exsubs{display:flex;flex-direction:column;gap:8px}
-.exsub{display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:6px 10px 6px 6px}
-.exsub .pchk{width:48px;min-height:48px;font-size:24px}
+.exsubs{display:flex;flex-direction:column;gap:6px}
+/* テスト範囲の画面:パソコンでは広く使い、スクロールを減らす */
+#s-exam{width:min(1180px,calc(100vw - 32px));margin-left:calc((100% - min(1180px,calc(100vw - 32px)))/2)}
+.exhead .exttl{display:flex;align-items:baseline;gap:6px 14px;flex-wrap:wrap}
+.exhead .exttl h2{margin:0}
+.exgoal{margin-top:8px;font-weight:700;font-size:15px;line-height:1.5}
+.exsteps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:6px;margin-top:8px}
+.exstep{background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;line-height:1.5}
+.exstep b{display:block;font-family:var(--disp);font-size:13.5px}
+.expts{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:4px 16px;margin-top:10px;font-size:13px;line-height:1.5}
+.expt{display:flex;gap:4px;align-items:flex-start}
+.exrules{display:flex;flex-wrap:wrap;gap:2px 16px;margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink-soft)}
+.exrules b{color:var(--ink)}
+.excols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 12px;align-items:start}
+@media(max-width:900px){.excols{grid-template-columns:minmax(0,1fr)}}
+.exday{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:8px;align-items:start;padding:5px 6px;border-bottom:1px solid var(--line);font-size:13px;line-height:1.5}
+.exday:last-child{border-bottom:none}
+.exday b{font-family:var(--disp);font-size:13.5px;white-space:nowrap}.exday b small{font-size:11px;color:var(--ink-soft)}
+.exday i{font-style:normal;color:var(--ink-soft);margin:0 3px}
+.exday em{font-style:normal;font-size:12px;font-weight:800;white-space:nowrap}
+.exday.today{background:var(--mint-soft);border-radius:8px;border-bottom-color:transparent}
+.exday.done{opacity:.5}.exday.done em{color:var(--mint)}
+.exday.late em{color:var(--red)}
+.exsub{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:4px 8px 4px 4px}
+.exsub .pchk{width:42px;min-height:42px;font-size:21px}
 .exsub.done{opacity:.55}.exsub.done .pchk{background:var(--mint);border-color:var(--mint);color:#fff}
 .exsb{display:flex;flex-direction:column;gap:2px;min-width:0}
-.exsb b{font-size:15px}
+.exsb b{font-size:14px;line-height:1.45}
 .exlab{display:inline-block;min-width:3.2em;font-size:12px;font-weight:700;padding:0 6px;margin-right:6px;border-radius:6px;background:var(--mint-soft);text-align:center}
 .exrng{display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:start}
 .exr{display:contents}
@@ -1181,6 +1203,7 @@ function ctxPlanDrill(){
   s+="\n学校ドリルで×が残っている問題:"+(xs.length?xs.map(id=>{const x=X.items[id],l=drillLast(id);return subLabel(x.B.sub)+" "+x.B.book.workbook+" p"+x.B.page+" "+(x.B.bl.no||"")+(x.it.no||"")+"(本人の答え「"+l.a+"」/正解「"+(x.it.answer||"")+"」)";}).join(" / "):"なし");}catch(e){}
  try{const e=examActive();if(e){
   s+="\nテスト:"+e.name+"("+e.dates.join("、")+")。範囲:"+e.subjects.map(x=>examLabel(x)+" "+x.range).join(" / ");
+  const st=e.strategy;if(st)s+="\nテストの作戦:"+[st.goal,st.steps.map(x=>(x.when?x.when+" ":"")+x.text).join(" → "),st.points.map(x=>(x.label||subLabel(x.subject))+":"+x.text).join(" / "),st.rules.length?"ルール:"+st.rules.join("・"):""].filter(Boolean).join("。");
   const lf=examSubsLeft(e);s+="\nまだ終わっていない提出物:"+(lf.length?lf.map(x=>examLabel(x)+" "+x.name+"(締切 "+(examDue(e,x)||"不明")+")").join(" / "):"なし");}}catch(e){}
  return s;}
 const PPOME_SYS=`あなたは「親ポメ」。中学1年生・香凜さんの保護者(お母さん)向けの学習コーチAI。
@@ -1237,7 +1260,8 @@ const MANUAL=`## 全体
 - 保護者モード→テスト範囲・提出物 で入れる。手順:①学校のテスト範囲表を撮る ②Claudeのプロジェクト「まなびば変換」で新しいチャットを開き、写真と「📋 Claudeに送る文をコピー」でコピーした文を送る ③Claudeの返事をコピーして貼り、「取り込む」。
 - 取り込むと、テストの日はカレンダーにも入る(すでにある日はそのまま)。新しく入れると前のテストと入れ替わる(同じ教科・同じ名前の提出物のチェックは引き継ぐ)。「いまのテスト範囲を消す」で消せる(カレンダーのテスト日は残る)。
 - 香凜さんは、ホームの上の「📝 テスト範囲・提出物」(テストが終わるまで出る)から開く。教科ごとの範囲と、提出物の一覧が出る。提出物は終わったら □ をタップしてチェック(もう一度で外れる)。締切まで2日以内で終わっていないものは赤字。提出日が書いていない提出物は「テストの日に提出」として扱う。
-- 日ごとの予定:Claudeと相談して作った「日ごとの勉強予定」も、テスト範囲と同じ貼る欄から入れられる(テスト範囲のデータの中に sched として入れる。日ごとの予定だけを貼って、あとから入れ替えることもできる)。入れると、テストが終わるまでの間、その日がある日は、ホームの日課の③以降(スタサプ・学校ワークなど)が、その日の予定に入れ替わる(①前日の×と②暗記は同じ)。夜練・試合などの「暗記＋直し」「暗記のみ」の日は入れ替えない。「休み」にしてある日でも、予定があればそれを出す。入れた予定は、テスト範囲の画面の「📅 日ごとの予定」で見られる。
+- 日ごとの予定:Claudeと相談して作った「日ごとの勉強予定」も、テスト範囲と同じ貼る欄から入れられる(テスト範囲のデータの中に sched として入れる。日ごとの予定だけを貼って、あとから入れ替えることもできる)。入れると、テストが終わるまでの間、その日がある日は、ホームの日課の③以降(スタサプ・学校ワークなど)が、その日の予定に入れ替わる(①前日の×と②暗記は同じ)。夜練・試合などの「暗記＋直し」「暗記のみ」の日は入れ替えない。「休み」にしてある日でも、予定があればそれを出す。入れた予定は、テスト範囲の画面の「📅 日ごとの予定」の表で見られる(1日1行。教科とページだけを出し、直し・休憩は省略。今日の行に色、終わった日は「✓ 済み」、過ぎたのに終わっていない日は赤で「のこり◯」。済みかどうかは、ホームの日課の□のチェックで決まる)。
+- 作戦:テスト範囲のデータの中に strategy(目標・進め方・教科ごとの重点・毎回のルール)を入れると、テスト範囲の画面の一番上(テスト名の下)に出る。ポメ・親ポメにも渡すので、聞かれたら作戦に沿って答える。作戦だけを貼って入れ替えることもできる。パソコンでは、テスト範囲の画面を横に広く使い、日ごとの予定(左)と提出物・範囲(右)を2列に並べる(スマホは1列)。
 - 範囲表に書いてあるワークのページは、学校ドリルで使う(テストが終わるまで、範囲のページだけを出す)。社会(地理・歴史が分かれていない)は、地理と歴史の両方のワークに当てはめる。ワークのページが書いていない教科は、絞らずに全部出す。
 - 範囲を入れ直したい・直したい時は、Claudeに直してもらって取り込み直す(画面で1件ずつ直す機能は無い)。
 
@@ -2277,26 +2301,34 @@ function examParse(txt){
   const v=j0.sched[d],arr=Array.isArray(v)?v:((v&&v.items)||[]);
   const items=arr.filter(x=>x&&x.title).map(x=>({title:String(x.title),hint:String(x.hint||""),min:Math.max(5,Math.min(600,parseInt(x.min,10)||30)),act:x.act==="drill"?"drill":"none"}));
   if(items.length)sched[d]=items;});
- if(!dates.length&&!subjects.length&&!subs.length&&!Object.keys(sched).length)throw new Error("テストの日・範囲・提出物・日ごとの予定のどれも読めませんでした");
- return {name:String(j0.name||"テスト"),dates,subjects,subs,sched};}
+ let strategy=null;const st=j0.strategy;
+ if(st&&typeof st==="object"){
+  const arr=v=>Array.isArray(v)?v:[];
+  strategy={goal:String(st.goal||""),
+   steps:arr(st.steps).filter(x=>x&&(typeof x==="string"||x.text)).map(x=>typeof x==="string"?{when:"",text:x}:{when:String(x.when||""),text:String(x.text)}),
+   points:arr(st.points).filter(x=>x&&x.text).map(x=>({subject:String(x.subject||"other"),label:String(x.label||""),text:String(x.text)})),
+   rules:arr(st.rules).filter(x=>x).map(String)};
+  if(!strategy.goal&&!strategy.steps.length&&!strategy.points.length&&!strategy.rules.length)strategy=null;}
+ if(!dates.length&&!subjects.length&&!subs.length&&!Object.keys(sched).length&&!strategy)throw new Error("テストの日・範囲・提出物・日ごとの予定・作戦のどれも読めませんでした");
+ return {name:String(j0.name||"テスト"),dates,subjects,subs,sched,strategy};}
 let examMsg=null;
 function examImport(){
  const ta=qs("#examPaste");if(!ta)return;
  let r;try{r=examParse(ta.value);}catch(e){examMsg={err:e.message};renderCurrent();return;}
  const p=planInit(),old=p.exam,key=s=>s.subject+"|"+s.name.replace(/\s+/g,"");
  const nsch=Object.keys(r.sched).length;
- if(!r.dates.length&&!r.subjects.length&&!r.subs.length){ // 日ごとの予定だけ
-  if(!old){examMsg={err:"日ごとの予定だけを入れるには、先にテスト範囲を入れてください"};renderCurrent();return;}
-  old.sched=r.sched;save("plan");
-  examMsg={ok:"日ごとの予定を"+nsch+"日分、入れました(ホームの日課に出ます)"};ta.value="";renderCurrent();return;}
+ if(!r.dates.length&&!r.subjects.length&&!r.subs.length){ // 日ごとの予定・作戦だけ
+  if(!old){examMsg={err:"日ごとの予定・作戦だけを入れるには、先にテスト範囲を入れてください"};renderCurrent();return;}
+  if(nsch)old.sched=r.sched;if(r.strategy)old.strategy=r.strategy;save("plan");
+  examMsg={ok:[nsch?"日ごとの予定を"+nsch+"日分":"",r.strategy?"作戦":""].filter(Boolean).join("と")+"を入れました(ホームの日課と、この画面の上に出ます)"};ta.value="";renderCurrent();return;}
  const keep={};((old&&old.subs)||[]).forEach(s=>{if(s.done)keep[key(s)]=s.done;});
  p.exam={name:r.name,dates:r.dates,subjects:r.subjects.sort(examSort),
   subs:r.subs.sort(examSort).map((s,i)=>({id:"s"+Date.now().toString(36)+i,...s,done:keep[key(s)]||false})),at:today(),
-  sched:nsch?r.sched:((old&&old.sched)||{})};
+  sched:nsch?r.sched:((old&&old.sched)||{}),strategy:r.strategy||((old&&old.strategy)||null)};
  // テストの日はカレンダーにも入れる(すでにある日はそのまま)
  let added=0;r.dates.forEach(d=>{if(!p.tests.some(t=>t.date===d)){p.tests.push({date:d});added++;}});
  p.tests.sort((a,b)=>a.date<b.date?-1:1);
- save("plan");examMsg={ok:`「${r.name}」を取り込みました(範囲${r.subjects.length}教科・提出物${r.subs.length}件${added?"・カレンダーにテスト日"+added+"日":""}${nsch?"・日ごとの予定"+nsch+"日分":""})`};
+ save("plan");examMsg={ok:`「${r.name}」を取り込みました(範囲${r.subjects.length}教科・提出物${r.subs.length}件${added?"・カレンダーにテスト日"+added+"日":""}${nsch?"・日ごとの予定"+nsch+"日分":""}${r.strategy?"・作戦":""})`};
  ta.value="";renderCurrent();}
 function examToggle(id){
  const e=examData();if(!e)return;const s=e.subs.find(x=>x.id===id);if(!s)return;
@@ -2311,27 +2343,46 @@ function examDueTxt(e,s){
  const n=daysBetween(today(),d);
  const cls=!s.done&&n<=2?"style=\"color:var(--red);font-weight:700\"":"";
  return `<small ${cls}>${s.due?"提出 ":"テストの日に提出 "}${mdOf(d)}(${WDAY[dowOf(d)]})${s.done?"":n<0?"・すぎています":n===0?"・今日":"・あと"+n+"日"}</small>`;}
+function examStrategyHtml(st){
+ return `${st.goal?`<div class="exgoal">🎯 ${esc(st.goal)}</div>`:""}
+  ${st.steps.length?`<div class="exsteps">${st.steps.map((s,i)=>`<div class="exstep"><b>${esc(s.when||String(i+1))}</b>${esc(s.text)}</div>`).join("")}</div>`:""}
+  ${st.points.length?`<div class="expts">${st.points.map(p=>`<div class="expt"><span class="exlab">${esc(p.label||subLabel(p.subject))}</span><span>${esc(p.text)}</span></div>`).join("")}</div>`:""}
+  ${st.rules.length?`<div class="exrules"><b>毎回のルール</b>${st.rules.map((r,i)=>`<span>${CIRC[i]||"・"} ${esc(r)}</span>`).join("")}</div>`:""}`;}
+/** 日ごとの予定の表:今日に色、終わった日は✓、過ぎたのに終わっていない日は赤 */
+function examSchedHtml(e){
+ const sk=Object.keys(e.sched||{}).sort();if(!sk.length)return "";
+ const td=today();
+ return `<div class="card"><h2>📅 日ごとの予定</h2><p class="note" style="margin-bottom:4px">毎日はじめに「①前日の× ②暗記15分」。そのあとに、この予定をやります(ホームの日課に出ます)。</p>
+  <div class="exsched">${sk.map(d=>{
+   const info=planDayInfo(d),dn=planDone(d),rs=info.rows.filter(r=>r.key[0]==="e"),n=rs.filter(r=>dn[r.key]).length;
+   const full=rs.length>0&&n===rs.length,past=d<td,isT=d===td;
+   const stt=full?"✓ 済み":isT?"今日":past&&rs.length?"のこり"+(rs.length-n):"";
+   const cls=isT?"today":full?"done":past&&rs.length?"late":"";
+   const tasks=e.sched[d].filter(s=>!/^(直し|休憩)$/.test(s.title)).map(s=>esc(s.title)).join("<i>／</i>");
+   return `<div class="exday ${cls}"><b>${mdOf(d)}<small>(${WDAY[dowOf(d)]})</small></b><span>${tasks}</span><em>${stt}</em></div>`;}).join("")}</div></div>`;}
 RENDER.exam=function(){
  const e=examData(),par=document.body.classList.contains("parent"),el=qs("#s-exam");
  let h="";
  if(e){
-  const left=examSubsLeft(e).length,over=!examActive();
-  h+=`<div class="card"><h2>📝 ${esc(e.name)}${over?" <small class=\"note\">(終わったテスト)</small>":""}</h2>
-   <p class="note">${e.dates.length?"テストの日:"+e.dates.map(d=>mdOf(d)+"("+WDAY[dowOf(d)]+")").join("、"):"テストの日は読めませんでした"}${e.dates.length&&!over?"　あと"+Math.max(0,daysBetween(today(),[...e.dates].sort()[0]))+"日":""}</p></div>`;
-  h+=`<div class="card"><h2>✅ 提出物 <small class="note">${e.subs.length?(left?"のこり"+left+"件":"ぜんぶ終わり!"):""}</small></h2>
+  const left=examSubsLeft(e).length,over=!examActive(),st=e.strategy;
+  const dl=e.dates.length?"テストの日:"+e.dates.map(d=>mdOf(d)+"("+WDAY[dowOf(d)]+")").join("・"):"テストの日は読めませんでした";
+  const nd=e.dates.length&&!over?Math.max(0,daysBetween(today(),[...e.dates].sort()[0])):null;
+  h+=`<div class="card exhead"><div class="exttl"><h2>📝 ${esc(e.name)}${over?" <small class=\"note\">(終わったテスト)</small>":""}</h2><span class="note">${dl}${nd!==null?"　<b>あと"+nd+"日</b>":""}</span></div>
+   ${st?examStrategyHtml(st):""}</div>`;
+  const subsCard=`<div class="card"><h2>✅ 提出物 <small class="note">${e.subs.length?(left?"のこり"+left+"件":"ぜんぶ終わり!"):""}</small></h2>
    ${e.subs.length?`<div class="exsubs">${e.subs.map(s=>`<div class="exsub ${s.done?"done":""}"><button class="pchk" onclick="examToggle('${s.id}')" aria-label="チェック">${s.done?"✓":""}</button>
     <div class="exsb"><b><span class="exlab">${esc(examLabel(s))}</span>${esc(s.name)}</b>${examDueTxt(e,s)}</div></div>`).join("")}</div>
     <p class="note" style="margin-top:6px">終わったら □ をタップしてチェック。もう一度タップで外せます。</p>`:`<p class="note">提出物は読めませんでした。</p>`}</div>`;
-  const sk=Object.keys(e.sched||{}).sort();
-  if(sk.length)h+=`<details class="more card"><summary>📅 日ごとの予定(${sk.length}日分)</summary>${sk.map(d=>`<p class="note" style="margin-top:6px"><b>${mdOf(d)}(${WDAY[dowOf(d)]})</b> ${e.sched[d].map(s=>esc(s.title)).join(" / ")}</p>`).join("")}</details>`;
-  h+=`<div class="card"><h2>📚 テスト範囲</h2>${e.subjects.length?`<div class="exrng">${e.subjects.map(x=>`<div class="exr"><span class="exlab">${esc(examLabel(x))}</span><span>${esc(x.range)}</span></div>`).join("")}</div>`:`<p class="note">範囲は読めませんでした。</p>`}</div>`;}
+  const rngCard=`<div class="card"><h2>📚 テスト範囲</h2>${e.subjects.length?`<div class="exrng">${e.subjects.map(x=>`<div class="exr"><span class="exlab">${esc(examLabel(x))}</span><span>${esc(x.range)}</span></div>`).join("")}</div>`:`<p class="note">範囲は読めませんでした。</p>`}</div>`;
+  const sc=examSchedHtml(e);
+  h+=sc?`<div class="excols"><div>${sc}</div><div>${subsCard}${rngCard}</div></div>`:subsCard+rngCard;}
  else if(!par)h+=`<div class="card"><p class="note">テスト範囲はまだ入っていません。おうちの人が入れると、ここに出ます。</p></div>`;
  if(par){
   h+=`<div class="card flow"><h2>${e?"新しいテスト範囲を入れる":"テスト範囲・提出物を入れる(3ステップ)"}</h2>
    <ol class="flowl">
     <li><b>📱 範囲表を撮る</b><span>学校でもらったテスト範囲表(提出物の一覧)を、上から真っすぐ撮る。</span></li>
     <li><b>💬 Claudeに送る</b><span>プロジェクト「まなびば変換」で<b>新しいチャット</b>を開き、写真と、ここでコピーした文を送る。</span><div class="stepact"><button class="btn sub" onclick="copyText(examRules())">📋 Claudeに送る文をコピー</button></div></li>
-    <li><b>📋 返事を貼る</b><span>Claudeの返事をコピーして貼り、「取り込む」を押す。(日ごとの予定が入ったデータも、ここに貼ります)</span><div class="stepact"><textarea id="examPaste" class="exta" placeholder="ここにClaudeの返事を貼る"></textarea><button class="btn big" onclick="examImport()">取り込む</button>${examMsg?(examMsg.err?`<p style="color:var(--red)">⚠️ ${esc(examMsg.err)}</p>`:`<p>✅ ${esc(examMsg.ok)}</p>`):""}</div></li>
+    <li><b>📋 返事を貼る</b><span>Claudeの返事をコピーして貼り、「取り込む」を押す。(日ごとの予定・作戦が入ったデータも、ここに貼ります)</span><div class="stepact"><textarea id="examPaste" class="exta" placeholder="ここにClaudeの返事を貼る"></textarea><button class="btn big" onclick="examImport()">取り込む</button>${examMsg?(examMsg.err?`<p style="color:var(--red)">⚠️ ${esc(examMsg.err)}</p>`:`<p>✅ ${esc(examMsg.ok)}</p>`):""}</div></li>
    </ol>
    <p class="note" style="margin-top:6px">入れたものは、ホームの「📝 テスト範囲・提出物」と、カレンダーのテスト日に出ます。学校ドリルは、テストが終わるまで範囲のワークのページだけが出ます。新しく入れると前のテストと入れ替わります(同じ名前の提出物のチェックは残ります)。</p>
    ${e?`<button class="btn sub sm" style="margin-top:6px" onclick="examClear()">いまのテスト範囲を消す</button>`:""}</div>`;}
