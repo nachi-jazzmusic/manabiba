@@ -314,6 +314,9 @@ mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:
 .flowl li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 12px;border-radius:12px;background:var(--paper);border:1.5px solid var(--line)}
 .flowl li span{grid-column:1/-1;font-size:13px;color:var(--ink-soft)}
 .bkrow,.xrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.bkwork{padding:10px 0;border-bottom:1px solid var(--line)}
+.bkw1{font-size:15px}
+.bkbtns{display:flex;gap:8px;margin-top:8px}
 .warnl{font-size:13px;margin:6px 0 0 18px}
 .dtab{display:grid;grid-template-columns:auto repeat(3,1fr);gap:4px 10px;font-size:14px;text-align:right}
 .dtab>*:nth-child(4n+1){text-align:left}
@@ -2039,7 +2042,7 @@ RENDER.dimp=function(){
   ${last?`<div class="card"><h2>取り込みの結果</h2>${last.map(r=>r.error?`<p style="color:var(--red)">⚠️ ${esc(r.error)}</p>`:
    `<p>✅ ${esc(subLabel(r.subject))}「${esc(r.workbook)}」 p${r.pages.join(", p")}(大問${r.blocks}・小問${r.items})</p>${r.warn.length?`<details class="more"><summary>気になる点 ${r.warn.length}件(この問題は「おかしい」の報告で直せます)</summary><ul class="warnl">${r.warn.map(w=>`<li>${esc(w)}</li>`).join("")}</ul></details>`:""}`).join("")}</div>`:""}
   <div class="card"><h2>入っているワーク</h2>
-   ${X.books.length?X.books.map(bk=>`<div class="bkrow"><span><b>${esc(subLabel(bk.subject))}</b> ${esc(bk.workbook)} <small class="note">p${bk.pages.map(p=>p.page).join(",")}</small></span><button class="btn ${bk.toc?"sub ":""}sm" onclick="tocOpen('${esc(bk.key).replace(/'/g,"")}')">📑 目次${bk.toc?"✓":"を入れる"}</button><button class="btn sub sm" onclick="drillDeleteBook('${esc(bk.key).replace(/'/g,"")}')">消す</button></div>`).join(""):`<p class="note">まだありません。</p>`}
+   ${X.books.length?X.books.map(bk=>`<div class="bkwork"><div class="bkw1"><b>${esc(subLabel(bk.subject))}</b> ${esc(bk.workbook)}</div><div class="note">${bk.pages.length}ページ(p${bk.pages.length?Math.min(...bk.pages.map(p=>p.page))+"〜p"+Math.max(...bk.pages.map(p=>p.page)):""})${bk.toc?" ・目次あり":" ・目次なし"}</div><div class="bkbtns"><button class="btn ${bk.toc?"sub ":""}sm" onclick="tocOpen('${esc(bk.key).replace(/'/g,"")}')">📑 目次${bk.toc?"✓":"を入れる"}</button><button class="btn sub sm" onclick="drillDeleteBook('${esc(bk.key).replace(/'/g,"")}')">消す</button></div></div>`).join(""):`<p class="note">まだありません。</p>`}
    <div class="btnrow">${X.books.some(b=>b.key.includes("お試し"))?"":`<button class="btn sub sm" onclick="drillLoadSample()">🧪 お試しのワークを入れる</button>`}</div>
   </div>
   <details class="more card"><summary>はじめての時だけ:Claudeのプロジェクトの準備</summary>
