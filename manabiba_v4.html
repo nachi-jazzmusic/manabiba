@@ -210,7 +210,7 @@ body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
 .exbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;background:#FDF6E3;border:1.5px solid #E8B84B;border-radius:14px;padding:10px 14px;margin-bottom:10px;font-family:var(--disp);font-weight:900;font-size:15px;text-align:left}
 .exbtn span{font-size:13px;font-weight:700;color:var(--ink-soft)}
 .exbtn.hot span{color:var(--red)}
-.exsubs{display:flex;flex-direction:column;gap:6px}
+.exsubs{display:flex;flex-direction:column;gap:4px}
 /* テスト範囲の画面:パソコンでは広く使い、スクロールを減らす */
 #s-exam{width:min(1180px,calc(100vw - 32px));margin-left:calc((100% - min(1180px,calc(100vw - 32px)))/2)}
 .exhead .exttl{display:flex;align-items:baseline;gap:6px 14px;flex-wrap:wrap}
@@ -225,21 +225,25 @@ body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
 .exrules b{color:var(--ink)}
 .excols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 12px;align-items:start}
 @media(max-width:900px){.excols{grid-template-columns:minmax(0,1fr)}}
-.exday{display:grid;grid-template-columns:58px minmax(0,1fr) auto;gap:8px;align-items:start;padding:5px 6px;border-bottom:1px solid var(--line);font-size:13px;line-height:1.5}
+.exday{display:grid;grid-template-columns:26px 50px minmax(0,1fr) auto;gap:6px;align-items:center;padding:2px 4px;border-bottom:1px solid var(--line);font-size:13px;line-height:1.5}
 .exday:last-child{border-bottom:none}
-.exday b{font-family:var(--disp);font-size:13.5px;white-space:nowrap}.exday b small{font-size:11px;color:var(--ink-soft)}
+.exday b{font-family:var(--disp);font-size:12.5px;white-space:nowrap}.exday b small{font-size:11px;color:var(--ink-soft)}
 .exday i{font-style:normal;color:var(--ink-soft);margin:0 3px}
 .exday em{font-style:normal;font-size:12px;font-weight:800;white-space:nowrap}
 .exday.today{background:var(--mint-soft);border-radius:8px;border-bottom-color:transparent}
+.exday{font-size:12.5px;line-height:1.4}
+.exchk{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--line);background:#fff;font-size:15px;font-weight:900;color:#fff;line-height:1;padding:0}
+.exday.done .exchk{background:var(--mint);border-color:var(--mint)}
+.exday.done span{text-decoration:line-through}
 .exday.done{opacity:.5}.exday.done em{color:var(--mint)}
 .exday.late em{color:var(--red)}
 .exsub{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:4px 8px 4px 4px}
-.exsub .pchk{width:42px;min-height:42px;font-size:21px}
+.exsub .pchk{width:34px;min-height:34px;font-size:18px;border-radius:10px}
 .exsub.done{opacity:.55}.exsub.done .pchk{background:var(--mint);border-color:var(--mint);color:#fff}
 .exsb{display:flex;flex-direction:column;gap:2px;min-width:0}
-.exsb b{font-size:14px;line-height:1.45}
+.exsb{gap:0!important}.exsb b{font-size:12.5px;line-height:1.4}.exsb small{font-size:11px}
 .exlab{display:inline-block;min-width:3.2em;font-size:12px;font-weight:700;padding:0 6px;margin-right:6px;border-radius:6px;background:var(--mint-soft);text-align:center}
-.exrng{display:grid;grid-template-columns:auto 1fr;gap:6px 8px;align-items:start}
+.exrng{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;align-items:start;font-size:12.5px;line-height:1.45}
 .exr{display:contents}
 .exta{width:100%;min-height:110px;margin:8px 0;padding:8px 10px;border:1.5px solid var(--line);border-radius:12px;font-size:13px;font-family:inherit}
 .pmain{flex:1;min-width:0;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:1px;padding:4px 0}
@@ -1260,7 +1264,7 @@ const MANUAL=`## 全体
 - 保護者モード→テスト範囲・提出物 で入れる。手順:①学校のテスト範囲表を撮る ②Claudeのプロジェクト「まなびば変換」で新しいチャットを開き、写真と「📋 Claudeに送る文をコピー」でコピーした文を送る ③Claudeの返事をコピーして貼り、「取り込む」。
 - 取り込むと、テストの日はカレンダーにも入る(すでにある日はそのまま)。新しく入れると前のテストと入れ替わる(同じ教科・同じ名前の提出物のチェックは引き継ぐ)。「いまのテスト範囲を消す」で消せる(カレンダーのテスト日は残る)。
 - 香凜さんは、ホームの上の「📝 テスト範囲・提出物」(テストが終わるまで出る)から開く。教科ごとの範囲と、提出物の一覧が出る。提出物は終わったら □ をタップしてチェック(もう一度で外れる)。締切まで2日以内で終わっていないものは赤字。提出日が書いていない提出物は「テストの日に提出」として扱う。
-- 日ごとの予定:Claudeと相談して作った「日ごとの勉強予定」も、テスト範囲と同じ貼る欄から入れられる(テスト範囲のデータの中に sched として入れる。日ごとの予定だけを貼って、あとから入れ替えることもできる)。入れると、テストが終わるまでの間、その日がある日は、ホームの日課の③以降(スタサプ・学校ワークなど)が、その日の予定に入れ替わる(①前日の×と②暗記は同じ)。夜練・試合などの「暗記＋直し」「暗記のみ」の日は入れ替えない。「休み」にしてある日でも、予定があればそれを出す。入れた予定は、テスト範囲の画面の「📅 日ごとの予定」の表で見られる(1日1行。教科とページだけを出し、直し・休憩は省略。今日の行に色、終わった日は「✓ 済み」、過ぎたのに終わっていない日は赤で「のこり◯」。済みかどうかは、ホームの日課の□のチェックで決まる)。
+- 日ごとの予定:Claudeと相談して作った「日ごとの勉強予定」も、テスト範囲と同じ貼る欄から入れられる(テスト範囲のデータの中に sched として入れる。日ごとの予定だけを貼って、あとから入れ替えることもできる)。入れると、テストが終わるまでの間、その日がある日は、ホームの日課の③以降(スタサプ・学校ワークなど)が、その日の予定に入れ替わる(①前日の×と②暗記は同じ)。予定がある日は、日の種類にかかわらず予定を出す(夜練・試合の「暗記＋直し」「暗記のみ」の日も、帰ってからの時間の予定を入れておけば出る。「休み」の日は通常として扱う)。予定が無い日は、いつもの日課のまま。入れた予定は、テスト範囲の画面の「📅 日ごとの予定」の表で見られる(1日1行。教科とページだけを出し、直し・休憩は省略。今日の行に色、終わった日は「✓ 済み」、過ぎたのに終わっていない日は赤で「のこり◯」。済みかどうかは、ホームの日課の□のチェックで決まる。表の各行の左の□をタップすると、その日の予定(③以降)をまとめてチェック/はずせる)。
 - 作戦:テスト範囲のデータの中に strategy(目標・進め方・教科ごとの重点・毎回のルール)を入れると、テスト範囲の画面の一番上(テスト名の下)に出る。ポメ・親ポメにも渡すので、聞かれたら作戦に沿って答える。作戦だけを貼って入れ替えることもできる。パソコンでは、テスト範囲の画面を横に広く使い、日ごとの予定(左)と提出物・範囲(右)を2列に並べる(スマホは1列)。
 - 範囲表に書いてあるワークのページは、学校ドリルで使う(テストが終わるまで、範囲のページだけを出す)。社会(地理・歴史が分かれていない)は、地理と歴史の両方のワークに当てはめる。ワークのページが書いていない教科は、絞らずに全部出す。
 - 範囲を入れ直したい・直したい時は、Claudeに直してもらって取り込み直す(画面で1件ずつ直す機能は無い)。
@@ -1469,7 +1473,7 @@ function planDayInfo(iso){
  const mn=mainName(main),memo=planMemoOf(type,main,iso),rows=[];
  const X={key:"x",no:"①",title:"前日の×",hint:"きのうの×を解き直す",min:15,act:"drill"};
  const M={key:"memo",no:"②",title:"暗記",hint:memo.label+"の暗記カード",min:15,act:"cards",sub:memo.sub};
- if(type==="B"&&sc&&sc.length){
+ if(sc&&sc.length){ // 予定がある日は、日の種類(暗記＋直し・暗記のみ)にかかわらず予定を出す
   rows.push(X,M);
   sc.forEach((s,i)=>rows.push({key:"e"+(i+1),no:CIRC[i+2]||"・",title:s.title,hint:s.hint,min:s.min,act:s.act==="drill"?"drill":"none"}));
  }else if(type==="B"){
@@ -2348,18 +2352,23 @@ function examStrategyHtml(st){
   ${st.steps.length?`<div class="exsteps">${st.steps.map((s,i)=>`<div class="exstep"><b>${esc(s.when||String(i+1))}</b>${esc(s.text)}</div>`).join("")}</div>`:""}
   ${st.points.length?`<div class="expts">${st.points.map(p=>`<div class="expt"><span class="exlab">${esc(p.label||subLabel(p.subject))}</span><span>${esc(p.text)}</span></div>`).join("")}</div>`:""}
   ${st.rules.length?`<div class="exrules"><b>毎回のルール</b>${st.rules.map((r,i)=>`<span>${CIRC[i]||"・"} ${esc(r)}</span>`).join("")}</div>`:""}`;}
+/** 表の□:その日の予定の行(③以降)をまとめてチェック/はずす。ホームの日課のチェックと同じもの */
+function examDayToggle(d){
+ const rs=planDayInfo(d).rows.filter(r=>r.key[0]==="e");if(!rs.length)return;
+ const dn=planDone(d),all=rs.every(r=>dn[r.key]);
+ rs.forEach(r=>planMark(d,r.key,!all));renderCurrent();}
 /** 日ごとの予定の表:今日に色、終わった日は✓、過ぎたのに終わっていない日は赤 */
 function examSchedHtml(e){
  const sk=Object.keys(e.sched||{}).sort();if(!sk.length)return "";
  const td=today();
- return `<div class="card"><h2>📅 日ごとの予定</h2><p class="note" style="margin-bottom:4px">毎日はじめに「①前日の× ②暗記15分」。そのあとに、この予定をやります(ホームの日課に出ます)。</p>
+ return `<div class="card"><h2>📅 日ごとの予定</h2><p class="note" style="margin-bottom:4px">毎日はじめに「①前日の× ②暗記15分」。そのあとに、この予定をやります(ホームの日課に出ます)。終わった日は □ でチェック。</p>
   <div class="exsched">${sk.map(d=>{
    const info=planDayInfo(d),dn=planDone(d),rs=info.rows.filter(r=>r.key[0]==="e"),n=rs.filter(r=>dn[r.key]).length;
    const full=rs.length>0&&n===rs.length,past=d<td,isT=d===td;
    const stt=full?"✓ 済み":isT?"今日":past&&rs.length?"のこり"+(rs.length-n):"";
    const cls=isT?"today":full?"done":past&&rs.length?"late":"";
    const tasks=e.sched[d].filter(s=>!/^(直し|休憩)$/.test(s.title)).map(s=>esc(s.title)).join("<i>／</i>");
-   return `<div class="exday ${cls}"><b>${mdOf(d)}<small>(${WDAY[dowOf(d)]})</small></b><span>${tasks}</span><em>${stt}</em></div>`;}).join("")}</div></div>`;}
+   return `<div class="exday ${cls}"><button class="exchk" onclick="examDayToggle('${d}')" aria-label="チェック">${full?"✓":""}</button><b>${mdOf(d)}<small>(${WDAY[dowOf(d)]})</small></b><span>${tasks}</span><em>${stt}</em></div>`;}).join("")}</div></div>`;}
 RENDER.exam=function(){
  const e=examData(),par=document.body.classList.contains("parent"),el=qs("#s-exam");
  let h="";
