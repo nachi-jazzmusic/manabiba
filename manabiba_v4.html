@@ -241,8 +241,18 @@ body.hasTimer main{padding-top:calc(var(--bar-h) + 66px)}
 .exsteps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:6px;margin-top:8px}
 .exstep{background:var(--paper);border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;line-height:1.5}
 .exstep b{display:block;font-family:var(--disp);font-size:13.5px}
-.expts{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:4px 16px;margin-top:10px;font-size:13px;line-height:1.5}
+.expts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px;font-size:13px;line-height:1.5}
 .expt{display:flex;gap:4px;align-items:flex-start}
+.expt-card{min-width:0;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:8px 10px}
+.expt-card>.exlab{margin:0 0 6px}
+.expt-fields{display:flex;flex-direction:column;gap:5px}
+.expt-field{display:grid;grid-template-columns:145px minmax(0,1fr);gap:8px;align-items:start;padding:4px 0;border-top:1px solid var(--line)}
+.expt-field b{font-size:12px;line-height:1.5}
+.expt-field span,.expt-legacy{white-space:pre-line;min-width:0}
+.expt-field.how{padding:7px 8px;background:var(--mint-soft);border:0;border-radius:8px;font-size:14px;font-weight:800}
+.expt-field.how b{font-size:13px}
+@media(max-width:900px){.expts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.expts{grid-template-columns:minmax(0,1fr)}.expt-field{grid-template-columns:125px minmax(0,1fr)}}
 .exrules{display:flex;flex-wrap:wrap;gap:2px 16px;margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:13px;color:var(--ink-soft)}
 .exrules b{color:var(--ink)}
 .excols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 12px;align-items:start}
@@ -1271,7 +1281,10 @@ function ctxPlanDrill(){
   s+="\n学校ドリルで×が残っている問題:"+(xs.length?xs.map(id=>{const x=X.items[id],l=drillLast(id);return subLabel(x.B.sub)+" "+x.B.book.workbook+" p"+x.B.page+" "+(x.B.bl.no||"")+(x.it.no||"")+"(本人の答え「"+l.a+"」/正解「"+(x.it.answer||"")+"」)";}).join(" / "):"なし");}catch(e){}
  try{const e=examActive();if(e){
   s+="\nテスト:"+e.name+"("+e.dates.join("、")+")。範囲:"+e.subjects.map(x=>examLabel(x)+" "+x.range).join(" / ");
-  const st=e.strategy;if(st)s+="\nテストの作戦:"+[st.goal,st.steps.map(x=>(x.when?x.when+" ":"")+x.text).join(" → "),st.points.map(x=>(x.label||subLabel(x.subject))+":"+x.text).join(" / "),st.rules.length?"ルール:"+st.rules.join("・"):""].filter(Boolean).join("。");
+  const st=e.strategy;if(st)s+="\nテストの作戦:"+[st.goal,st.steps.map(x=>(x.when?x.when+" ":"")+x.text).join(" → "),st.points.map(x=>{
+   const detail=[x.test?"テストの出方:"+x.test:"",x.work?"ワークの中身:"+x.work:"",x.how?"だから、こうやる:"+x.how:"",x.care?"気をつけること:"+x.care:""].filter(Boolean);
+   return (x.label||subLabel(x.subject))+":"+(detail.length?detail.join(" / "):(x.text||""));
+  }).join(" / "),st.rules.length?"ルール:"+st.rules.join("・"):""].filter(Boolean).join("。");
   const lf=examSubsLeft(e);s+="\nまだ終わっていない提出物:"+(lf.length?lf.map(x=>examLabel(x)+" "+x.name+"(締切 "+(examDue(e,x)||"不明")+")").join(" / "):"なし");}}catch(e){}
  return s;}
 const PPOME_SYS=`あなたは「親ポメ」。中学1年生・香凜さんの保護者(お母さん)向けの学習コーチAI。
@@ -1331,7 +1344,7 @@ const MANUAL=`## 全体
 - 取り込むと、テストの日はカレンダーにも入る(すでにある日はそのまま)。新しく入れると前のテストと入れ替わる(同じ教科・同じ名前の提出物のチェックは引き継ぐ)。「いまのテスト範囲を消す」で消せる(カレンダーのテスト日は残る)。
 - 香凜さんは、ホームの上の「📝 テスト範囲・提出物」(テストが終わるまで出る)から開く。教科ごとの範囲と、提出物の一覧が出る。提出物は終わったら □ をタップしてチェック(もう一度で外れる)。締切まで2日以内で終わっていないものは赤字。提出日が書いていない提出物は「テストの日に提出」として扱う。
 - 日ごとの予定:Claudeと相談して作った「日ごとの勉強予定」も、テスト範囲と同じ貼る欄から入れられる(テスト範囲のデータの中に sched として入れる。日ごとの予定だけを貼って、あとから入れ替えることもできる)。入れると、テストが終わるまでの間、その日がある日は、ホームの日課の③以降(スタサプ・学校ワークなど)が、その日の予定に入れ替わる(①前日の×と②暗記は同じ)。予定がある日は、日の種類にかかわらず予定を出す(夜練・試合の「暗記＋直し」「暗記のみ」の日も、帰ってからの時間の予定を入れておけば出る。「休み」の日は通常として扱う)。予定が無い日は、いつもの日課のまま。入れた予定は、テスト範囲の画面の「📅 日ごとの予定」の表で見られる(1日1行。教科とページだけを出し、直し・休憩は省略。今日の行に色、終わった日は「✓ 済み」、過ぎたのに終わっていない日は赤で「のこり◯」。済みかどうかは、ホームの日課の□のチェックで決まる。表の各行の左の□をタップすると、その日の予定(③以降)をまとめてチェック/はずせる)。
-- 作戦:テスト範囲のデータの中に strategy(目標・進め方・教科ごとの重点・毎回のルール)を入れると、テスト範囲の画面の一番上(テスト名の下)に出る。ポメ・親ポメにも渡すので、聞かれたら作戦に沿って答える。作戦だけを貼って入れ替えることもできる。パソコンでは、テスト範囲の画面を横に広く使い、日ごとの予定(左)と提出物・範囲(右)を2列に並べる(スマホは1列)。
+- 作戦:テスト範囲のデータの中に strategy(目標・進め方・教科ごとの重点・毎回のルール)を入れると、テスト範囲の画面の一番上(テスト名の下)に出る。教科ごとの重点は「テストの出方・ワークの中身・だから、こうやる・気をつけること」を見出し付きで表示する。古い形式の1行(text)も表示できる。ポメ・親ポメにも渡すので、聞かれたら作戦に沿って答える。作戦だけを貼って入れ替えることもできる。パソコンでは、テスト範囲の画面を横に広く使い、日ごとの予定(左)と提出物・範囲(右)を2列に並べる(スマホは1列)。
 - 範囲表に書いてあるワークのページは、学校ドリルで使う(テストが終わるまで、範囲のページだけを出す)。社会(地理・歴史が分かれていない)は、地理と歴史の両方のワークに当てはめる。ワークのページが書いていない教科は、絞らずに全部出す。
 - 範囲を入れ直したい・直したい時は、Claudeに直してもらって取り込み直す(画面で1件ずつ直す機能は無い)。
 
@@ -2483,7 +2496,7 @@ function examParse(txt){
   const arr=v=>Array.isArray(v)?v:[];
   strategy={goal:String(st.goal||""),
    steps:arr(st.steps).filter(x=>x&&(typeof x==="string"||x.text)).map(x=>typeof x==="string"?{when:"",text:x}:{when:String(x.when||""),text:String(x.text)}),
-   points:arr(st.points).filter(x=>x&&x.text).map(x=>({subject:String(x.subject||"other"),label:String(x.label||""),text:String(x.text)})),
+   points:arr(st.points).filter(x=>x&&(x.text||x.test||x.work||x.how||x.care)).map(x=>({subject:String(x.subject||"other"),label:String(x.label||""),test:String(x.test||""),work:String(x.work||""),how:String(x.how||""),care:String(x.care||""),text:String(x.text||"")})),
    rules:arr(st.rules).filter(x=>x).map(String)};
   if(!strategy.goal&&!strategy.steps.length&&!strategy.points.length&&!strategy.rules.length)strategy=null;}
  if(!dates.length&&!subjects.length&&!subs.length&&!Object.keys(sched).length&&!strategy)throw new Error("テストの日・範囲・提出物・日ごとの予定・作戦のどれも読めませんでした");
@@ -2521,9 +2534,20 @@ function examDueTxt(e,s){
  const cls=!s.done&&n<=2?"style=\"color:var(--red);font-weight:700\"":"";
  return `<small ${cls}>${s.due?"提出 ":"テストの日に提出 "}${mdOf(d)}(${WDAY[dowOf(d)]})${s.done?"":n<0?"・すぎています":n===0?"・今日":"・あと"+n+"日"}</small>`;}
 function examStrategyHtml(st){
+ const pointHtml=p=>{
+  const label=esc(p.label||subLabel(p.subject));
+  const fields=[
+   ["📊 テストの出方",p.test,""],
+   ["📘 ワークの中身",p.work,""],
+   ["✅ だから、こうやる",p.how,"how"],
+   ["⚠️ 気をつけること",p.care,""]
+  ].filter(x=>x[1]);
+  return fields.length?`<div class="expt-card"><span class="exlab">${label}</span><div class="expt-fields">${fields.map(([title,text,cls])=>`<div class="expt-field ${cls}"><b>${title}</b><span>${esc(text)}</span></div>`).join("")}</div></div>`:
+   `<div class="expt"><span class="exlab">${label}</span><span class="expt-legacy">${esc(p.text)}</span></div>`;
+ };
  return `${st.goal?`<div class="exgoal">🎯 ${esc(st.goal)}</div>`:""}
   ${st.steps.length?`<div class="exsteps">${st.steps.map((s,i)=>`<div class="exstep"><b>${esc(s.when||String(i+1))}</b>${esc(s.text)}</div>`).join("")}</div>`:""}
-  ${st.points.length?`<div class="expts">${st.points.map(p=>`<div class="expt"><span class="exlab">${esc(p.label||subLabel(p.subject))}</span><span>${esc(p.text)}</span></div>`).join("")}</div>`:""}
+  ${st.points.length?`<div class="expts">${st.points.map(pointHtml).join("")}</div>`:""}
   ${st.rules.length?`<div class="exrules"><b>毎回のルール</b>${st.rules.map((r,i)=>`<span>${CIRC[i]||"・"} ${esc(r)}</span>`).join("")}</div>`:""}`;}
 /** 表の□:その日の予定の行(③以降)をまとめてチェック/はずす。ホームの日課のチェックと同じもの */
 function examDayToggle(d){
