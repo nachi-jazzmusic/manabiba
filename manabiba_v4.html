@@ -173,6 +173,28 @@ body.parent .chat{height:calc(100vh - var(--bar-h) - 44px)}
 #padModal{padding:10px}
 #padModal .ov-card{max-width:1200px;height:calc(100vh - 20px);max-height:none;display:flex;flex-direction:column}
 #padCanvas{flex:1;min-height:260px;width:100%;border:2px solid var(--line);border-radius:14px;background:#FCFCFA;touch-action:none;display:block}
+/* 写真つきの質問:切り取り・入力欄の上の小さな写真・会話の中の写真 */
+#cropModal{padding:10px;z-index:70}
+#cropModal .ov-card{max-width:900px;height:calc(100vh - 20px);max-height:none;display:flex;flex-direction:column}
+.cropstage{flex:1;min-height:0;background:#2A2A32;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.cropwrap{position:relative;line-height:0;touch-action:none;user-select:none;-webkit-user-select:none}
+.cropwrap img{display:block;pointer-events:none;-webkit-user-drag:none}
+.cropbox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.58);cursor:move;touch-action:none}
+.cropbox i{position:absolute;width:44px;height:44px;touch-action:none}
+.cropbox i::after{content:"";position:absolute;background:#fff;border-radius:3px}
+.cropbox i[data-h=nw]{left:-22px;top:-22px}.cropbox i[data-h=ne]{right:-22px;top:-22px}.cropbox i[data-h=sw]{left:-22px;bottom:-22px}.cropbox i[data-h=se]{right:-22px;bottom:-22px}
+.cropbox i[data-h=nw]::after,.cropbox i[data-h=ne]::after,.cropbox i[data-h=sw]::after,.cropbox i[data-h=se]::after{width:20px;height:20px;left:12px;top:12px}
+.cropbox i[data-h=n],.cropbox i[data-h=s]{left:calc(50% - 22px)}.cropbox i[data-h=w],.cropbox i[data-h=e]{top:calc(50% - 22px)}
+.cropbox i[data-h=n]{top:-22px}.cropbox i[data-h=s]{bottom:-22px}.cropbox i[data-h=w]{left:-22px}.cropbox i[data-h=e]{right:-22px}
+.cropbox i[data-h=n]::after,.cropbox i[data-h=s]::after{width:26px;height:6px;left:9px;top:19px}
+.cropbox i[data-h=w]::after,.cropbox i[data-h=e]::after{width:6px;height:26px;left:19px;top:9px}
+.photo-prev{display:flex;align-items:center;gap:8px;padding:6px 0 0}
+.photo-prev[hidden]{display:none}
+.photo-prev .pp{position:relative}
+.photo-prev img{height:64px;max-width:120px;object-fit:cover;border-radius:10px;border:1.5px solid var(--line);display:block}
+.photo-prev .pp button{position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:99px;background:var(--ink);color:#fff;font-size:12px}
+.chimg{display:block;max-width:100%;max-height:220px;border-radius:10px;margin-bottom:6px;cursor:zoom-in}
+@media(max-width:420px){.chat-in .tool{width:42px}}
 .pad-acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
 .form-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
 .form-row label{min-width:64px;font-size:13px;color:var(--ink-soft)}
@@ -437,6 +459,22 @@ mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:
       <button class="btn sub" onclick="clearPad()">消す</button>
       <button class="btn sub" onclick="closePad()">とじる</button>
       <span class="note" id="padMsg"></span>
+    </div>
+  </div>
+</div>
+<input type="file" id="photoFile" accept="image/*" style="display:none" onchange="photoPicked(this)">
+<div class="ov" id="cropModal">
+  <div class="ov-card">
+    <h3>✂️ 必要な所だけ残してね</h3>
+    <div class="cropstage" id="cropStage"><div class="cropwrap" id="cropWrap"><img id="cropImg" alt="">
+      <div class="cropbox" id="cropBox" data-h="move">
+        <i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i><i data-h="n"></i><i data-h="s"></i><i data-h="w"></i><i data-h="e"></i>
+      </div></div></div>
+    <div class="pad-acts">
+      <button class="btn" onclick="cropOk()">✅ これでOK</button>
+      <button class="btn sub" onclick="cropRotate()">↻ 回す</button>
+      <button class="btn sub" onclick="cropRetake()">📷 撮りなおす</button>
+      <button class="btn sub" onclick="cropCancel()">やめる</button>
     </div>
   </div>
 </div>
@@ -971,6 +1009,11 @@ C. 参照資料の場所(「動画どこ?」「やさまるの何ページ?」�
 - 本人が以前使った表現があれば、それを使って問いかける。
 - 同じ論点で3ターン前進しない、または「教えて」が2回出たら、次の1手だけ具体的に示し「ここから先は自分でやってみて」とつなぐ(最終的な答えは言わない)。
 
+# 写真が付いている時
+- 写真は、紙の問題を撮ったもの。手書きの書き込み・丸バツ・消しゴムのあとは無視して、問題文だけを読む。
+- 読み取りに自信が無い所(小さい字・影・ぼやけ・切れている)は、決めつけず「ここは〇〇って読んだけど合ってる?」と短く確かめる。まったく読めなければ、撮りなおしをお願いする。
+- そのあとは、A・Bの判定どおりに答える。写真の問題の答え(数値・選択肢・訳・模範解答)を、いきなり言わない。
+
 # 香凜さんの傾向(参考。決めつけない)
 - 手順の最後で崩れやすい(約分忘れ、代入後の計算、符号)
 - ドリルではできるのにテストで崩れる(再現性不足)
@@ -1082,7 +1125,7 @@ function cardsDrawEnd(){
    <p class="note">${perfect?"ぜんぶ 🟢 だったよ。すごい!":`あと <b>${CR.wrong.length}枚</b>。ここだけやれば1周ぶん覚えたことになるよ。`}</p>
    <div class="btnrow">
     ${CR.wrong.length?`<button class="btn" onclick="cardRetryWrong()">🔁 まちがえた${CR.wrong.length}枚をもう一度</button>
-    <button class="btn sub" onclick="cardSortStart()">🔍 まちがえた${CR.wrong.length}枚を仕分ける</button>`:""}
+    <button class="btn sub" onclick="cardSortStart()">🔍 まちがえた${CR.wrong.length}枚を仕分ける<small style="display:block;font-weight:500;opacity:.75">(カードはやらずに、うっかり/まだ を分けるだけ)</small></button>`:""}
     <button class="btn sub" onclick="cardsBuildQueue();renderCurrent()">↻ 最初からもう一度(${cardsPool().length}枚)</button>
     <button class="btn sub" onclick="cardsExit()">✅ おわる</button>
    </div>
@@ -1097,7 +1140,11 @@ function cardsDrawSort(){
   qs("#s-card").innerHTML=`<div class="cr-end"><div class="big">🔍</div><h2>仕分け おわり!</h2>
    <div class="score"><span>🟡 うっかり ${miss}</span><span>🔴 まだ ${notyet}</span></div>
    <p class="note">${notyet?`🔴の${notyet}枚は、このあと<b>お母さんと一緒に</b>見てみよう。`:"ぜんぶ「うっかりミス」だったよ。やり方はわかってるということ!"}</p>
-   <div class="btnrow"><button class="btn sub" onclick="CR.sort=null;cardsBuildQueue();renderCurrent()">↻ 最初からもう一度</button><button class="btn sub" onclick="cardsExit()">✅ おわる</button></div></div>`;
+   <div class="btnrow">
+    <button class="btn" onclick="cardRetryWrong()">🔁 まちがえた${s.q.length}枚をカードでもう一度</button>
+    <button class="btn sub" onclick="CR.sort=null;cardsBuildQueue();renderCurrent()">↻ 最初からもう一度</button>
+    <button class="btn sub" onclick="cardsExit()">✅ おわる</button>
+   </div></div>`;
   return;}
  const c=s.q[s.i];
  qs("#s-card").innerHTML=`
@@ -1318,7 +1365,7 @@ const MANUAL=`## 全体
 - 教科のボタンで切り替え、単元ごとにデッキが並ぶ。デッキをタップするとカードが始まる。単元名の横の「まとめて▶」でその単元を全部続けてやる。
 - カードをタップすると答えが出る。🔴わからなかった/🟡答えを見てわかった/🟢自力で答えられた、を押すと記録され次のカードへ。🟢が付いたカードが「覚えた」。
 - 「↩️ 取り消す」で直前の判定を取り消せる。「お母さんと説明」にすると説明する用の言い方になる。「ランダム」で順番を混ぜる。
-- 1周終わると、まちがえたカードだけやり直す/まちがえたカードを仕分ける(うっかり/まだわかってない)を選べる。
+- 1周終わると、まちがえたカードだけやり直す/まちがえたカードを仕分ける(うっかり/まだわかってない)を選べる。仕分けはカードをやらずに分けるだけで、仕分けが終わった画面からも「まちがえたカードをカードでもう一度」に進める。
 
 ## 暗記カード(保護者モード→🃏カード管理)
 - 「今日のカンペ」:今日やったカードの問題と答えの一覧。お母さんが声に出して出題するのに使う。🔴🟡だけで十分。
@@ -1328,7 +1375,8 @@ const MANUAL=`## 全体
 - リンク集のボタンをタップすると別のタブで開く。足す・消す・並べ替えは、保護者モード→🔗リンク管理。
 
 ## ポメ
-- ポメ(香凜さん用):考え方を引き出す係。暗記ものは答えをすぐ教える。入力は文字・🎤音声(会話モード:押すと返事のあとも自動で聞き取り、もう一度押すと終わる)・✍️手書き。返事の途中で「⏹ 中断」できる。
+- ポメ(香凜さん用):考え方を引き出す係。暗記ものは答えをすぐ教える。入力は文字・🎤音声(会話モード:押すと返事のあとも自動で聞き取り、もう一度押すと終わる)・✍️手書き・📷写真。返事の途中で「⏹ 中断」できる。
+- 📷写真(ポメのみ):📷を押すと、カメラで撮る/写真をえらぶ、が出る。撮ったあとに、必要な所だけ枠で切り取れる(角・辺をドラッグで大きさ、中をドラッグで場所、↻で回転)。「これでOK」を押すと入力欄の上に小さく出て(タップで切りなおし、✕で取りやめ)、メッセージをつけて(つけなくても可)送れる。送った写真は会話の中に残り、タップで大きく見られる。ポメに渡すのは、その会話の直近2枚の写真(古い写真は「省略」と伝わる)。写真はこの端末の中に保存され、バックアップにも入る。親ポメは写真を使えない。
 - 親ポメ(お母さん用):保護者モードのタイルから開く。教え方や進め方の相談ができる。ここで聞けば、まなびばの使い方も答える。
 - ポメに渡している情報(今の状況)は、保護者モード→🤖ポメの設定で見られる。中身は、暗記カードの直近の覚えていないもの、今日の日課、学校ドリルで×が残っている問題(本人の答えと正解)。
 - ポメの設定:APIキー・モデル名の変更、接続テスト。
@@ -1336,7 +1384,7 @@ const MANUAL=`## 全体
 ## バックアップ(保護者モード)
 - 「バックアップを書き出す」でファイルが保存される(APIキーも入っているので人に渡さない)。「バックアップを読み込む」で戻せる。`;
 const CHAT={
- pome:{key:"chats",face:"🐶",ph:"ポメにメッセージ…",fresh:"新しい会話",first:"はじめての会話",head:"🐶 ポメ"},
+ pome:{key:"chats",photo:true,face:"🐶",ph:"ポメにメッセージ…",fresh:"新しい会話",first:"はじめての会話",head:"🐶 ポメ"},
  ppome:{key:"pchats",face:"🐕",ph:"親ポメに相談…",fresh:"新しい相談",first:"はじめての相談",head:"🐕 親ポメ"}};
 const chatAbort={pome:null,ppome:null};
 const chatsOf=k=>D.pome[CHAT[k].key];
@@ -1352,18 +1400,21 @@ function chatBuild(k){
    <button class="btn sub" style="min-height:38px;padding:4px 14px;font-size:13px" onclick="chatHist('${k}')">💬 これまで</button></div>
   <div class="chat-scroll" id="${k}Msgs"></div>
   <div class="voice-status" id="${k}VoiceStatus"></div>
+  <div class="photo-prev" id="${k}Photo" hidden></div>
   <div class="chat-in"><textarea id="${k}Input" rows="1" placeholder="${CHAT[k].ph}" onkeydown="chatKeydown(event,()=>chatSend('${k}'))" oninput="autoGrow(this)"></textarea>
    <button class="tool" title="声で入力(会話モード)" onclick="chatVoiceInput('${k}Input','${k}VoiceStatus',this)">🎤</button>
    <button class="tool" title="手書き" onclick="openPad('${k}Input')">✍️</button>
+   ${CHAT[k].photo?`<button class="tool" title="写真を撮って質問" onclick="chatPickPhoto('${k}')">📷</button>`:""}
    <button class="send" id="${k}Send" onclick="chatSend('${k}')">送る</button></div></div>`;
- chatMsgs(k);
+ chatMsgs(k);photoPrevDraw(k);
  if(chatAbort[k]){const b=qs("#"+k+"Send");if(b)setChatSending(b,()=>chatAbort[k]&&chatAbort[k].abort());}}
 function chatMsgs(k){
  const box=qs("#"+k+"Msgs");if(!box)return;
  const c=chatCur(k),f=CHAT[k].face;
  const t=qs("#"+k+"Title");if(t)t.textContent=c.title;
- box.innerHTML=c.msgs.length?c.msgs.map(m=>`<div class="msg ${m.role==="user"?"me":""}">${m.role==="user"?"":`<span class="pface">${f}</span>`}<div class="bubble">${esc(m.content)}</div></div>`).join("")
+ box.innerHTML=c.msgs.length?c.msgs.map(m=>`<div class="msg ${m.role==="user"?"me":""}">${m.role==="user"?"":`<span class="pface">${f}</span>`}<div class="bubble">${m.img?chatImgTag(m.img):""}${esc(m.content)}</div></div>`).join("")
   :`<div class="msg"><span class="pface">${f}</span><div class="bubble">${k==="pome"?"こんにちは!今日はどこで困った?　問題をそのまま書いてくれてもいいよ🐾":esc(ctxSummary())+"\n\n何について相談しますか?(例:「日課表を変えたい時はどうすればいい?」「説明タイムで代入をどう聞けばいい?」)"}</div></div>`;
+ box.querySelectorAll("img[data-ref]").forEach(im=>{const r=im.dataset.ref;dbGet("images",r).then(v=>{if(v){CHIMG.set(r,v);im.src=v;im.removeAttribute("data-ref");box.scrollTop=box.scrollHeight;}}).catch(()=>{});});
  box.scrollTop=box.scrollHeight;}
 function chatHist(k){
  const a=chatsOf(k);
@@ -1372,18 +1423,101 @@ function chatHist(k){
   <div class="grow"><div>${esc(ch.title||"会話")}</div><div class="note">${esc(ch.date||"")}・${(ch.msgs||[]).length}件</div></div></div>`).join("")||`<p class="note">まだありません</p>`}`);}
 function chatOpen(k,i){const a=chatsOf(k);const c=a.splice(i,1)[0];a.unshift(c);save("pome");closeOv();chatBuild(k);}
 function chatFav(k,i){const a=chatsOf(k);a[i].fav=!a[i].fav;a.sort((x,y)=>(y.fav?1:0)-(x.fav?1:0));save("pome");chatHist(k);}
+/* ---------- 写真つきの質問(ポメ) ----------
+ * 📷→撮る/えらぶ→枠で切り取り→入力欄の上に小さく出る→メッセージをつけて送る。
+ * 写真は縮小(長辺1568px・JPEG)して imagesストア(バックアップに入る)に保存し、会話には参照(img)だけ持たせる。
+ * ポメに渡すのは、その会話の直近2枚だけ(毎回の送信で全部を送ると、通信量と費用が増えるため)。 */
+const chatPhoto={pome:null,ppome:null}; // 送信前の写真 {orig(切り取り前),crop(切り取りずみ)}(画面用・保存しない)
+const CHIMG=new Map(); // 会話の写真の読み込みずみキャッシュ(参照→dataURL)
+let photoFor="pome",CROP=null;
+const chatImgTag=ref=>CHIMG.has(ref)?`<img class="chimg" src="${CHIMG.get(ref)}" onclick="chatImgBig('${esc(ref)}')">`:`<img class="chimg" data-ref="${esc(ref)}" onclick="chatImgBig('${esc(ref)}')" alt="">`;
+function chatImgBig(ref){const v=CHIMG.get(ref);if(v)openOv(`<img src="${v}" style="width:100%;border-radius:12px">`);}
+async function chatApiMessages(c){
+ const keep=new Set(c.msgs.map((m,i)=>m.role==="user"&&m.img?i:-1).filter(i=>i>=0).slice(-2));
+ const out=[];
+ for(let i=0;i<c.msgs.length;i++){const m=c.msgs[i];
+  if(keep.has(i)){
+   let du=CHIMG.get(m.img);if(!du){try{du=await dbGet("images",m.img);}catch(e){}}
+   const mt=du&&/^data:([^;]+);base64,/.exec(du);
+   if(mt){out.push({role:"user",content:[{type:"image",source:{type:"base64",media_type:mt[1],data:du.slice(mt[0].length)}},{type:"text",text:m.content}]});continue;}}
+  out.push({role:m.role,content:m.img?m.content+"(写真は省略)":m.content});}
+ return out;}
+function chatPickPhoto(k){photoFor=k;const f=qs("#photoFile");f.value="";f.click();}
+function photoPicked(inp){
+ const f=inp.files&&inp.files[0];if(!f)return;
+ const url=URL.createObjectURL(f),im=new Image();
+ im.onload=()=>{ // 写真が大きすぎると重いので、切り取り前に長辺2000pxまで縮める
+  const r=Math.min(1,2000/Math.max(im.naturalWidth,im.naturalHeight)),cv=document.createElement("canvas");
+  cv.width=Math.round(im.naturalWidth*r);cv.height=Math.round(im.naturalHeight*r);
+  cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);URL.revokeObjectURL(url);
+  cropOpen(photoFor,cv.toDataURL("image/jpeg",0.9));};
+ im.onerror=()=>{URL.revokeObjectURL(url);toast("この写真は開けませんでした");};
+ im.src=url;}
+function cropOpen(k,orig){
+ CROP={k,orig,drag:null,box:null,dw:0,dh:0};
+ qs("#cropModal").classList.add("open");
+ const im=qs("#cropImg");im.onload=cropLayout;im.src=orig;}
+function cropLayout(){
+ const im=qs("#cropImg"),st=qs("#cropStage");if(!CROP||!im.naturalWidth)return;
+ const r=Math.min((st.clientWidth-8)/im.naturalWidth,(st.clientHeight-8)/im.naturalHeight);
+ CROP.dw=Math.max(60,Math.floor(im.naturalWidth*r));CROP.dh=Math.max(60,Math.floor(im.naturalHeight*r));
+ im.style.width=CROP.dw+"px";im.style.height=CROP.dh+"px";
+ const mx=Math.round(CROP.dw*0.04),my=Math.round(CROP.dh*0.04);
+ CROP.box={x:mx,y:my,w:CROP.dw-2*mx,h:CROP.dh-2*my};cropDraw();}
+function cropDraw(){const b=CROP.box,e=qs("#cropBox");e.style.left=b.x+"px";e.style.top=b.y+"px";e.style.width=b.w+"px";e.style.height=b.h+"px";}
+(function(){
+ const bx=document.getElementById("cropBox");
+ bx.addEventListener("pointerdown",e=>{if(!CROP)return;e.preventDefault();
+  CROP.drag={h:e.target.dataset.h||"move",px:e.clientX,py:e.clientY,b:{...CROP.box}};
+  try{bx.setPointerCapture(e.pointerId);}catch(_){}});
+ bx.addEventListener("pointermove",e=>{const s=CROP&&CROP.drag;if(!s)return;
+  const dx=e.clientX-s.px,dy=e.clientY-s.py,b=s.b,W=CROP.dw,H=CROP.dh,MIN=48,h=s.h;
+  let x1=b.x,y1=b.y,x2=b.x+b.w,y2=b.y+b.h;
+  if(h==="move"){x1=Math.min(Math.max(0,b.x+dx),W-b.w);y1=Math.min(Math.max(0,b.y+dy),H-b.h);x2=x1+b.w;y2=y1+b.h;}
+  else{
+   if(h.includes("w"))x1=Math.min(Math.max(0,b.x+dx),x2-MIN);
+   if(h.includes("e"))x2=Math.max(Math.min(W,b.x+b.w+dx),x1+MIN);
+   if(h.includes("n"))y1=Math.min(Math.max(0,b.y+dy),y2-MIN);
+   if(h.includes("s"))y2=Math.max(Math.min(H,b.y+b.h+dy),y1+MIN);}
+  CROP.box={x:x1,y:y1,w:x2-x1,h:y2-y1};cropDraw();});
+ const end=()=>{if(CROP)CROP.drag=null;};
+ bx.addEventListener("pointerup",end);bx.addEventListener("pointercancel",end);
+})();
+function cropRotate(){ // 時計まわりに90度。切り取りの枠は最初にもどる
+ const im=qs("#cropImg"),cv=document.createElement("canvas");
+ cv.width=im.naturalHeight;cv.height=im.naturalWidth;
+ const c=cv.getContext("2d");c.translate(cv.width,0);c.rotate(Math.PI/2);c.drawImage(im,0,0);
+ CROP.orig=cv.toDataURL("image/jpeg",0.9);im.onload=cropLayout;im.src=CROP.orig;}
+function cropOk(){
+ const im=qs("#cropImg"),b=CROP.box,s=im.naturalWidth/CROP.dw;
+ const sw=Math.round(b.w*s),sh=Math.round(b.h*s),r=Math.min(1,1568/Math.max(sw,sh)),cv=document.createElement("canvas");
+ cv.width=Math.max(1,Math.round(sw*r));cv.height=Math.max(1,Math.round(sh*r));
+ cv.getContext("2d").drawImage(im,Math.round(b.x*s),Math.round(b.y*s),sw,sh,0,0,cv.width,cv.height);
+ chatPhoto[CROP.k]={orig:CROP.orig,crop:cv.toDataURL("image/jpeg",0.85)};
+ const k=CROP.k;cropCancel();photoPrevDraw(k);}
+function cropCancel(){qs("#cropModal").classList.remove("open");CROP=null;}
+function cropRetake(){const k=CROP?CROP.k:"pome";cropCancel();chatPickPhoto(k);}
+function photoPrevDraw(k){
+ const el=qs("#"+k+"Photo");if(!el)return;const p=chatPhoto[k];
+ if(!p){el.hidden=true;el.innerHTML="";return;}
+ el.hidden=false;
+ el.innerHTML=`<div class="pp"><img src="${p.crop}" onclick="cropOpen('${k}',chatPhoto['${k}'].orig)" alt="撮った写真"><button onclick="chatPhoto['${k}']=null;photoPrevDraw('${k}')" aria-label="写真をやめる">✕</button></div><span class="note">タップで切りなおし。メッセージをつけて「送る」</span>`;}
 async function chatSend(k){
  if(chatAbort[k])return;
  flushChatVoiceInterim();
- const inp=qs("#"+k+"Input"),txt=inp?inp.value.trim():"";if(!txt)return;
+ const inp=qs("#"+k+"Input"),ph=chatPhoto[k],txt=(inp?inp.value.trim():"")||(ph?"この写真の問題を教えて。":"");if(!txt)return;
  pauseChatVoice();
- const c=chatCur(k);c.msgs.push({role:"user",content:txt});inp.value="";inp.style.height="auto";
+ chatAbort[k]=new AbortController(); // 写真の保存を待つ間に二重送信されないよう、先に「送信中」にする
+ const c=chatCur(k),um={role:"user",content:txt};
+ if(ph){const ref="idb:chat_"+Date.now()+"_"+Math.random().toString(36).slice(2,7);
+  CHIMG.set(ref,ph.crop);um.img=ref;chatPhoto[k]=null;photoPrevDraw(k);
+  try{await dbPut("images",ref,ph.crop);}catch(e){toast("写真を保存できませんでした(この会話にだけ表示されます)");}}
+ c.msgs.push(um);inp.value="";inp.style.height="auto";
  if(c.title===CHAT[k].fresh||c.title===CHAT[k].first)c.title=txt.slice(0,18);
  save("pome");chatMsgs(k);
- const history=c.msgs.map(m=>({role:m.role,content:m.content}));
+ const history=await chatApiMessages(c);
  const msg={role:"assistant",content:""};c.msgs.push(msg);
  const btn=qs("#"+k+"Send");
- chatAbort[k]=new AbortController();
  if(btn)setChatSending(btn,()=>chatAbort[k]&&chatAbort[k].abort());
  try{
   const sys=k==="pome"?POME_SYS+"\n\n"+ctxSummary():PPOME_SYS+"\n\n# まなびばの説明書\n"+MANUAL+"\n\n"+ctxSummary();
