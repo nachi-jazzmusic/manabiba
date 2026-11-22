@@ -434,6 +434,7 @@ mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:
   <section class="screen" id="s-ppome"></section>
   <section class="screen" id="s-card"></section>
   <section class="screen" id="s-cman"></section>
+  <section class="screen" id="s-cimp"></section>
   <section class="screen" id="s-lman"></section>
   <section class="screen" id="s-pset"></section>
   <section class="screen" id="s-cal"></section>
@@ -456,6 +457,7 @@ mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:
 
 <input type="file" id="fileDrill" accept=".json,application/json" multiple style="display:none" onchange="drillImportFile(this)">
 <input type="file" id="fileV4" accept=".json,application/json" style="display:none" onchange="importBackupFile(this)">
+<input type="file" id="fileCards" accept=".json,.txt,application/json,text/plain" multiple style="display:none" onchange="cimpFile(this)">
 <input type="file" id="fileV3" accept=".json,application/json" style="display:none" onchange="importOldBackupFile(this)">
 <div class="ov" id="ov" onclick="if(event.target===this)closeOv()"><div class="ov-card"><button class="ov-x" onclick="closeOv()" aria-label="とじる">✕</button><div id="ovBody"></div></div></div>
 <div class="ov" id="padModal" onclick="if(event.target===this)closePad()">
@@ -701,6 +703,7 @@ const PINTRO={
  drep:["v","👀 見るだけ","香凜さんが<b>「この問題おかしい」を押した問題</b>の一覧です。いつ:件数が出ている時だけ。"],
  exam:["i","📥 取り込む","<b>テスト範囲表を入れる</b>画面です。写真→Claude→返事を貼る、の順です。いつ:範囲表をもらった時。"],
  dpaper:["s","⚙️ 設定する","<b>紙のワークで×だった問題</b>を印にする画面です。タップすると、次の日の「×の解き直し」に出ます。いつ:紙のワークの丸つけが終わった後。"],
+ cimp:["i","📥 取り込む","<b>暗記カード(デッキ)を入れる</b>画面です。Claudeが作ったカードのファイルを選ぶか、返事を貼ります。いつ:新しいカードを作ってもらった時。"],
  cman:["s","⚙️ 設定する","暗記カードの<b>今日のカンペ</b>と、<b>終わっているデッキを「済み」にする</b>画面です。"],
  lman:["s","⚙️ 設定する","<b>リンク集</b>の、足す・消す・並べ替えをする画面です。"],
  pset:["s","⚙️ 設定する","ポメの<b>APIキー・モデル</b>を変える画面です。ポメに渡している情報も、ここで見られます。"]};
@@ -774,6 +777,7 @@ const RENDER={
    <div class="pgroup">📚 教材を入れる</div>
    <div class="ptiles2">
     ${T("goTo('dimp')","","ドリルの取り込み",I,"学校ワークの写真を入れて、学校ドリルで解けるようにします。目次も入れられます。","新しいワークが来た時(1冊に1回)")}
+    ${T("goTo('cimp')","🃏","暗記カードを取り込む",I,"Claudeが作った暗記カードのファイルを選ぶか、返事を貼って入れます。同じ名前のデッキは入れ替わります。","新しいカードを作ってもらった時")}
     ${T("goTo('cman')","🃏","カード管理",S,"今日の出題カンペを見たり、終わっているカードを「済み」にします。","暗記カードの記録を直したい時")}
     ${T("goTo('lman')","🔗","リンク管理",S,"リンク集の、足す・消す・並べ替えをします。","リンクを変えたい時")}
    </div>
@@ -1237,6 +1241,90 @@ RENDER.cman=function(){
       return `<div class="dchip tap ${cls}" onclick="toggleDeckDone(${i})"><span>${esc(deckShortName(d))}</span><small>${ok}/${cs.length}</small></div>`;}).join("")}</div></div></div>`).join("")}
   </div>`;};
 
+/* ---------- 暗記カードの取り込み(保護者) ----------
+ * 形:[{name,sub,unit,cards:[{q,a,exp,img?,imgBack?}]}](1デッキだけの {name,...} や {decks:[...]} も可)。
+ * 同じ名前(name)のデッキがあれば、増やさずにその場所で中身を入れ替える(並び順=番号が変わらないので、記録や今日のカンペも崩れない)。
+ * 入れ替える時、問題文(q)が同じカードは🟢🟡🔴の記録(lv/gs/last/sortTag)と写真を引き継ぐ。教科(sub)が SUBJECTS に無い時は "other"(その他)。 */
+let cimpMsg=null;
+function cimpParse(txt){
+ let t=String(txt||"").trim();
+ const m=t.match(/```(?:json)?\s*([\s\S]*?)```/);if(m)t=m[1].trim();
+ const i=t.search(/[\[{]/);if(i<0)throw new Error("カードのデータ(「[」で始まる文字)が見つかりません");
+ const e=Math.max(t.lastIndexOf("]"),t.lastIndexOf("}"));
+ let j;try{j=JSON.parse(t.slice(i,e+1));}catch(err){throw new Error("カードのデータの形がこわれています(最後まで貼れているか確認してください)");}
+ const arr=Array.isArray(j)?j:(j&&Array.isArray(j.decks)?j.decks:[j]);
+ if(!arr.some(d=>d&&Array.isArray(d.cards)))throw new Error("暗記カードのデータではないようです(cards が見つかりません)");
+ return arr;}
+async function cardsImportDecks(arr){
+ const rep={added:0,replaced:0,cards:0,kept:0,skipped:0,other:[]};
+ if(!Array.isArray(D.cards.decks))D.cards.decks=[];
+ const decks=D.cards.decks;
+ for(const d of arr){
+  const name=String((d&&d.name)||"").trim();
+  if(!name||!Array.isArray(d.cards)){rep.skipped++;continue;}
+  const sub=SUBJECTS.some(s=>s.id===d.sub)?d.sub:"other";
+  const old=decks.find(x=>x.name===name);
+  const prev=new Map();((old&&old.cards)||[]).forEach(c=>prev.set(String(c.q).trim(),c));
+  const cards=[];
+  for(const c of d.cards){
+   if(!c||!String(c.q||"").trim()||!String(c.a||"").trim())continue;
+   const card={q:String(c.q),a:String(c.a),exp:String(c.exp||""),lv:0,last:null,gs:0};
+   for(const f of ["img","imgBack"]){const v=c[f];if(!v)continue;
+    if(String(v).startsWith("data:")){const id=newImgId();await dbPut("images",id,v);card[f]=id;}
+    else if(String(v).startsWith("idb:"))card[f]=v;}
+   const p=prev.get(card.q.trim());
+   if(p){card.lv=p.lv??0;card.last=p.last??null;card.gs=p.gs??0;if(p.sortTag)card.sortTag=p.sortTag;
+    if(!card.img&&p.img)card.img=p.img;if(!card.imgBack&&p.imgBack)card.imgBack=p.imgBack;if(p.last||p.gs)rep.kept++;}
+   cards.push(card);}
+  if(!cards.length){rep.skipped++;continue;}
+  if(sub==="other")rep.other.push(name);
+  const unit=String(d.unit||"").trim();
+  if(old){old.cards=cards;old.sub=sub;old.unit=unit||old.unit||"";rep.replaced++;}
+  else{decks.push({id:"d"+Date.now().toString(36)+Math.random().toString(36).slice(2,6),name,sub,unit,cards});rep.added++;}
+  rep.cards+=cards.length;}
+ if(rep.added||rep.replaced)await save("cards");
+ return rep;}
+/** いくつかのデータ(arrのリスト)をまとめて入れる。すでにある名前があれば、先に1回だけ確かめる */
+async function cimpRun(lists){
+ const all=lists.flat(),have=new Set((D.cards.decks||[]).map(d=>d.name));
+ const dup=[...new Set(all.map(d=>String((d&&d.name)||"").trim()).filter(n=>have.has(n)))];
+ if(dup.length&&!confirm(`すでに入っているデッキが ${dup.length}個あります(${dup.slice(0,3).join("、")}${dup.length>3?" ほか":""})。\n増やさずに中身を入れ替えます。同じ問題のカードは🟢🟡🔴の記録が残ります。\nよろしいですか?`)){cimpMsg={err:"取り込みをやめました(何も変わっていません)"};renderCurrent();return false;}
+ const rep=await cardsImportDecks(all);
+ const ok=rep.added+rep.replaced;
+ cimpMsg=ok?{ok:`${ok}デッキ・${rep.cards}枚を入れました(新しく ${rep.added}デッキ・入れ替え ${rep.replaced}デッキ${rep.kept?`/記録を引き継いだカード ${rep.kept}枚`:""})。下のボタンで、香凜さんの画面を確かめられます。`,
+  warn:[rep.skipped?`読めなかったデッキが ${rep.skipped}個ありました(名前かカードが空)。`:"",rep.other.length?`教科が分からず「その他」に入れたデッキ:${rep.other.join("、")}`:""].filter(Boolean)}
+  :{err:"入れられるカードがありませんでした(問題 q と答え a のあるカードが0枚)"};
+ renderCurrent();return ok>0;}
+async function cimpFile(inp){
+ const fs=[...inp.files];inp.value="";if(!fs.length)return;
+ const lists=[];
+ for(const f of fs){try{lists.push(cimpParse(await f.text()));}catch(e){cimpMsg={err:f.name+":"+e.message};renderCurrent();return;}}
+ await cimpRun(lists);}
+async function cimpPaste(){
+ const el=qs("#cimpPaste"),txt=el?el.value:"";
+ if(!txt.trim()){toast("Claudeの返事を貼ってください");return;}
+ let arr;try{arr=cimpParse(txt);}catch(e){cimpMsg={err:e.message};renderCurrent();return;}
+ await cimpRun([arr]);}
+RENDER.cimp=function(){
+ const decks=D.cards.decks||[];
+ const bySub=SUBJECTS.map(s=>({n:s.name,c:decks.filter(d=>d.sub===s.id)})).filter(x=>x.c.length);
+ const oth=decks.filter(d=>!SUBJECTS.some(s=>s.id===d.sub));
+ if(oth.length)bySub.push({n:"その他",c:oth});
+ const m=cimpMsg;
+ qs("#s-cimp").innerHTML=`
+  <div class="card flow"><h2>🃏 暗記カードを取り込む</h2>
+   <p class="note">どちらか片方でOKです。</p>
+   <ol class="flowl">
+    <li><b>📂 ファイルで入れる</b><span>Claudeが作ったカードのファイル(.json)を選びます。いくつか一度に選べます。</span><div class="stepact"><button class="btn big" onclick="qs('#fileCards').click()">📂 ファイルを選んで取り込む</button></div></li>
+    <li><b>📋 貼って入れる</b><span>Claudeの返事(カードのデータ)をコピーして貼り、「取り込む」を押します。</span><div class="stepact"><textarea id="cimpPaste" class="exta" placeholder="ここにClaudeの返事を貼る"></textarea><button class="btn big" onclick="cimpPaste()">取り込む</button></div></li>
+   </ol>
+   ${m?(m.err?`<p style="color:var(--red)">⚠️ ${esc(m.err)}</p>`:`<p>✅ ${esc(m.ok)}</p>${(m.warn||[]).map(w=>`<p class="note" style="color:var(--red)">⚠️ ${esc(w)}</p>`).join("")}<div class="btnrow"><button class="btn sub" onclick="toggleParent();goTab('cards')">🃏 暗記カードの画面を見る</button></div>`):""}
+   <p class="note" style="margin-top:6px">同じ名前のデッキがすでにある時は、増やさずに中身を入れ替えます。同じ問題のカードは🟢🟡🔴の記録がそのまま残ります。</p>
+  </div>
+  <div class="card"><h2>入っているデッキ</h2>
+   ${bySub.length?bySub.map(x=>`<details class="more"><summary>${esc(x.n)} ${x.c.length}デッキ・${x.c.reduce((a,d)=>a+(d.cards||[]).length,0)}枚</summary><p class="note">${x.c.map(d=>esc(deckShortName(d))+"("+(d.cards||[]).length+")").join("、")}</p></details>`).join(""):`<p class="note">まだデッキがありません。</p>`}
+  </div>`;};
+
 /* ---------- リンク集の管理(保護者) ---------- */
 function addLink(){
  const name=qs("#ln_name").value.trim(),url=qs("#ln_url").value.trim(),sub=qs("#ln_sub").value;
@@ -1380,6 +1468,11 @@ const MANUAL=`## 全体
 - カードをタップすると答えが出る。🔴わからなかった/🟡答えを見てわかった/🟢自力で答えられた、を押すと記録され次のカードへ。🟢が付いたカードが「覚えた」。
 - 「↩️ 取り消す」で直前の判定を取り消せる。「お母さんと説明」にすると説明する用の言い方になる。「ランダム」で順番を混ぜる。
 - 1周終わると、まちがえたカードだけやり直す/まちがえたカードを仕分ける(うっかり/まだわかってない)を選べる。仕分けはカードをやらずに分けるだけで、仕分けが終わった画面からも「まちがえたカードをカードでもう一度」に進める。
+
+## 暗記カードの取り込み(保護者モード→🃏暗記カードを取り込む)
+- Claudeが作った暗記カードのファイル(.json)を「📂 ファイルを選んで取り込む」で選ぶ。または、Claudeの返事をコピーして貼り「取り込む」。どちらか片方でよい。
+- 形は [{name:デッキ名, sub:教科(math/eng/jpn/sci/geo/his/pe), unit:単元名, cards:[{q:問題, a:答え, exp:解説}]}]。教科が分からないデッキは「その他」に入る。
+- 同じ名前のデッキがすでにある時は、確認のあと、増やさずに中身を入れ替える。同じ問題のカードは🟢🟡🔴の記録が残る。
 
 ## 暗記カード(保護者モード→🃏カード管理)
 - 「今日のカンペ」:今日やったカードの問題と答えの一覧。お母さんが声に出して出題するのに使う。🔴🟡だけで十分。
@@ -1570,7 +1663,7 @@ RENDER.pset=function(){
    <details class="more"><summary>親ポメが持っている「まなびばの説明書」</summary><div class="ctxbox">${esc(MANUAL)}</div></details></div>`;};
 
 /* 画面の名前 */
-Object.assign(TITLES,{card:"暗記カード",cman:"🃏 カード管理",lman:"🔗 リンク管理",pset:"🤖 ポメの設定"});
+Object.assign(TITLES,{card:"暗記カード",cman:"🃏 カード管理",cimp:"🃏 暗記カードを取り込む",lman:"🔗 リンク管理",pset:"🤖 ポメの設定"});
 
 /* ---------- 3段階目:日課表(今日の日課・カレンダー・今週・時間の目安タイマー) ----------
  * 日の種類 B/A/暗記のみ/休み。メイン教科は B日 ごとに 国→数→社→理→英→数 の順で回る(日付から計算するので、保存は日ごとの種類・手で変えたメイン教科・チェックだけ)。
