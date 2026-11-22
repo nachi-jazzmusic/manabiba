@@ -1849,7 +1849,7 @@ Object.assign(TITLES,{cal:"📅 カレンダー",week:"📊 今日と今週"});
  * 写真:IndexedDB pages ストア(キー「本のキー|q|ページ」=問題ページ、「本のキー|a|ページ」=そのページの解答ページ)
  * D.drill = {books:{本のキー:{key,workbook,subject,importedAt,pages:[{page,answerPage,blocks:[{bid,unit,no,region,answerRegion,items}]}]}},
  *            log:{小問id:[{d:日付,ok,a:答え,paper?,fixed?}]}, skip:{大問id:日付}, reports:[…], alt:{小問id:[保護者が○に直した答え]}} */
-const SUB_ORDER=["math","eng","jpn","sci","geo","his"];
+const SUB_ORDER=["math","eng","jpn","sci","geo","his","pe"];
 let DX=null; // 問題の索引(画面用・保存しない)。取り込み・削除のたびに作り直す
 function drillData(){
  const d=D.drill;
