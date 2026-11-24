@@ -370,6 +370,9 @@ mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:
 .pgc.cur{background:var(--ink);color:#fff;border-color:var(--ink)}
 /* 学校ドリル:教科タブと、章ごとのまとまり */
 .dsubs{margin:8px 0}
+.dredo{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 8px}
+.dredo span{font-size:13px;color:var(--ink-soft)}
+.dredo .btn{width:auto;padding:7px 12px;font-size:14px}
 .dsubs button{flex:1;text-align:center;padding:9px 6px}
 .unit.dr{grid-template-columns:190px 1fr;align-items:center;padding:4px 0}
 .unit.dr h3{padding-top:0}
@@ -1408,7 +1411,7 @@ const MANUAL=`## 全体
 - 「次へ」で次の大問へ。同じページならズームの場所だけが動く。
 - 「まだ習ってない」:授業でまだやっていない大問を飛ばす。1週間たったら、また出る。
 - 「この問題おかしい」:写真の位置ずれ・正解のまちがいなどを、お母さんに知らせる。その問題は×にならず、直すまで出ない。
-- 画面:上の「🔁 ×の解き直し」=前の日までの×を、教科をまたいで古い順に出す(×だった小問だけ)。教科ごとの「▶ つづきから」=まだ解いていない問題をページ順に10大問まで。ページの札(p52など)をタップすると、○だった問題も含めてそのページを最初から全部解ける(○だった問題をもう一度やりたい時はこれ。今日×だった問題だけは、あしたまで出さない)。札の色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。
+- 画面:上の「🔁 ×の解き直し」=前の日までの×を、教科をまたいで古い順に出す(×だった小問だけ)。そのすぐ下の「教科ごとに:」のボタン(「🔁 数学の×(5問)」など。×がある教科だけ出る)を押すと、その教科の×だけを古い順に解き直せる。教科ごとの「▶ つづきから」=まだ解いていない問題をページ順に10大問まで。ページの札(p52など)をタップすると、○だった問題も含めてそのページを最初から全部解ける(○だった問題をもう一度やりたい時はこれ。今日×だった問題だけは、あしたまで出さない)。札の色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。
 - ページの札は、ワークの目次(保護者が入れたもの)の単元ごとに1行ずつ並ぶ。左に単元名、右にそのページ。目次が入っていないワークは、問題に書いてある単元名でまとめる。
 - 画面の上の教科タブ(数学・英語…)で、教科を1つずつ切り替えて見る。目次に「確認テスト ◯◯」の項目があるワークは、その項目を章の終わりとみなして、単元を「章」ごとにまとめる(章の見出しは確認テストの名前、右に「解いたページ/全ページ」と×の数)。章はタップで開閉でき、はじめは「まだ終わっていない最初の章」と「×がある章」だけ開いている(手で開閉したらそれを優先。画面を開き直すと元にもどる)。確認テストの項目が無いワークは、章に分けず今まで通り一列。
 - 教科タブには保健体育も含まれる。保健体育のワークも、ほかの教科と同じように取り込み、ページの札から解く。
@@ -2076,10 +2079,10 @@ function drillBuildQueue(mode,opt){
    const ids=(B.bl.items||[]).filter(it=>!drillHist(it.id).length).map(it=>it.id);
    if(ids.length)q.push({bid:B.bid,ids});
    if(q.length>=DRILL_WORK_MAX)break;}}
- else if(mode==="redo"){ // ×の解き直し:前日以前の×を、教科をまたいで古い順に。×だった小問だけ
+ else if(mode==="redo"){ // ×の解き直し:前日以前の×を、教科をまたいで古い順に。×だった小問だけ(opt.sub があればその教科だけ)
   const by={};
   Object.keys(X.items).forEach(id=>{
-   const {B}=X.items[id];if(rep.has(B.bid)||!drillRedoable(id))return;
+   const {B}=X.items[id];if(rep.has(B.bid)||!drillRedoable(id)||(opt.sub&&B.sub!==opt.sub))return;
    const h=drillHist(id),lastX=[...h].reverse().find(r=>!r.ok).d;
    if(!by[B.bid])by[B.bid]={bid:B.bid,ids:[],d:lastX};
    by[B.bid].ids.push(id);if(lastX<by[B.bid].d)by[B.bid].d=lastX;});
@@ -2092,7 +2095,7 @@ function drillBuildQueue(mode,opt){
    if(ids.length)q.push({bid:B.bid,ids});}}
  return q;}
 const drillWorkLeft=(sub,R)=>{const X=drillIndex(),rep=drillOpenReports();let n=0;X.blocks.forEach(B=>{if(B.sub!==sub||rep.has(B.bid)||drillSkipped(B.bid)||(R&&!R.has(B.page)))return;(B.bl.items||[]).forEach(it=>{if(!drillHist(it.id).length)n++;});});return n;};
-const drillRedoLeft=()=>{const X=drillIndex(),rep=drillOpenReports();return Object.keys(X.items).filter(id=>!rep.has(X.items[id].B.bid)&&drillRedoable(id)).length;};
+const drillRedoLeft=sub=>{const X=drillIndex(),rep=drillOpenReports();return Object.keys(X.items).filter(id=>!rep.has(X.items[id].B.bid)&&(!sub||X.items[id].B.sub===sub)&&drillRedoable(id)).length;};
 
 /* --- 解く画面 --- */
 let DS=null; // 今解いている状態(画面用・保存しない)
@@ -2266,7 +2269,8 @@ RENDER.drill=function(){
  const subs=f?all.filter(s=>rg[s].inExam):all;
  // 教科はタブで1つずつ表示(はじめは、まだ解く問題が残っている最初の教科)
  if(!subs.includes(drillSub))drillSub=subs.find(s=>drillWorkLeft(s,f?rg[s].pages:null))||subs[0];
- el.innerHTML=`<button class="btn wide ${nr?"big":"sub"}" ${nr?"":"disabled"} onclick="drillStart('redo')">🔁 ×の解き直し${nr?`(${nr}問)`:"はありません"}</button>
+ el.innerHTML=`<button class="btn wide ${nr?"big":"sub"}" ${nr?"":"disabled"} onclick="drillStart('redo')">🔁 ×の解き直し${nr?`(全教科 ${nr}問)`:"はありません"}</button>
+  ${nr?`<div class="dredo"><span>教科ごとに:</span>${all.map(s=>[s,drillRedoLeft(s)]).filter(([,n])=>n).map(([s,n])=>`<button class="btn sub" onclick="drillStart('redo',{sub:'${s}'})">🔁 ${esc(subLabel(s))}の×(${n}問)</button>`).join("")}</div>`:""}
   ${canF?`<div class="dfilter"><button class="${f?"on":""}" onclick="drillShowAll=false;renderCurrent()">📝 ${esc(e.name)}の範囲</button><button class="${f?"":"on"}" onclick="drillShowAll=true;renderCurrent()">ぜんぶ</button></div>`:""}
   <div class="segs dsubs">${subs.map(s=>`<button class="${s===drillSub?"on":""}" onclick="drillSub='${s}';renderCurrent()">${esc(subLabel(s))}</button>`).join("")}</div>
   ${subs.filter(s=>s===drillSub).map(s=>{const R=f?rg[s].pages:null,left=drillWorkLeft(s,R);
