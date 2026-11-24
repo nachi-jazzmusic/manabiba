@@ -373,6 +373,8 @@ mark.dr{background:var(--mint-soft);color:#2d7a5f;font-weight:700;border-bottom:
 .dredo{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 8px}
 .dredo span{font-size:13px;color:var(--ink-soft)}
 .dredo .btn{width:auto;padding:7px 12px;font-size:14px}
+.dtoday{display:block;font-size:14px;font-weight:700;margin:0 0 10px}
+.dtoday small{display:block;font-weight:500;font-size:12px;color:var(--ink-soft);margin-left:22px}
 .dsubs button{flex:1;text-align:center;padding:9px 6px}
 .unit.dr{grid-template-columns:190px 1fr;align-items:center;padding:4px 0}
 .unit.dr h3{padding-top:0}
@@ -1411,7 +1413,7 @@ const MANUAL=`## 全体
 - 「次へ」で次の大問へ。同じページならズームの場所だけが動く。
 - 「まだ習ってない」:授業でまだやっていない大問を飛ばす。1週間たったら、また出る。
 - 「この問題おかしい」:写真の位置ずれ・正解のまちがいなどを、お母さんに知らせる。その問題は×にならず、直すまで出ない。
-- 画面:上の「🔁 ×の解き直し」=前の日までの×を、教科をまたいで古い順に出す(×だった小問だけ)。そのすぐ下の「教科ごとに:」のボタン(「🔁 数学の×(5問)」など。×が0問の教科は押せない灰色で出る)を押すと、その教科の×だけを古い順に解き直せる。教科ごとの「▶ つづきから」=まだ解いていない問題をページ順に10大問まで。ページの札(p52など)をタップすると、○だった問題も含めてそのページを最初から全部解ける(○だった問題をもう一度やりたい時はこれ。今日×だった問題だけは、あしたまで出さない)。札の色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。
+- 画面:上の「🔁 ×の解き直し」=前の日までの×を、教科をまたいで古い順に出す(×だった小問だけ)。そのすぐ下の「教科ごとに:」のボタン(「🔁 数学の×(5問)」など。×が0問の教科は押せない灰色で出る)を押すと、その教科の×だけを古い順に解き直せる。×は、ふだんは解いた次の日から出る(今日の×は今日は出ない)。今日の×がある時だけ「今日の×(◯問)も入れる」のチェックが出て、チェックすると今日の×も解き直し(全教科・教科ごと)に入る(テストの前の日など用。アプリを開き直すと外れる)。教科ごとの「▶ つづきから」=まだ解いていない問題をページ順に10大問まで。ページの札(p52など)をタップすると、○だった問題も含めてそのページを最初から全部解ける(○だった問題をもう一度やりたい時はこれ。今日×だった問題だけは、あしたまで出さない)。札の色:緑=ぜんぶ解いた、赤=×がのこっている、点線=まだ。
 - ページの札は、ワークの目次(保護者が入れたもの)の単元ごとに1行ずつ並ぶ。左に単元名、右にそのページ。目次が入っていないワークは、問題に書いてある単元名でまとめる。
 - 画面の上の教科タブ(数学・英語…)で、教科を1つずつ切り替えて見る。目次に「確認テスト ◯◯」の項目があるワークは、その項目を章の終わりとみなして、単元を「章」ごとにまとめる(章の見出しは確認テストの名前、右に「解いたページ/全ページ」と×の数)。章はタップで開閉でき、はじめは「まだ終わっていない最初の章」と「×がある章」だけ開いている(手で開閉したらそれを優先。画面を開き直すと元にもどる)。確認テストの項目が無いワークは、章に分けず今まで通り一列。
 - 教科タブには保健体育も含まれる。保健体育のワークも、ほかの教科と同じように取り込み、ページの札から解く。
@@ -1974,7 +1976,9 @@ const drillXCount=id=>drillHist(id).filter(r=>!r.ok).length;
 const drillNigate=id=>drillXCount(id)>=3;
 const drillLast=id=>{const h=drillHist(id);return h[h.length-1]||null;};
 /** ×の解き直しに出せるか:×リストにあり、最後に解いたのが今日より前(同じ日には出し直さない) */
-const drillRedoable=id=>drillState(id)==="x"&&drillLast(id).d<today();
+let drillIncToday=false; // 「今日の×も入れる」を押した時だけtrue(保存しない。テスト前夜などに今日の×をすぐやり直すため)
+const drillRedoable=id=>drillState(id)==="x"&&(drillIncToday||drillLast(id).d<today());
+const drillTodayX=()=>{const X=drillIndex(),rep=drillOpenReports();return Object.keys(X.items).filter(id=>!rep.has(X.items[id].B.bid)&&drillState(id)==="x"&&drillLast(id).d===today()).length;};
 const drillOpenReports=()=>new Set(drillData().reports.filter(r=>!r.done).map(r=>r.bid));
 const drillSkipped=bid=>{const s=drillData().skip[bid];return !!s&&daysBetween(s,today())<7;};
 const subLabel=id=>subName(id)||id;
@@ -2269,13 +2273,14 @@ RENDER.drill=function(){
  const all=SUB_ORDER.filter(s=>X.books.some(b=>b.subject===s)),rg={};all.forEach(s=>rg[s]=examWork(s));
  const canF=!!e&&all.some(s=>rg[s].pages),f=canF&&!drillShowAll;
  // ×の解き直しも、範囲の表示中は範囲の中の×だけ(「ぜんぶ」の時は全部)
- const nr=drillRedoLeft(null,f),rs=f?all.filter(s=>rg[s].inExam):all,ro=f?",range:1":"";
+ const nt=drillTodayX(),nr=drillRedoLeft(null,f),rs=f?all.filter(s=>rg[s].inExam):all,ro=f?",range:1":"";
  const subs=f?all.filter(s=>rg[s].inExam):all;
  // 教科はタブで1つずつ表示(はじめは、まだ解く問題が残っている最初の教科)
  if(!subs.includes(drillSub))drillSub=subs.find(s=>drillWorkLeft(s,f?rg[s].pages:null))||subs[0];
  el.innerHTML=`${canF?`<div class="dfilter"><button class="${f?"on":""}" onclick="drillShowAll=false;renderCurrent()">📝 ${esc(e.name)}の範囲</button><button class="${f?"":"on"}" onclick="drillShowAll=true;renderCurrent()">ぜんぶ</button></div>`:""}
   <button class="btn wide ${nr?"big":"sub"}" ${nr?"":"disabled"} onclick="drillStart('redo'${f?",{range:1}":""})">🔁 ${f?"範囲の":""}×の解き直し${nr?`(全教科 ${nr}問)`:"はありません"}</button>
   ${nr?`<div class="dredo"><span>教科ごとに:</span>${rs.map(s=>[s,drillRedoLeft(s,f)]).map(([s,n])=>`<button class="btn sub" ${n?"":"disabled"} onclick="drillStart('redo',{sub:'${s}'${ro}})">🔁 ${esc(subLabel(s))}の×(${n}問)</button>`).join("")}</div>`:""}
+  ${nt?`<label class="dtoday"><input type="checkbox" ${drillIncToday?"checked":""} onchange="drillIncToday=this.checked;renderCurrent()"> 今日の×(${nt}問)も入れる<small>ふだんは、あした以降に出ます。テストの前の日など、今日のうちにやり直したい時に</small></label>`:""}
   <div class="segs dsubs">${subs.map(s=>`<button class="${s===drillSub?"on":""}" onclick="drillSub='${s}';renderCurrent()">${esc(subLabel(s))}</button>`).join("")}</div>
   ${subs.filter(s=>s===drillSub).map(s=>{const R=f?rg[s].pages:null,left=drillWorkLeft(s,R);
    return `<div class="card"><div class="drhead"><h2>${esc(subLabel(s))}</h2><button class="btn ${left?"":"sub"}" ${left?"":"disabled"} onclick="drillStart('work',{sub:'${s}'${R?",range:1":""}})">▶ つづきから${left?`(${R?"範囲の":""}のこり${left}問)`:""}</button></div>
